@@ -13,7 +13,7 @@ Learn each topic in the week you build it.
 
 | Week | Dates | Build | Learn | Done when |
 |---|---|---|---|---|
-| 0 | 24–27 Sep | Repo from App 2's skeleton; Claude Code in PyCharm with these docs; download the dataset, convert it once, write the data manifest; anonymised tag map and tag register; start a time log; ask the referrer for the UptimeAI date | Claude Code basics | Data loads by split, and Claude Code explains the rules back correctly |
+| 0 | 24–27 Sep | Minimal skeleton (folder layout, pinned requirements, pytest config; App 2's deploy setup is reused in week 2); Claude Code in PyCharm with these docs; download the dataset, convert it once, write the data manifest; anonymised tag map and tag register; start a time log; ask the referrer for the UptimeAI date | Claude Code basics | The dataset's four files are converted and the open data loads by file (run-level pools come in week 1), and Claude Code explains the rules back correctly |
 | 1 | 28 Sep–4 Oct | Run-level splits, sealed test with access log, leak tests; event-level metric code with unit tests; PCA fitted on the fit pool | PCA, T², SPE; splits and pre-registration | Tests pass on hand-built cases |
 | 2 | 5–11 Oct | Empirical limits, persistence and episode grouping at one budget; autocorrelation plot; published-number check; thin slice deployed | Empirical limits, autocorrelation | An alert shows in the UI, and the referrer gets the link |
 | 3 | 12–18 Oct | Grouped conventional-alarm baseline and lead time; loop map and masked-fault rules; status bands and ratio; DPCA | PID, cascade, saturation, stiction; alarm management (ISA-18.2) | Per-fault detection table on dev, PCA vs DPCA |

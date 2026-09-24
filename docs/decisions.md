@@ -74,3 +74,27 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 - LangGraph runs the diagnosis flow from week 6, after a spike in week 5. Fallback: plain Python.
 - LangChain is used only for the model wrapper, tool definitions and prompt templates.
 - Raj writes the core logic; Claude Code writes scaffolding and tests, and explains.
+
+## Data and protocol decisions, 24 September 2026
+
+33. **Raj seals the data himself.** Raw downloads (the four RData files) go in `~/PycharmProjects/plant-health-sealed/raw`, never in the repo. Raj runs the one-time conversion in a normal terminal. Claude Code may write the script but never runs it. Open data (normal training runs, and training runs of faults 1–15) goes to `data/`. Everything else (all testing files, and faults 16–20 from any file) goes to the sealed folder. The script prints only counts and checksums. *Why:* the raw training file mixes quarantined faults with open ones, so whoever converts it sees sealed data.
+
+34. **Raw names and labels by side.** Raw names are fine in `dataset/` and `ingest/` (builder side) and never appear in `app/`, `library/`, prompts or tool outputs. Test labels and anything about faults 16–20 live only in the sealed folder. Train/dev labels may be used in `dataset/`, `eval/` and notebooks, never in `app/` or `library/`. *Why:* the loader has to read raw columns, and the old wording contradicted that.
+
+35. **Week 0 loads the dataset's own files.** "Loads by split" means the dataset's four files, converted. Run-level pools come in week 1. *Why:* the pools are week 1 work.
+
+36. **A normal dev pool.** Fit 250, early stop 50, calibration 150, normal dev 50. *Why:* dev false alerts and chance rates need normal runs that didn't set the limits.
+
+37. **No run IDs in the historian.** The demo replays one run at a time and the engine resets at each new stream. Run boundaries are handled on the dataset side. `history_id` is the work-order history key. Warm-up is the longest lag or window in samples, pre-registered, and under 10 samples. *Why:* training runs keep most of their 1 h pre-onset period.
+
+38. **Onset offset per split.** 1 h into training runs, 8 h into testing runs. Chance rates use fake onsets at the offset of the runs they're compared with. *Why:* the offset differs between splits.
+
+39. **Published-number check uses the published variable set.** It uses whichever variable set the compared table used, and the table and set are recorded in the protocol. The production detector stays on the 33 fast tags. *Why:* a check is only meaningful like-for-like.
+
+40. **One alert stream.** The false-alert budget applies to the plant-level statistic. Groups are attributed, not alerted separately. Each group's Watch boundary is calibrated to the 2% cap. *Why:* alerts come from one statistic, so there is no budget to split.
+
+41. **LLM keep rule and decline thresholds.** Keep the LLM only if it is at least 5 points better than the matcher on one of top-1, family accuracy or unknowns declined, on average and in every repeat. It must also be no more than 2 points worse on any of them, on average across repeats. Decline thresholds use dev runs, not authoring runs. *Why:* a win on one metric shouldn't hide a loss on another.
+
+42. **Scoring faults cut from the library.** If the cut line removes 7, 8, 10 and 12, then 7, 8 and 12 are scored like leave-one-out and 10 needs a strict decline. They are reported separately from 16–20. *Why:* 7, 8 and 12 still have same-family entries; 10 doesn't.
+
+43. **Minimal week 0 skeleton.** Folder layout, pinned requirements and pytest config. App 2's deploy setup is reused in week 2. Approved dependencies: pyreadr, pandas, pyarrow, numpy, pytest. *Why:* deployment isn't needed until the thin slice.

@@ -8,25 +8,27 @@ Confirm these before the protocol commit.
 
 | Value | Setting |
 |---|---|
-| False-alert budget | at most 1 false alert per 24 h of normal operation, plant-wide |
-| Watch-band cap | at most 2% of normal operating time |
+| False-alert budget | at most 1 false alert per 24 h of normal operation, on the single plant-level alert stream |
+| Watch-band cap | at most 2% of normal operating time, calibrated per equipment group |
+| Warm-up | the longest lag or window used, in samples; under 10 samples; exact value fixed here before the protocol commit |
 | Useful detection window | 4 h after onset |
 | Notification window (alarm comparison) | first 2 h after onset |
 | Detector selection | simplest detector within 3 points of the best dev detection rate, at the same budget |
 | Diagnosis times | provisional at alert + 30 min, revised at + 60 min |
 | Matcher candidates (top-k) | smallest k with at least 95% candidate recall on dev |
-| Decline thresholds (matcher, forest) | accept 95% of known-fault training cases |
-| LLM keep rule | beats the matcher by at least 5 points on top-1, family accuracy or unknowns declined, on average and in every repeat |
+| Decline thresholds (matcher, forest) | accept 95% of known-fault dev cases (not authoring runs) |
+| LLM keep rule | at least 5 points better than the matcher on one of top-1, family accuracy or unknowns declined (on average and in every repeat), and no more than 2 points worse on any of them (on average across repeats) |
 | LLM repeats | 5; headline cases are a seeded subsample of 10 test runs per fault |
 
 ## Data and splits
-Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence in the data manifest). Split whole runs, never samples. Fit all preprocessing on the fit pool. Skip each run's warm-up samples; windows never cross run boundaries.
+Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence in the data manifest). Split whole runs, never samples. Fit all preprocessing on the fit pool. Skip each run's warm-up samples; windows never cross run boundaries. The onset offset is fixed within each split: 1 h into training runs, 8 h into testing runs.
 
 | Split | Source | Used for |
 |---|---|---|
-| Fit | 300 normal training runs | scalers, PCA/DPCA, autoencoder weights |
+| Fit | 250 normal training runs | scalers, PCA/DPCA, autoencoder weights |
 | Early stop | 50 normal training runs | autoencoder early stopping only |
 | Calibration | 150 normal training runs | limits, persistence, grouping and the conventional baseline, all to the same budget |
+| Normal dev | 50 normal training runs | dev false alerts per 24 h and dev chance rates |
 | Authoring | 5 training runs per known fault | library signatures, 5-run forest |
 | Dev | 50 other training runs per known fault | settings, prompt iteration, decline thresholds, confidence check |
 | Forest ceiling | remaining training runs per known fault | ceiling classifier only |
@@ -35,16 +37,16 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
 
 ## Detection
 - **Detector:** PCA on the 33 fast tags (22 continuous measurements, 11 valves); DPCA, with the lag count chosen on the fit pool by a written rule; autoencoder (when built). Analyzer tags are diagnosis evidence only.
-- **Limits:** empirical percentiles from the calibration pool. The limit, the persistence rule and episode grouping are calibrated together to the false-alert budget at plant level, with the budget split across equipment groups.
+- **Limits:** empirical percentiles from the calibration pool. The limit, the persistence rule and episode grouping are calibrated together to the false-alert budget on the plant-level statistic. Equipment groups are attributed, not alerted separately; each group's Watch boundary is calibrated to the watch-band cap.
 - **Selection:** the production detector is chosen on dev by the selection rule. Test only confirms it.
-- **Published-number check:** static PCA per-fault detection at the conventional 99% per-sample limit, using the same variable set as the published table.
+- **Published-number check:** static PCA per-fault detection at the conventional 99% per-sample limit, using the variable set of the published table it compares against. Table: _TBD_. Variable set: _TBD_. Both are recorded here before the check runs. The production detector stays on the 33 fast tags.
 
 ## Detection metrics
 - **Detected:** a new notification after onset, within the useful window. An alert already active at onset doesn't count, and alerts before onset are false alerts.
-- **Chance rate:** the same scoring on normal test runs with fake onsets at the same offset, reported next to every detection rate.
+- **Chance rate:** the same scoring on normal runs from the same split as the fault runs being compared (normal dev on dev, normal test on test), with fake onsets at that split's offset (1 h for training runs, 8 h for testing runs). Reported next to every detection rate.
 - **Right place:** the top-ranked group belongs to the true family's equipment.
 - **Delay:** median and IQR in minutes, with misses counted. Plot a cumulative detection curve, and a delay vs false-alerts-per-24-h curve (AMOC) with the operating point marked. Note the analyzer delay floor per fault.
-- **False alerts per 24 h:** over normal test runs plus the pre-onset hours of fault runs, excluding warm-up and gaps. State the hours counted.
+- **False alerts per 24 h:** over normal runs plus the pre-onset hours of fault runs from the same split (normal dev on dev, normal test on test), excluding warm-up and gaps. State the hours counted.
 - **Persistence:** the share of each fault's duration still flagged after first detection.
 - **Intervals:** bootstrap over whole runs; paired bootstrap to compare detectors.
 - **Summary:** the per-fault table comes first. The summary averages faults 1–20 except 3, 9 and 15 (reported separately), each fault weighted equally.
@@ -72,6 +74,7 @@ The masked-fault list (measurement held at setpoint while a valve absorbs the fa
 - **Excluded (near-undetectable):** faults 3, 9, 15, reported separately
 - **Families:** feed composition (1, 2, 8), feed supply (6, 7), feed temperature (10), reactor cooling (4, 11, 14), condenser cooling (5, 12), reaction kinetics (13)
 - **Leave-one-out on test:** remove the entry for faults 1, 4, 5 and 13, one at a time. Correct means a decline, or a family-level answer flagged "mechanism not in library." Dev leave-one-out uses faults 2 and 11.
+- **If the cut line removes the entries for 7, 8, 10 and 12:** 7, 8 and 12 are scored like leave-one-out (a decline, or a family-level answer flagged "mechanism not in library"). 10 has no family entry, so it needs a strict decline. They are reported separately from 16–20.
 
 **Denominator:** fault runs where the detector alerted after onset. End-to-end accuracy (alerted and correctly diagnosed, divided by all fault runs) is also reported.
 

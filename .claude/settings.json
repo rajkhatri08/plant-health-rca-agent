@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "deny": [
+      "Read(~/PycharmProjects/plant-health-sealed/**)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  }
+}

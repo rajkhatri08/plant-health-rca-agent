@@ -25,10 +25,10 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 ## Hard rules
 
 ### Leakage
-- Sealed data (the test split, and faults 16–20 in any split) and test labels live outside this folder. Never try to read them. Never set `EVAL_MODE=1`.
+- Sealed data (the raw downloads, the test split, and faults 16–20 in any split) and test labels live outside this folder, in `~/PycharmProjects/plant-health-sealed/`. Never try to read them. Never set `EVAL_MODE=1`. Never run the one-time conversion script; Raj runs it.
 - `app/` never imports `eval/` or `ingest/`. Only `dataset/` reads raw data files.
-- Train/dev labels are used only in `eval/` and notebooks, never in `app/` or `library/`.
-- Nothing the agent sees (prompts, `library/`, tool outputs) may contain fault labels (IDV…), raw benchmark tag names (XMEAS/XMV), the benchmark's name or its source paper. Raw names exist only in `ingest/`.
+- Test labels and anything about faults 16–20 live only in the sealed folder. Train/dev labels are used only in `dataset/`, `eval/` and notebooks, never in `app/` or `library/`.
+- Nothing the agent sees (prompts, `library/`, tool outputs) may contain fault labels (IDV…), raw benchmark tag names (XMEAS/XMV), the benchmark's name or its source paper. Raw names are allowed only on the builder side (`dataset/`, `ingest/`) and never appear in `app/`, `library/`, prompts or tool outputs.
 - Historian columns are `ts, tag, value, quality`. No run or segment IDs.
 - Split by whole runs, never by samples. Fit all preprocessing on the fit pool only.
 
@@ -52,13 +52,13 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 ## Repo layout
 - `app/`: runtime (API, detector, agent). `app/agent/prompts/` and the agent tools are agent-visible.
 - `library/`: failure-mode entries, tag register and asset register (agent-visible).
-- `ingest/`: raw data to historian; the only place raw names appear.
+- `ingest/`: raw data to historian; with `dataset/`, the only places raw names appear.
 - `dataset/`: the only loader for raw data.
 - `eval/`: protocol, leakage rules and evaluation code. Never imported by `app/`.
 - `docs/`: `PLAN.md`, `decisions.md`, `log.md`.
 - `notebooks/`: exploration only, train/dev data only.
 - `tests/`
-- `data/raw/`: gitignored; the data manifest is in git.
+- `data/`: converted open data, gitignored. Raw downloads never enter the repo. The data manifest is in git.
 
 ## Commands
 - Tests: `pytest -q`
