@@ -220,3 +220,4 @@ __marimo__/
 # Project
 .idea/
 data/
+.claude/settings.local.json

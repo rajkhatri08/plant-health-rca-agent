@@ -63,3 +63,6 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 ## Commands
 - Tests: `pytest -q`
 - Add the data rebuild, app run and lint commands here as they're created.
+
+## Git
+- Work on main. Don't create branches, commit or push unless Raj asks.
