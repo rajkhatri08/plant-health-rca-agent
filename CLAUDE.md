@@ -62,7 +62,8 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 
 ## Commands
 - Tests: `pytest -q`
-- Add the data rebuild, app run and lint commands here as they're created.
+- Convert raw data (Raj runs this; Claude Code never runs it): `python -m dataset.convert <name>`, one of `fault_free_training` (first, with `--crosscheck`), `fault_free_testing`, `faulty_training`, `faulty_testing`.
+- Add the app run and lint commands here as they're created.
 
 ## Git
 - Work on main. Don't create branches, commit or push unless Raj asks.

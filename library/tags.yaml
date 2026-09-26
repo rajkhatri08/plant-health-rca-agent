@@ -1,0 +1,57 @@
+# Tag register (agent-visible). No raw names, original letters or source names here.
+# group follows decision 48: a tag belongs to the unit its instrument sits on.
+# Intervals and dead times are in minutes; analyzer dead times are nominal until
+# confirmed from the simulator code (see docs/log.md, Decisions needed).
+tags:
+- {tag: FD-FI-101, description: Reactant-1 feed flow, units: thousand standard m³/h, group: feed, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FI-102, description: Reactant-3 feed flow, units: kg/h, group: feed, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FI-103, description: Reactant-4 feed flow, units: kg/h, group: feed, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FI-104, description: Mixed feed flow (reactants 1 and 2), units: thousand standard m³/h, group: feed, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FV-105, description: Reactant-1 feed valve, units: '% open', group: feed, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FV-106, description: Reactant-3 feed valve, units: '% open', group: feed, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FV-107, description: Reactant-4 feed valve, units: '% open', group: feed, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: FD-FV-108, description: Mixed feed valve (reactants 1 and 2), units: '% open', group: feed, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-FI-201, description: Reactor feed rate, units: thousand standard m³/h, group: reactor, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-PI-202, description: Reactor pressure, units: kPa (gauge), group: reactor, kind: measurement, signal_type: pressure, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-LI-203, description: Reactor level, units: '%', group: reactor, kind: measurement, signal_type: level, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-TI-204, description: Reactor temperature, units: °C, group: reactor, kind: measurement, signal_type: temperature, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-TI-205, description: Reactor cooling water outlet temperature, units: °C, group: reactor, kind: measurement, signal_type: temperature, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-FV-206, description: Reactor cooling water valve, units: '% open', group: reactor, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: RX-AI-211, description: 'Reactor feed composition, reactant 1', units: mol %, group: reactor, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: RX-AI-212, description: 'Reactor feed composition, inert', units: mol %, group: reactor, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: RX-AI-213, description: 'Reactor feed composition, reactant 2', units: mol %, group: reactor, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: RX-AI-214, description: 'Reactor feed composition, reactant 3', units: mol %, group: reactor, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: RX-AI-215, description: 'Reactor feed composition, reactant 4', units: mol %, group: reactor, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: RX-AI-216, description: 'Reactor feed composition, byproduct', units: mol %, group: reactor, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: CD-TI-301, description: Condenser cooling water outlet temperature, units: °C, group: condenser, kind: measurement, signal_type: temperature, update_interval_min: 3, dead_time_min: 0}
+- {tag: CD-FV-302, description: Condenser cooling water valve, units: '% open', group: condenser, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-TI-401, description: Separator temperature, units: °C, group: separator, kind: measurement, signal_type: temperature, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-LI-402, description: Separator level, units: '%', group: separator, kind: measurement, signal_type: level, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-PI-403, description: Separator pressure, units: kPa (gauge), group: separator, kind: measurement, signal_type: pressure, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-FI-404, description: Separator underflow, units: m³/h, group: separator, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-FV-405, description: Separator liquid outlet valve, units: '% open', group: separator, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-FI-406, description: Purge flow, units: thousand standard m³/h, group: separator, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-FV-407, description: Purge valve, units: '% open', group: separator, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: SP-AI-411, description: 'Purge gas composition, reactant 1', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-412, description: 'Purge gas composition, inert', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-413, description: 'Purge gas composition, reactant 2', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-414, description: 'Purge gas composition, reactant 3', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-415, description: 'Purge gas composition, reactant 4', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-416, description: 'Purge gas composition, byproduct', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-417, description: 'Purge gas composition, product 1', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: SP-AI-418, description: 'Purge gas composition, product 2', units: mol %, group: separator, kind: analyzer, signal_type: composition, update_interval_min: 6, dead_time_min: 6}
+- {tag: CP-FI-501, description: Recycle flow, units: thousand standard m³/h, group: compressor, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: CP-JI-502, description: Compressor power, units: kW, group: compressor, kind: measurement, signal_type: power, update_interval_min: 3, dead_time_min: 0}
+- {tag: CP-FV-503, description: Compressor recycle valve, units: '% open', group: compressor, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-LI-601, description: Stripper level, units: '%', group: stripper, kind: measurement, signal_type: level, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-PI-602, description: Stripper pressure, units: kPa (gauge), group: stripper, kind: measurement, signal_type: pressure, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-FI-603, description: Stripper underflow, units: m³/h, group: stripper, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-TI-604, description: Stripper temperature, units: °C, group: stripper, kind: measurement, signal_type: temperature, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-FI-605, description: Stripper steam flow, units: kg/h, group: stripper, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-FV-606, description: Stripper product outlet valve, units: '% open', group: stripper, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-FV-607, description: Stripper steam valve, units: '% open', group: stripper, kind: valve, signal_type: valve, update_interval_min: 3, dead_time_min: 0}
+- {tag: ST-AI-611, description: 'Product composition, reactant 3', units: mol %, group: stripper, kind: analyzer, signal_type: composition, update_interval_min: 15, dead_time_min: 15}
+- {tag: ST-AI-612, description: 'Product composition, reactant 4', units: mol %, group: stripper, kind: analyzer, signal_type: composition, update_interval_min: 15, dead_time_min: 15}
+- {tag: ST-AI-613, description: 'Product composition, byproduct', units: mol %, group: stripper, kind: analyzer, signal_type: composition, update_interval_min: 15, dead_time_min: 15}
+- {tag: ST-AI-614, description: 'Product composition, product 1', units: mol %, group: stripper, kind: analyzer, signal_type: composition, update_interval_min: 15, dead_time_min: 15}
+- {tag: ST-AI-615, description: 'Product composition, product 2', units: mol %, group: stripper, kind: analyzer, signal_type: composition, update_interval_min: 15, dead_time_min: 15}

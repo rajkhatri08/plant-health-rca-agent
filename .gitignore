@@ -221,3 +221,6 @@ __marimo__/
 .idea/
 data/
 .claude/settings.local.json
+*.RData
+*.rdata
+*.parquet

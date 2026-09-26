@@ -98,3 +98,51 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 42. **Scoring faults cut from the library.** If the cut line removes 7, 8, 10 and 12, then 7, 8 and 12 are scored like leave-one-out and 10 needs a strict decline. They are reported separately from 16–20. *Why:* 7, 8 and 12 still have same-family entries; 10 doesn't.
 
 43. **Minimal week 0 skeleton.** Folder layout, pinned requirements and pytest config. App 2's deploy setup is reused in week 2. Approved dependencies: pyreadr, pandas, pyarrow, numpy, pytest. *Why:* deployment isn't needed until the thin slice.
+
+## Week 0 build decisions, 26 September 2026
+
+44. **Tag names and descriptions.**
+    - **Descriptions use roles, not component letters:**
+
+      | Letter | Role |
+      |---|---|
+      | A | reactant 1 |
+      | C | reactant 2 |
+      | D | reactant 3 |
+      | E | reactant 4 |
+      | B | inert |
+      | F | byproduct |
+      | G | product 1 |
+      | H | product 2 |
+
+      So "A and C feed" becomes "mixed feed (reactants 1 and 2)".
+    - **Units** are written in plain form, not the paper's abbreviations.
+    - **Letters** appear only in `ingest/tag_map.yaml`.
+    - **The remaining fingerprint** (plant layout, 52 tags) is accepted. The memorization probe measures it, and the README states it under Limitations.
+    - **Tag numbers** run in sequence within each area, and every valve is `-FV-`. So no tag name implies a control loop before the week-3 loop map. Feed valves FD-FV-105..108 follow the same order as the feed flows.
+    - **Tag names are permanent keys.**
+
+    *Why:* the original letters and units identify the benchmark at a glance, and loop-style numbering would assert a control strategy we haven't mapped yet.
+
+45. **PyYAML is an approved dependency.** *Why:* the converter reads its MD5s from `dataset/manifest.yaml` (one source of truth), and the tag tests parse the YAML files.
+
+46. **Sealed checksums stay sealed.**
+    - Each conversion writes `conversion_report_<name>.json` on each side it wrote to.
+    - The repo manifest records open-file checksums, and only the SHA-256 of each sealed report.
+
+    *Why:* the repo can show the sealed files haven't changed without describing the test split or faults 16–20.
+
+47. **A streamed RData reader.**
+    - `dataset/rdata_stream.py` reads the frame one column at a time, straight into float32, keeping float64 statistics for the checks. Peak memory is about 2.3 GB for the largest file, against 8–9 GB for pyreadr on an 8 GB Mac.
+    - It is cross-checked against pyreadr once, on `fault_free_training`.
+    - Data is stored as float32; models compute in float64.
+
+    *Why:* pyreadr can't read in chunks, and float32's rounding (about 7 significant digits) is far finer than the simulated measurement noise.
+
+48. **Group rule.**
+    - A tag belongs to the unit its instrument sits on.
+    - In-vessel sensors go with that vessel, fresh-feed lines with feed, and utility lines with the unit they serve.
+    - Any other line goes with the vessel it leaves, or the vessel it enters if it leaves none.
+    - So: reactor feed rate → reactor; purge flow, purge valve and purge analyzer → separator; separator temperature → separator.
+
+    *Why:* groups drive the right-place metric, so the rule is fixed before any results.

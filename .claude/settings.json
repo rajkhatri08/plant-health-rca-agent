@@ -4,7 +4,10 @@
     "deny": [
       "Read(~/PycharmProjects/plant-health-sealed/**)",
       "Read(./.env)",
-      "Read(./.env.*)"
+      "Read(./.env.*)",
+      "Bash(*plant-health-sealed*)",
+      "Bash(*dataset.convert*)",
+      "Bash(*dataset/convert.py*)"
     ]
   }
 }

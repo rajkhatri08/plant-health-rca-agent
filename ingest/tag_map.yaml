@@ -1,0 +1,56 @@
+# Raw variable -> plant tag (builder side only; decision 34). `component` keeps the
+# original component letters, which never leave ingest/ (decision 44).
+# Tag metadata lives in library/tags.yaml. Tag names are permanent keys.
+tags:
+- {raw: xmeas_1, tag: FD-FI-101, component: A}
+- {raw: xmeas_2, tag: FD-FI-102, component: D}
+- {raw: xmeas_3, tag: FD-FI-103, component: E}
+- {raw: xmeas_4, tag: FD-FI-104, component: A+C}
+- {raw: xmv_3, tag: FD-FV-105, component: A}
+- {raw: xmv_1, tag: FD-FV-106, component: D}
+- {raw: xmv_2, tag: FD-FV-107, component: E}
+- {raw: xmv_4, tag: FD-FV-108, component: A+C}
+- {raw: xmeas_6, tag: RX-FI-201}
+- {raw: xmeas_7, tag: RX-PI-202}
+- {raw: xmeas_8, tag: RX-LI-203}
+- {raw: xmeas_9, tag: RX-TI-204}
+- {raw: xmeas_21, tag: RX-TI-205}
+- {raw: xmv_10, tag: RX-FV-206}
+- {raw: xmeas_23, tag: RX-AI-211, component: A}
+- {raw: xmeas_24, tag: RX-AI-212, component: B}
+- {raw: xmeas_25, tag: RX-AI-213, component: C}
+- {raw: xmeas_26, tag: RX-AI-214, component: D}
+- {raw: xmeas_27, tag: RX-AI-215, component: E}
+- {raw: xmeas_28, tag: RX-AI-216, component: F}
+- {raw: xmeas_22, tag: CD-TI-301}
+- {raw: xmv_11, tag: CD-FV-302}
+- {raw: xmeas_11, tag: SP-TI-401}
+- {raw: xmeas_12, tag: SP-LI-402}
+- {raw: xmeas_13, tag: SP-PI-403}
+- {raw: xmeas_14, tag: SP-FI-404}
+- {raw: xmv_7, tag: SP-FV-405}
+- {raw: xmeas_10, tag: SP-FI-406}
+- {raw: xmv_6, tag: SP-FV-407}
+- {raw: xmeas_29, tag: SP-AI-411, component: A}
+- {raw: xmeas_30, tag: SP-AI-412, component: B}
+- {raw: xmeas_31, tag: SP-AI-413, component: C}
+- {raw: xmeas_32, tag: SP-AI-414, component: D}
+- {raw: xmeas_33, tag: SP-AI-415, component: E}
+- {raw: xmeas_34, tag: SP-AI-416, component: F}
+- {raw: xmeas_35, tag: SP-AI-417, component: G}
+- {raw: xmeas_36, tag: SP-AI-418, component: H}
+- {raw: xmeas_5, tag: CP-FI-501}
+- {raw: xmeas_20, tag: CP-JI-502}
+- {raw: xmv_5, tag: CP-FV-503}
+- {raw: xmeas_15, tag: ST-LI-601}
+- {raw: xmeas_16, tag: ST-PI-602}
+- {raw: xmeas_17, tag: ST-FI-603}
+- {raw: xmeas_18, tag: ST-TI-604}
+- {raw: xmeas_19, tag: ST-FI-605}
+- {raw: xmv_8, tag: ST-FV-606}
+- {raw: xmv_9, tag: ST-FV-607}
+- {raw: xmeas_37, tag: ST-AI-611, component: D}
+- {raw: xmeas_38, tag: ST-AI-612, component: E}
+- {raw: xmeas_39, tag: ST-AI-613, component: F}
+- {raw: xmeas_40, tag: ST-AI-614, component: G}
+- {raw: xmeas_41, tag: ST-AI-615, component: H}

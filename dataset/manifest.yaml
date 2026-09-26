@@ -1,0 +1,38 @@
+# Data manifest (builder side). dataset/convert.py reads raw_files from here.
+dataset:
+  doi: 10.7910/DVN/6C3JR1
+  source_url: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/6C3JR1
+  download_date: null        # Raj fills
+  terms: null                # Raj fills
+
+raw_files:                   # MD5, verified against Dataverse
+  fault_free_training:
+    file: TEP_FaultFree_Training.RData
+    md5: ec126484534331f85001d8c4ebce6d17
+    faults: [0]
+    runs_per_fault: 500
+    samples_per_run: 500
+  fault_free_testing:
+    file: TEP_FaultFree_Testing.RData
+    md5: 38ad9810fc871026157086ae2c2f0ee9
+    faults: [0]
+    runs_per_fault: 500
+    samples_per_run: 960
+  faulty_training:
+    file: TEP_Faulty_Training.RData
+    md5: c5f594d54c47e620ff877feb58407fda
+    faults: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    runs_per_fault: 500
+    samples_per_run: 500
+  faulty_testing:
+    file: TEP_Faulty_Testing.RData
+    md5: 556bdb64c83021bc0c5f92e427753565
+    faults: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    runs_per_fault: 500
+    samples_per_run: 960
+
+conversion:
+  script: dataset/convert.py
+  library_versions: {python: null, pyreadr: null, pandas: null, pyarrow: null, numpy: null, pyyaml: null}
+  open_reports: {}           # name -> {commit, dirty, files: {path: {rows, sha256}}}; pasted from the convert output
+  sealed_reports: {}         # name -> sha256 of the sealed conversion_report_<name>.json
