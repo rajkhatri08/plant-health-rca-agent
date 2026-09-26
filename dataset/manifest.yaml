@@ -2,8 +2,12 @@
 dataset:
   doi: 10.7910/DVN/6C3JR1
   source_url: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/6C3JR1
-  download_date: null        # Raj fills
-  terms: null                # Raj fills
+  download_date: '2026-09-26'
+  terms: >-
+    Custom Dataset Terms on the Dataverse page: a public domain dedication, so the
+    data may be copied, changed and shared for any lawful purpose without asking.
+    Don't imply endorsement by Pacific Science & Engineering Group or the authors.
+    The terms in force at download apply.
 
 raw_files:                   # MD5, verified against Dataverse
   fault_free_training:
@@ -33,6 +37,33 @@ raw_files:                   # MD5, verified against Dataverse
 
 conversion:
   script: dataset/convert.py
-  library_versions: {python: null, pyreadr: null, pandas: null, pyarrow: null, numpy: null, pyyaml: null}
-  open_reports: {}           # name -> {commit, dirty, files: {path: {rows, sha256}}}; pasted from the convert output
-  sealed_reports: {}         # name -> sha256 of the sealed conversion_report_<name>.json
+  library_versions: {python: 3.13.15, pyreadr: 0.5.6, pandas: 3.0.6, pyarrow: 25.0.1, numpy: 2.5.3, pyyaml: 6.0.3}
+  open_reports:              # from the convert output, 27 Sep 2026
+    fault_free_training:
+      commit: f4258080560ad96e139b50c2a9622dca2d652d34
+      dirty: false
+      files:
+        fault_free_training.parquet: {rows: 250000, sha256: 96988831ce3db3f2fe7aa1ec56413399c1dbe439c69805fc233f4123fa0ee3b2}
+    faulty_training:
+      commit: f4258080560ad96e139b50c2a9622dca2d652d34
+      dirty: false
+      files:
+        faulty_training/fault_01.parquet: {rows: 250000, sha256: 7d86cc5ced51917cbb5d572f384362d576a9dc29f3c7caafd8e56c40844e8fb5}
+        faulty_training/fault_02.parquet: {rows: 250000, sha256: ed34f92c187e3243009be1eb9b00deb57e682a68f58510c6751e5c008f51ad3c}
+        faulty_training/fault_03.parquet: {rows: 250000, sha256: be61db512716db16d132baa5a1020d757592df0e93553cb9f9ec9732a6dd9ba1}
+        faulty_training/fault_04.parquet: {rows: 250000, sha256: eb5295e525daf1568ec19527743fcf4554d79a64d3e58ca7415a556830bbcaa5}
+        faulty_training/fault_05.parquet: {rows: 250000, sha256: f6e25b23460269520fe442521819d4f96d8a25f6c10fa6c204adc11797247feb}
+        faulty_training/fault_06.parquet: {rows: 250000, sha256: 50ce29ce13f7c8d76ca7089b7553f362565bc042fd9c4563747cdc011e8d2f44}
+        faulty_training/fault_07.parquet: {rows: 250000, sha256: 2eb4dac43d623ec593a6c24da05f2c3f06f063f07e98c1039629376ff8c00646}
+        faulty_training/fault_08.parquet: {rows: 250000, sha256: de67e3609de4c2292152e3384c92c6c8c7317bbfa153e47297a4adf8c93a0645}
+        faulty_training/fault_09.parquet: {rows: 250000, sha256: 6964cea1e05224df698ec79fe358c4b7b698da15713acf6b5818e1ffbf63c67d}
+        faulty_training/fault_10.parquet: {rows: 250000, sha256: 234fae1a51930c72dc390c5d9b8bb4192178d4f6494cfc5374a6951f7502d14d}
+        faulty_training/fault_11.parquet: {rows: 250000, sha256: 37fff083d015d4486d9665c5c8b1ce28005d7c1ac42566d00bb34419a2294c2f}
+        faulty_training/fault_12.parquet: {rows: 250000, sha256: 009e356e1281d9d4673b2251ead6d5822f9d48c9beca98fa3f6dc6ada7e0637f}
+        faulty_training/fault_13.parquet: {rows: 250000, sha256: 8567032089c05aa2bfd4f56e9c975779173e04dfffc1db4571b9a4bd0aa4bedb}
+        faulty_training/fault_14.parquet: {rows: 250000, sha256: 3f9b8ca60922c3cd1a7dd694d4e258d1298da2c9919000adc56f3810d2db06db}
+        faulty_training/fault_15.parquet: {rows: 250000, sha256: ad4cc2e55f673c40ef919a452361488909eeedf71b2d4aaff9ffba5569999d1c}
+  sealed_reports:            # sha256 of each sealed conversion_report_<n>.json
+    fault_free_testing: bfc78d610de70f46f52a50e37ec20304e2094c3a6e292c47fdcc6306fa087da4
+    faulty_training: 3a25f2dbb9f644667ba5db5c5bceac920bc3f4f8717b833d7e593e2e2523e79f
+    faulty_testing: ed43876d5ac0c77e86986a421314c0c9836ca005dc87e56e3a16527b184c2417

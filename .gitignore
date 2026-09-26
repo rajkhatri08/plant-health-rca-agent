@@ -224,3 +224,4 @@ data/
 *.RData
 *.rdata
 *.parquet
+!eval/test_access.log
