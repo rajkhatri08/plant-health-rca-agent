@@ -4,6 +4,7 @@ import hashlib
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
 
@@ -108,3 +109,10 @@ def test_load_validates_even_with_matching_checksum(repo, kind):
 
 def test_main_needs_write_flag(capsys):
     assert selection.main([]) == 1
+
+def test_committed_selection_matches_manifest_and_draw():
+    # The file Raj wrote in session 4: checksum, rules, and the seeded draw.
+    data = selection.load(REPO)
+    assert data["seed"] == selection.SEED and len(data["numbers"]) == 100
+    if np.__version__ == data["numpy"]:
+        assert data["numbers"] == selection.draw(splits.load(REPO)["forest_ceiling"], data["seed"])

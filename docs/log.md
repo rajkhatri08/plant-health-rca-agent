@@ -401,3 +401,58 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **What counts as agreement:** not decided. My proposal is per-fault rates for T² and SPE on the dev runs of open faults except 3, 9 and 15, with agreement within 10 points; report how many agree and list those that don't, with no overall pass or fail.
   - **The committed-selection test** is still to write: `dataset/selection.yaml` against the manifest and the draw.
   - Still open: the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; and moving the replay data to a Neon historian (later).
+
+### 2026-09-27: week 2 session 6, thin slice backend
+- **Changed:**
+  - **Dependencies (approved):** fastapi 0.141.1, uvicorn 0.54.0 and httpx 0.28.1, with 13 transitive packages, pinned in `requirements.txt`.
+  - **`app/detector/bundle.py` (Claude):** loads a bundle folder (`model.npz` and `limits.json`). The self-test refuses:
+    - a model whose SHA-256 doesn't match the limits
+    - record checksums that aren't SHA-256s
+    - limits that aren't positive, persistence that breaks decision 52, or non-integer settings
+    - tags that aren't the register's measurements and valves in order (read from `library/tags.yaml`, not `ingest/`)
+    - wrong array shapes, NaN, a zero scale, kept eigenvalues that aren't the leading ones or aren't descending, or loadings that aren't orthonormal
+    - a known-answer failure: scoring the fit mean must give T² = SPE = 0
+
+    This closes week 1 finding 3.
+  - **`app/detector/replay.py` (Claude):**
+    - reads historian CSV rows (`ts, tag, value, quality`) and ignores tags outside the model
+    - scores as of `upto`, using only rows up to that time, through `pca.scores`, then `alerting.plant_ratio`, then `alerting.alert_track`: the same functions calibration used
+    - bands:
+      - the warm-up is Unknown ("warm-up")
+      - from the first sample with a missing or non-good tag, or a time step other than 3 min, everything is Unknown ("data") and scoring stops
+      - otherwise Alert or Normal, with the ratio
+  - **`app/api.py` (Claude):** `create_app()` with `GET /health`, `GET /replay/info` and `GET /replay/status?upto=`.
+    - The bundle is self-tested at startup; if it fails, or the stream is missing, `/health` and `/replay/*` return 503 with the reason, and nothing is scored.
+    - CORS allows only the origins in `ALLOWED_ORIGIN`, with none by default.
+    - There are only GET routes (advisory).
+    - `/replay/info` says the Watch band isn't built yet.
+  - **`eval/build_bundle.py` (Claude):** builds `app/bundles/pca_v1/` from `data/models/pca_static.npz` and `pca_static_limits.json`. It adds the SHA-256 of the fit and calibration run records to `limits.json`; each must match exactly one record. It builds in a temporary folder, self-tests, then moves the result into place, and never overwrites a bundle.
+  - **`ingest/export_replay.py` (Claude):** a mechanical choice: fault 13 on the lowest dev run number (Raj's rule).
+    - Writes `app/replay/run.csv`: 33 fast tags, plant names, a synthetic clock from 2026-01-05T06:00:00Z in 3-min steps, values via `repr()` so float32 round-trips exactly, and no run, fault or sample columns.
+    - Writes `eval/replay_source.yaml` (builder side): fault, run, pool, the CSV's SHA-256, rows, and the commit and dirty flag.
+    - Never overwrites either file.
+  - **Leak scan:** `tests/test_leak_scan.py` now scans `app/api.py`, `app/replay/` and the bundle's text files with the full pattern set. `tests/test_api.py` scans every live response body, including errors, and checks for no `run`, `fault` or `sample_number` keys. `tests/test_thin_slice_artifacts.py` scans a live API on the committed files.
+  - **CI:** `.github/workflows/ci.yml` runs `pytest -q` on push and pull request, on Python 3.13, with no data and no secrets.
+  - **CLAUDE.md:** commands for running the API, building the bundle and exporting the replay, and the CI line.
+  - **The test I owed:** the committed `dataset/selection.yaml` against the manifest, the rules and the seeded draw (added to `tests/test_selection.py`).
+  - **Not run yet:** `python -m eval.build_bundle` and `python -m ingest.export_replay`. They run after Raj commits, so the replay source records a clean commit.
+- **Tests:** `pytest -q` gives 572 passed, 4 skipped, 1 deselected. 66 are new:
+  - `test_bundle.py` (26)
+  - `test_replay.py` (17): float32 round trip; bands and ratios identical to the calibration driver's tracks, with Normal before a step and Alert after it; as-of prefixes; each kind of bad data giving Unknown from there on with earlier samples unchanged; malformed CSVs
+  - `test_api.py` (14)
+  - `test_export_replay.py` (7)
+  - `test_build_bundle.py` (4)
+  - the leak scan (1)
+  - the committed selection (1)
+
+  The 4 skipped are `test_thin_slice_artifacts.py`, which runs once `eval/replay_source.yaml` exists; from then on a missing or changed file fails.
+- **Unsure about:**
+  - **The CSV is larger than I planned:** 500 samples × 33 tags = 16,500 rows. With exact `repr()` values it should be roughly 0.9 MB, not the "about 100 KB" I estimated in the plan. Exact values are what make the replay score identically to evaluation. Rounding to 9 significant digits would shrink it about a third, but the replay would no longer be bit-identical.
+  - **The stream start reveals the onset to anyone who knows the convention:** a training run's fault starts 1 h in, between samples 20 and 21, which is 07:00 on the synthetic clock (sample 1 is 06:00). The UI viewer is a human. For the agent (week 6), the as-of evidence tools must not expose the stream start or the time since the stream began.
+  - **Starlette deprecation:** starlette 1.7 warns that `httpx` in its test client is deprecated in favour of `httpx2`. Tests pass. Switching needs a new dependency, so it's left for Raj.
+  - **Leftover blank lines:** `app/detector/alerting.py` has four trailing blank lines that I didn't add, probably from the IDE. Raj decides whether to keep them.
+  - **Replay stops at the first bad sample:** a stand-in until the data-quality layer exists (decision 51). A single gap turns the rest of the stream Unknown.
+- **Decisions needed:**
+  - How the replay resumes after a data gap, once the data-quality layer is built: reset the engine with a new warm-up, or bridge short gaps.
+  - Whether to move the test client to `httpx2`.
+  - Still open: the Yin 2012 component count and the agreement band; theoretical 99% limits into PROTOCOL; the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; moving the replay data to Neon (later).

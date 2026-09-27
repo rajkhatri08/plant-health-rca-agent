@@ -1,0 +1,16 @@
+# Fast checks on every push (CLAUDE.md). No data, no secrets: data/ is gitignored, the
+# `opendata` tests are excluded by default (pyproject.toml), and nothing here can reach
+# the sealed folder.
+name: ci
+on: [push, pull_request]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -q

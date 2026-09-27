@@ -63,7 +63,11 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 ## Commands
 - Tests: `pytest -q`
 - Convert raw data (Raj runs this; Claude Code never runs it): `python -m dataset.convert <name>`, one of `fault_free_training` (first, with `--crosscheck`), `fault_free_testing`, `faulty_training`, `faulty_testing`.
-- Add the app run and lint commands here as they're created.
+- Run the API locally: `uvicorn app.api:app --reload` (health at `/health`, replay at `/replay/info` and `/replay/status?upto=<ts>`).
+- Build the detector bundle (after a fit and a calibration run): `python -m eval.build_bundle`.
+- Export the replay stream once: `python -m ingest.export_replay`.
+- CI: `.github/workflows/ci.yml` runs `pytest -q` on every push, with no data and no secrets.
+- Add the lint command here when it's created.
 
 ## Git
 - Work on main. Don't create branches, commit or push unless Raj asks.

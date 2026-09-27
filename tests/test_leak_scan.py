@@ -21,20 +21,27 @@ PATTERNS = [
 RAW_ONLY = [re.compile(r"(?:xmeas|xmv)", re.IGNORECASE)]
 
 AGENT_VISIBLE = ["library", "app/agent/prompts"]
+# What the API serves or is built from: its source, the replay stream and the bundle's
+# text files (binary .npz is skipped: random bytes can spell a short word).
+SERVED = ["app/api.py", "app/replay", "app/bundles"]
+TEXT_SUFFIXES = {".py", ".json", ".csv", ".yaml", ".yml", ".md", ".txt", ".html"}
 
 
 def find_leaks(text, patterns=PATTERNS):
     return [m.group(0) for p in patterns for m in p.finditer(text)]
 
 
-def scan(dirs, patterns):
+def scan(dirs, patterns, suffixes=None):
     hits = []
     for d in dirs:
         root = REPO / d
         if not root.exists():
             continue
-        for path in sorted(root.rglob("*")):
+        paths = [root] if root.is_file() else sorted(root.rglob("*"))
+        for path in paths:
             if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            if suffixes is not None and path.suffix not in suffixes:
                 continue
             text = path.read_text(errors="ignore")
             hits += [f"{path.relative_to(REPO)}: {h}" for h in find_leaks(text, patterns)]
@@ -47,6 +54,13 @@ def test_agent_visible_text_is_clean():
 
 def test_app_has_no_raw_names():
     assert scan(["app"], RAW_ONLY) == []
+
+
+def test_served_text_is_clean():
+    # No raw names, labels, benchmark or source names in the API source or the files
+    # it serves (the live responses are scanned in tests/test_api.py).
+    assert (REPO / "app" / "api.py").is_file()
+    assert scan(SERVED, PATTERNS, TEXT_SUFFIXES) == []
 
 
 @pytest.mark.parametrize("text", [
