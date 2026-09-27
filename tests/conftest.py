@@ -1,4 +1,5 @@
 import hashlib
+import subprocess
 
 import numpy as np
 import pytest
@@ -6,6 +7,7 @@ import yaml
 
 import dataset.convert as convert_mod
 import dataset.loader as loader_mod
+import eval.run_record as run_record_mod
 from tests.rdata_writer import write_rdata
 
 
@@ -21,6 +23,8 @@ def _no_real_paths(tmp_path, monkeypatch):
     # Same for the loader (it copies these at import). Tests that need open data opt in.
     monkeypatch.setattr(loader_mod, "REPO_ROOT", nowhere / "repo")
     monkeypatch.setattr(loader_mod, "SEALED_ROOT", nowhere / "sealed")
+    # Run records: never the real eval/runs/. Tests that need a record use a git_repo.
+    monkeypatch.setattr(run_record_mod, "REPO_ROOT", nowhere / "repo")
     # No test ever runs with EVAL_MODE set.
     monkeypatch.delenv("EVAL_MODE", raising=False)
 
@@ -83,3 +87,22 @@ class FakeRepo:
 @pytest.fixture
 def fake_repo(tmp_path):
     return FakeRepo(tmp_path)
+
+
+def _git(root, *args):
+    subprocess.run(["git", "-C", str(root), "-c", "user.name=test", "-c", "user.email=t@t",
+                    "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)
+
+
+@pytest.fixture
+def git_repo(tmp_path):
+    """A committed, clean git repo with a data manifest and splits file (for run records)."""
+    root = tmp_path / "gitrepo"
+    (root / "dataset").mkdir(parents=True)
+    (root / "dataset" / "manifest.yaml").write_text("dataset: {doi: fake}\n")
+    (root / "dataset" / "splits.yaml").write_text("pools: {}\n")
+    (root / "code.py").write_text("x = 1\n")
+    _git(root, "init", "-q")
+    _git(root, "add", ".")
+    _git(root, "commit", "-q", "-m", "init")
+    return root

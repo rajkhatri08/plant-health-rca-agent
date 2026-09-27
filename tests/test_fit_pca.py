@@ -1,12 +1,16 @@
 """ingest/tags.py and the fit driver eval/fit_pca.py, on synthetic runs (never data/)."""
 
+import hashlib
+import json
+
 import numpy as np
 import pytest
 
 import dataset.loader as loader_mod
+from app.detector import pca
 from dataset.convert import VARIABLES
 from dataset.loader import Runs
-from eval import fit_pca
+from eval import fit_pca, run_record
 from ingest import tags as tagmap
 
 FAST = tagmap.fast_tags()
@@ -85,13 +89,53 @@ def two_factor_runs(numbers=range(1, 11), samples=200, seed=0):
     return Runs(name="fault_free_training", fault=0, pool="fit", columns=VARIABLES, runs=runs)
 
 
-def test_run_fits_and_saves(tmp_path, monkeypatch, capsys):
-    # Needs Raj's app/detector/pca.py; fails with NotImplementedError until then.
+def test_run_fits_and_saves(tmp_path, monkeypatch, capsys, git_repo):
     fake = two_factor_runs()
     monkeypatch.setattr(loader_mod, "load_normal", lambda pool: fake if pool == "fit" else pytest.fail(pool))
     out = tmp_path / "models" / "pca.npz"
-    model = fit_pca.run(3, out)
+    model = fit_pca.run(3, out, repo_root=git_repo)
     assert out.is_file()
     assert model.k == 2 and model.tags == tuple(FAST)
     printed = capsys.readouterr().out
     assert "k = 2" in printed and "X 1970 x 33" in printed  # 10 runs x (200 - 3)
+
+
+def test_run_writes_a_record(tmp_path, monkeypatch, git_repo):
+    fake = two_factor_runs()
+    monkeypatch.setattr(loader_mod, "load_normal", lambda pool: fake)
+    out = tmp_path / "models" / "pca.npz"
+    model = fit_pca.run(3, out, repo_root=git_repo)
+    (path,) = (git_repo / "eval" / "runs").glob("*_fit_pca.json")
+    rec = json.loads(path.read_text())
+    assert rec["dirty"] is False
+    assert rec["config"]["warmup"] == 3 and rec["config"]["pool"] == "fit"
+    assert rec["config"]["tags"] == FAST
+    assert rec["seeds"] == {"parallel_analysis": fit_pca.PA_SEED}
+    assert rec["metrics"]["k"] == 2 and rec["metrics"]["runs"] == 10
+    assert rec["metrics"]["samples"] == 1970
+    assert rec["metrics"]["eigenvalues"] == pytest.approx(model.all_eigenvalues.tolist())
+    assert rec["metrics"]["cumulative_explained"] == pytest.approx(pca.cumulative_explained(model))
+    assert rec["outputs"]["model"]["sha256"] == hashlib.sha256(out.read_bytes()).hexdigest()
+
+
+def test_run_refuses_dirty_tree_before_loading(tmp_path, monkeypatch, git_repo):
+    (git_repo / "code.py").write_text("x = 2\n")
+    monkeypatch.setattr(loader_mod, "load_normal", lambda pool: pytest.fail("loaded data"))
+    with pytest.raises(run_record.RunRecordError):
+        fit_pca.run(3, tmp_path / "pca.npz", repo_root=git_repo)
+    assert not (tmp_path / "pca.npz").exists()
+
+
+def test_allow_dirty_runs_and_says_so(tmp_path, monkeypatch, git_repo):
+    (git_repo / "code.py").write_text("x = 2\n")
+    monkeypatch.setattr(loader_mod, "load_normal", lambda pool: two_factor_runs())
+    fit_pca.run(3, tmp_path / "pca.npz", allow_dirty=True, repo_root=git_repo)
+    (path,) = (git_repo / "eval" / "runs").glob("*_fit_pca.json")
+    assert json.loads(path.read_text())["dirty"] is True
+
+
+def test_main_reports_dirty_refusal(tmp_path, monkeypatch, capsys):
+    # conftest's REPO_ROOT has no git, so the default refuses (exit 1) before loading.
+    monkeypatch.setattr(loader_mod, "load_normal", lambda pool: pytest.fail("loaded data"))
+    assert fit_pca.main(["--warmup", "9", "--out", str(tmp_path / "pca.npz")]) == 1
+    assert "dirty" in capsys.readouterr().err
