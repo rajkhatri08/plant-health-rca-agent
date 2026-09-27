@@ -344,3 +344,39 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The selection subsample:** the seed and the file (proposed: `dataset/selection.yaml`, write-once, with its SHA-256 in the manifest).
   - The Yin 2012 component count (Raj).
   - Still open from week 1: the onset-to-divergence window; McNemar against a paired bootstrap; and how to report a paired delay comparison when resamples hit ∞ − ∞.
+
+### 2026-09-27: week 2 session 4, selection runs, calibration driver, calibration and dev check
+- **Changed:**
+  - **`dataset/selection.py` (Claude):** draws the 100 selection run numbers once, seed 20260929, from forest-ceiling. It follows `splits.py`: write-once, with its SHA-256 checked against the manifest. The file also records the SHA-256 of the splits file it was drawn from. Loading refuses dev or authoring numbers even when the checksum matches.
+  - **`dataset/selection.yaml`:** written once by Raj with `python -m dataset.selection --write`. Its SHA-256 is in `dataset/manifest.yaml` (`selection:`). Committed as d47ba5f.
+  - **`eval/calibrate_driver.py` (Claude):**
+    - finds the model's `fit_pca` record by the model's SHA-256 and takes the warm-up from it
+    - scores the calibration pool once, and runs `lowest_stable_q` for all (n, G)
+    - scores the selection runs of the 12 selection faults once, then scores each eligible setting and calls `choose`
+    - writes `data/models/pca_static_limits.json` (gitignored) and a `calibrate_pca` run record, which has every setting's q, score, floor flag and budget share (decision 55)
+
+    It never loads dev. The limits per q are cached; the ratio tracks aren't, since keeping all 500 would take about 300 MB.
+  - **`eval/check_dev.py` (Claude):** a separate command. It checks that the model and limits belong to one recorded calibration run, then reports normal dev false alerts per 24 h with a 2,000-resample percentile bootstrap over run numbers (seed 20260930).
+  - **Calibration (Raj, d47ba5f, clean tree):** record `eval/runs/20260927T150527Z_calibrate_pca.json`.
+    - 150 calibration runs; selection of 100 runs × 12 faults.
+    - **All 210 settings are eligible.** 147 are pinned at the grid floor (q = 95.00): every setting with n ≥ 4. For n = 1–3, q is 99.89–99.90, 98.44–98.57 and 95.49–96.02.
+    - **Chosen: n = 3, G = 15, q = 95.57,** with T²lim = 21.532 and SPElim = 13.099. It's not at the floor.
+    - On calibration: 153 notifications in 3,682.5 h, which is 0.997 per 24 h (99.7% of the budget).
+    - Selection score 0.975, per-fault rates: 1.0 for faults 1, 2, 4, 5, 6, 7, 8, 11, 12 and 14; 0.96 for fault 13; 0.74 for fault 10. These are selection figures on forest-ceiling runs, not dev results, and aren't for reporting.
+  - **Dev check (Raj, d47ba5f, clean tree):** record `eval/runs/20260927T150758Z_dev_false_alerts.json`. 50 normal dev runs, 1,227.5 h scored, 47 notifications, **0.919 false alerts per 24 h (95% interval 0.665 to 1.173)**, against a budget of 1.0.
+- **Tests:** `pytest -q` gives 502 passed, 1 deselected. 29 are new:
+  - 12 in `tests/test_selection.py`
+  - 11 in `tests/test_calibrate_driver.py`: the limits equal the calibration percentiles, the chosen setting equals `choose` applied to the recorded table, every eligible setting is within the budget, the floor is flagged, only calibration and selection data are loaded, and the refusals come before any loading
+  - 6 in `tests/test_check_dev.py`: the reading equals a direct count, only normal dev is loaded, the same seed gives the same interval, and the provenance refusals
+
+  The runs are separate and add no tests.
+- **Unsure about:**
+  - **The (n, G) choice is decided by one run.** The winner's score (0.975) is higher than (3, 13) and (3, 14) (0.9742) by 1/1200, one detection among the 1,200 selection runs. The tie tolerance is 1e-12, so this counts as a real difference under decision 54. The choice of G within n = 3 is therefore close to noise. n = 3 itself is clearer: its best score beats n = 2 (0.9725) and n = 4 (0.9683).
+  - **G = 15 is a 45-minute off-delay.** Each alert stays on 45 min after the ratio clears. That raises "share still flagged", and the UI band will show Alert through the hold. Detection and delay are unaffected.
+  - **Dev is under budget, but the interval reaches 1.173.** The point estimate (0.919) shows no winner's-curse effect. With 50 runs, though, dev can't rule out a rate slightly above budget.
+  - **Floor settings use much less of the budget.** For n ≥ 4 the budget share at the floor falls from 0.398 to 0.026. So for long persistence, the floor, not the budget, sets the limit. That's what decision 55 accepted, and none of those settings won.
+  - **A test I promised isn't written yet.** It should check that the committed `dataset/selection.yaml` matches the manifest and the draw, like `test_splits.py` does for the splits. Raj ran the write himself, so the test is still to do.
+  - **A small in-sample effect in the selection runs (no change).** Selection runs from fit- or calibration-pool numbers share samples 1–20 with runs used to fit the model or set the limits. That touches only the pre-onset samples.
+- **Decisions needed:**
+  - None new from these runs; the chosen setting follows decisions 53–55 as written.
+  - Still open: the Yin 2012 component count (Raj); the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; and moving the replay data to a Neon historian (later).
