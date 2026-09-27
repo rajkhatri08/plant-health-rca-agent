@@ -193,3 +193,29 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The warm-up value (still open).
   - The published table, its variable set and its number of components, before that check runs.
   - Whether to record "the published-number check uses the published component count" as its own decision or as an addition to decision 39. For now it's only in PROTOCOL.
+
+### 2026-09-27: week 1 session 4 (continued), PCA implemented, reviewed and smoke-tested
+- **Changed:**
+  - **`app/detector/pca.py`:** implemented by Raj, with step-by-step guidance from the Claude.ai chat, against `tests/test_pca.py`. Claude reviewed it and didn't change it.
+  - **Review findings** (Raj fixes `pca.py` himself; decisions below):
+    1. **`scores()` doesn't refuse NaN/inf.** `fit()` and `parallel_analysis()` do. A NaN sample gives NaN T² and SPE, which compare as "below limit", so a gap would silently mean "normal". Either refuse it here or leave it to the data-quality layer, but state which.
+    2. **`save()` uses `np.savez`, which appends `.npz` when the path lacks it.** So `--out model` writes `model.npz`, while the driver's overwrite guard checks `model` and the driver prints the wrong path. The default path ends in `.npz`, so there's no effect today.
+    3. **`load()` doesn't check that the arrays fit together** (tag count, loadings shape, k against the eigenvalues). That's minor now, and it belongs with the week 2 bundle self-test.
+  - **Smoke test** (Claude ran `python -m eval.fit_pca --warmup 5`; warm-up 5 is a placeholder, not a decision):
+    - fit pool X is 123,750 × 33 (250 runs × 495 samples)
+    - parallel analysis gives k = 12
+    - cumulative explained variance at k is 0.788
+    - It wrote `data/models/pca_static.npz` (gitignored). Delete it before the real fit, because the driver refuses to overwrite.
+  - **Raj's decisions on the findings:**
+    1. `scores()` raises `ValueError` on NaN or inf for now, so a gap can never read as normal. Revisit when the data-quality layer marks gaps as Unknown before scoring. Recorded as decision 51 in `docs/decisions.md`.
+    2. `save()` raises `ValueError` on a path that doesn't end in `.npz`.
+    3. The `load()` consistency checks are deferred to the week 2 bundle self-test.
+  - **`tests/test_pca.py`:** 6 new tests expecting `ValueError` only. Three are for finding 1 (NaN, inf, −inf in `scores()`). Three are for finding 2 (`pca`, `pca.txt`, `pca.npz.bak`, each also checking that nothing is written).
+- **Tests:**
+  - Before the new tests, `pytest -q` passed in full, including all PCA and driver tests (per Raj; the smoke test is separate and adds no tests).
+  - Now it gives 6 failed, 349 passed, 1 deselected. The 6 failures are the new tests, expected until Raj updates `pca.py`.
+- **Unsure about:** k = 12 comes from the placeholder warm-up and is near the rule's λ ≈ 1.03 regime, per the caveat in PROTOCOL. It isn't a result and must not be reported. Reported numbers come from run records.
+- **Decisions needed:**
+  - The warm-up value (still open).
+  - The published table, its variable set and its number of components.
+  - Whether the component-count choice for the published-number check becomes its own decision.

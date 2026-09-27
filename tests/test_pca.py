@@ -237,3 +237,25 @@ def test_save_load_round_trip(tmp_path):
     assert back.tags == model.tags and back.k == model.k
     for name in ("mean", "scale", "loadings", "eigenvalues", "all_eigenvalues"):
         assert np.array_equal(getattr(back, name), getattr(model, name))
+
+# --- session 4 review decisions (ValueError only) ------------------------------------
+
+# (1) Scoring refuses NaN or inf, so a gap can never read as normal (decision 51).
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+def test_scores_refuse_non_finite(bad):
+    model = pca.fit(random_data(), tags(5), k=2)
+    X = random_data(n=4)
+    X[2, 1] = bad
+    with pytest.raises(ValueError):
+        pca.scores(model, X)
+
+
+# (2) save() refuses a path that doesn't end in .npz, and writes nothing.
+
+@pytest.mark.parametrize("name", ["pca", "pca.txt", "pca.npz.bak"])
+def test_save_refuses_non_npz_path(tmp_path, name):
+    model = pca.fit(random_data(), tags(5), k=2)
+    with pytest.raises(ValueError):
+        pca.save(model, tmp_path / name)
+    assert list(tmp_path.iterdir()) == []

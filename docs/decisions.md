@@ -174,3 +174,7 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Consequence for decision 11:** the historian timestamps a value at the update time. The evidence layer treats it as describing the process one interval earlier, and holds it until the next update.
 
     *Why:* diagnosis evidence and the analyzer delay floor per fault in the protocol both depend on how late an analyzer value is.
+
+51. **Scoring refuses NaN or inf (Raj's decision).** `scores()` in the PCA detector raises `ValueError` on any NaN or inf value, instead of returning NaN T² and SPE. Revisit when the data-quality layer is built: it will mark gaps as Unknown (decision 12) before scoring, so they never reach the detector.
+
+    *Why:* NaN compares as "below the limit", so a gap would otherwise silently read as normal.

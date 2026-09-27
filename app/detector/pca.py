@@ -1,7 +1,5 @@
 """Static PCA monitoring: fit, component count, T² and SPE (eval/PROTOCOL.md, Detection).
 
-Stubs only: Raj implements these against tests/test_pca.py.
-
 Runtime code: pure numpy, plant tag names only, no imports from dataset/, eval/ or ingest/.
 
 Conventions:
@@ -37,17 +35,56 @@ class PCAModel:
         return self.loadings.shape[1]
 
 
+def _checked(X, tags):
+    """X as a float64 samples x tags array, refusing a wrong shape and NaN or inf."""
+    X = np.asarray(X, dtype=np.float64)
+    if X.ndim != 2 or X.shape[1] != len(tags):
+        raise ValueError(f"X must be samples x {len(tags)} tags, got shape {X.shape}")
+    if not np.isfinite(X).all():
+        raise ValueError("X contains NaN or inf")
+    return X
+
+
 def standardisation(X, tags) -> tuple[np.ndarray, np.ndarray]:
     """(mean, scale) per tag, float64, scale with ddof=1. Raises ValueError naming the
     tag if a tag has zero variance, and on NaN/inf or a column count that doesn't
     match tags."""
-    raise NotImplementedError
+    X = _checked(X, tags)
+    mean = X.mean(axis=0)
+    scale = X.std(axis=0, ddof=1)
+    for tag, s in zip(tags, scale):
+        if not s > 0:
+            raise ValueError(f"tag {tag} has zero variance in the fit data")
+    return mean, scale
+
+
+def _eigen(Z):
+    """Eigenvalues (largest first) and unit eigenvectors of the correlation matrix of
+    standardised data Z, with the sign rule applied to every eigenvector."""
+    R = Z.T @ Z / (len(Z) - 1)                # covariance of standardised data = correlation matrix
+    values, vectors = np.linalg.eigh(R)       # eigh is for symmetric matrices; ascending order
+    order = np.argsort(values)[::-1]          # reorder: largest eigenvalue first
+    values, vectors = values[order], vectors[:, order]
+    for j in range(vectors.shape[1]):
+        size = np.abs(vectors[:, j])
+        i = np.flatnonzero(size >= size.max() - 1e-12)[0]   # largest entry; first one on a tie
+        if vectors[i, j] < 0:
+            vectors[:, j] = -vectors[:, j]    # flip so that entry is positive
+    return values, vectors
 
 
 def fit(X, tags, k) -> PCAModel:
     """Fit on X (the fit pool after warm-up) keeping k components. Raises ValueError
     if k isn't in 1..number of tags, plus everything standardisation raises."""
-    raise NotImplementedError
+    tags = tuple(tags)
+    if not 1 <= k <= len(tags):
+        raise ValueError(f"k must be between 1 and {len(tags)}, got {k}")
+    X = _checked(X, tags)
+    mean, scale = standardisation(X, tags)
+    values, vectors = _eigen((X - mean) / scale)
+    return PCAModel(tags=tags, mean=mean, scale=scale,
+                    loadings=vectors[:, :k].copy(), eigenvalues=values[:k].copy(),
+                    all_eigenvalues=values)
 
 
 def parallel_analysis(X, tags, rng, n_shuffles=20, percentile=95) -> int:
@@ -55,25 +92,59 @@ def parallel_analysis(X, tags, rng, n_shuffles=20, percentile=95) -> int:
     `percentile` of the eigenvalues at the same rank from n_shuffles copies of the
     standardised X, each column shuffled independently with rng. Counting stops at the
     first component that doesn't exceed it."""
-    raise NotImplementedError
+    X = _checked(X, tags)
+    mean, scale = standardisation(X, tags)
+    Z = (X - mean) / scale
+    real, _ = _eigen(Z)
+    chance = np.empty((n_shuffles, Z.shape[1]))
+    for s in range(n_shuffles):
+        # Shuffling each column separately keeps every tag's spread but destroys the
+        # links between tags, so these eigenvalues show what pure chance looks like.
+        shuffled = np.column_stack([rng.permutation(Z[:, j]) for j in range(Z.shape[1])])
+        chance[s], _ = _eigen(shuffled)
+    threshold = np.percentile(chance, percentile, axis=0)    # one threshold per rank
+    k = 0
+    while k < len(real) and real[k] > threshold[k]:
+        k += 1                                               # stop at the first failure
+    return k
 
 
 def cumulative_explained(model) -> float:
     """Share of total variance in the kept components: sum(eigenvalues) / sum(all_eigenvalues)."""
-    raise NotImplementedError
+    return float(model.eigenvalues.sum() / model.all_eigenvalues.sum())
 
 
 def scores(model, X) -> tuple[np.ndarray, np.ndarray]:
     """(T², SPE), each shape (samples,), float64. X columns are in model.tags order.
-    Raises ValueError on a column count that doesn't match the model."""
-    raise NotImplementedError
+    Raises ValueError on a column count that doesn't match the model, and on NaN or inf:
+    a NaN score would compare as below the limit and read as normal."""
+    X = np.asarray(X, dtype=np.float64)
+    if X.ndim != 2 or X.shape[1] != len(model.tags):
+        raise ValueError(f"X must be samples x {len(model.tags)} tags, got shape {X.shape}")
+    if not np.isfinite(X).all():
+        raise ValueError("X contains NaN or inf; handle gaps before scoring, because a NaN "
+                         "score would compare as below the limit and read as normal")
+    Z = (X - model.mean) / model.scale        # the fit pool's mean and spread, never the batch's
+    T = Z @ model.loadings                    # t: each sample's position along the kept directions
+    t2 = np.sum(T ** 2 / model.eigenvalues, axis=1)
+    residual = Z - T @ model.loadings.T       # the part the kept directions can't explain
+    spe = np.sum(residual ** 2, axis=1)
+    return t2, spe
 
 
 def save(model, path) -> None:
-    """Write the model's arrays and tags to an .npz file (no object arrays)."""
-    raise NotImplementedError
+    """Write the model's arrays and tags to an .npz file (no object arrays). The path must
+    end in .npz: np.savez would otherwise add it, and the caller's path would be wrong."""
+    if not str(path).endswith(".npz"):
+        raise ValueError(f"model path must end in .npz, got {path}")
+    np.savez(path, tags=np.array(model.tags, dtype=str), mean=model.mean, scale=model.scale,
+             loadings=model.loadings, eigenvalues=model.eigenvalues,
+             all_eigenvalues=model.all_eigenvalues)
 
 
 def load(path) -> PCAModel:
     """Read a model written by save, with allow_pickle=False."""
-    raise NotImplementedError
+    with np.load(path, allow_pickle=False) as f:
+        return PCAModel(tags=tuple(str(t) for t in f["tags"]), mean=f["mean"],
+                        scale=f["scale"], loadings=f["loadings"],
+                        eigenvalues=f["eigenvalues"], all_eigenvalues=f["all_eigenvalues"])
