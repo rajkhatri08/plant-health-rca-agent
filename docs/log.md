@@ -164,3 +164,32 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - These new tests already pass: 5, 6, and the case of 4 where a run's length equals the warm-up (it already raises through the zero-hours check).
 - **Unsure about:** nothing new.
 - **Decisions needed:** how a paired delay comparison is reported when resamples hit ∞ − ∞. The code will raise, so a delay comparison can't run until a protocol line says what to do (for example compare detection rates, or drop those resamples and report how many).
+
+### 2026-09-27: week 1 session 4, PCA explanation, component rule, stubs and tests
+- **Changed:**
+  - **Explained in chat:** PCA monitoring, T² and SPE, with the 2-tag example (correlation 0.9, k = 1): (1, 1) gives T² 1.05 and SPE 0; (1, −1) gives T² 0 and SPE 2. Also the three component-count options. Raj confirmed he understood.
+  - **Raj's choices:**
+    - Component count: parallel analysis with 20 shuffles, the 95th percentile, fixed seed 20260927, on the fit pool after warm-up. The cumulative explained variance is printed as a sanity figure.
+    - The zero-variance guard stays (his fit-pool check found no constant tag).
+    - The published-number check uses the published table's number of components, like its variable set.
+  - **`eval/PROTOCOL.md`, Detection:**
+    - A new "PCA components" bullet with the rule and its caveat: with about 125,000 autocorrelated samples it behaves like λ > about 1.03 and may keep one or two extra components.
+    - Published-number check: the number of components is added next to the variable set (still _TBD_).
+  - **`app/detector/pca.py`:** stubs only, all raising `NotImplementedError`, for Raj. The module docstring fixes the conventions: ddof=1, correlation-matrix eigenvalues in descending order, the sign rule, row-by-row scoring and `.npz` with no pickles.
+  - **`ingest/tags.py`** (Claude): the raw-to-tag map, the register, the 33 fast tags, and column indices.
+  - **`eval/fit_pca.py`** (Claude): the fit driver.
+    - **Steps:** takes `--warmup` (0–9, per the protocol's "under 10"), loads the fit pool through the loader, keeps the fast tags, drops warm-up, runs parallel analysis, fits, and saves the `.npz`.
+    - **Guards:** refuses to overwrite an existing model.
+    - **Output:** prints only shapes, k and the sanity figure.
+  - **Tests:** `tests/test_pca.py` (27 tests) and `tests/test_fit_pca.py` (9 tests). Hand values were checked with plain numpy in a scratch run.
+- **Tests:**
+  - `pytest -q` gives 28 failed, 321 passed, 1 deselected.
+  - The 28 failures are all `NotImplementedError` from the PCA stubs (27 in `test_pca.py` and the driver's fit-and-save test). They pass once Raj implements `pca.py`.
+  - Raj's `metrics.py` fixes make all 64 metric tests pass.
+- **Unsure about:**
+  - Parallel analysis tests use strong factor structure, so k doesn't depend on how the shuffles consume the rng. Real data will sit much closer to the threshold, which is the caveat in PROTOCOL.
+  - The driver hasn't been run on real data; it needs `pca.py` and a warm-up value.
+- **Decisions needed:**
+  - The warm-up value (still open).
+  - The published table, its variable set and its number of components, before that check runs.
+  - Whether to record "the published-number check uses the published component count" as its own decision or as an addition to decision 39. For now it's only in PROTOCOL.

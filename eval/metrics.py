@@ -208,3 +208,5 @@ def paired_bootstrap_ci(runs_a: Sequence[ScoredRun], runs_b: Sequence[ScoredRun]
                              "their difference is undefined; compare a finite statistic")
         values.append(a - b)
     return _percentile_interval(values, level)
+
+
