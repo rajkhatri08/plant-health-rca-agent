@@ -1,4 +1,5 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-q"
+addopts = "-q -m 'not opendata'"
+markers = ["opendata: reads the real open data in data/; opt in with `pytest -q -m opendata`"]

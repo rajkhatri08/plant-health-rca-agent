@@ -5,6 +5,7 @@ import pytest
 import yaml
 
 import dataset.convert as convert_mod
+import dataset.loader as loader_mod
 from tests.rdata_writer import write_rdata
 
 
@@ -17,6 +18,11 @@ def _no_real_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(convert_mod, "SEALED_ROOT", nowhere / "sealed")
     monkeypatch.setattr(convert_mod, "DEFAULT_RAW_DIR", nowhere / "sealed" / "raw")
     monkeypatch.setattr(convert_mod, "DEFAULT_SEALED_DIR", nowhere / "sealed" / "converted")
+    # Same for the loader (it copies these at import). Tests that need open data opt in.
+    monkeypatch.setattr(loader_mod, "REPO_ROOT", nowhere / "repo")
+    monkeypatch.setattr(loader_mod, "SEALED_ROOT", nowhere / "sealed")
+    # No test ever runs with EVAL_MODE set.
+    monkeypatch.delenv("EVAL_MODE", raising=False)
 
 
 FAULTY = [1, 2, 16]

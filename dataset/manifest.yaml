@@ -35,6 +35,10 @@ raw_files:                   # MD5, verified against Dataverse
     runs_per_fault: 500
     samples_per_run: 960
 
+splits:                      # run-number pools (decision 49); fixed by this checksum
+  file: dataset/splits.yaml
+  sha256: 99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c
+
 conversion:
   script: dataset/convert.py
   library_versions: {python: 3.13.15, pyreadr: 0.5.6, pandas: 3.0.6, pyarrow: 25.0.1, numpy: 2.5.3, pyyaml: 6.0.3}

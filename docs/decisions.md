@@ -150,7 +150,7 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 ## Week 1 decisions, 27 September 2026
 
 49. **Pools by run number (Raj's decision).**
-    - **Finding (open data):** in the training files, run number k is one random stream shared by the fault-free file and every fault. In all 500 runs, samples 1–20 of faulty run k are exact copies of fault-free run k. The fault starts between samples 20 and 21 (between 160 and 161 in testing). The dataset's notes say training and testing seeds don't overlap.
+    - **Finding (open data):** in the training files, run number k is one random stream shared across files. Raj checked faults 1, 2, 3 and 13: in all 500 runs, samples 1–20 of faulty run k are exact copies of fault-free run k. The open-data test in `tests/test_splits.py` checks all open faults, 1–15. Faults 16–20 are sealed and can't be checked. The fault starts between samples 20 and 21 (between 160 and 161 in testing). The dataset's notes say training and testing seeds don't overlap.
     - **Rule 1:** pools are assigned by run number once, with a fixed seed. The same assignment applies to the fault-free file and every fault in the training file. Each run number belongs to exactly one pool: fit (250), early stop (50), calibration (150) or dev (50). The assignment is committed in `dataset/splits.yaml`.
     - **Rule 2:** faulty dev runs use the dev numbers. Authoring runs (5 per fault, the same 5 numbers for every fault) and forest training take faulty runs only from numbers outside the dev pool.
     - **Rule 3:** bootstrap intervals resample run numbers, taking every file's run with that number together. This applies on test too, where sharing can't be checked.

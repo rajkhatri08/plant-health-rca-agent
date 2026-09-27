@@ -95,7 +95,7 @@ def convert(name, *, repo_root, raw_dir, sealed_dir, crosscheck=False, chunk_val
     if not raw_path.is_file():
         raise ConversionError(f"raw file not found: {raw_path}")
     print(f"{name}: checking MD5 of {spec['file']}")
-    if _file_hash(raw_path, "md5") != spec["md5"]:
+    if file_hash(raw_path, "md5") != spec["md5"]:
         raise ConversionError(f"MD5 mismatch for {spec['file']}; nothing was parsed")
     print("  MD5 matches the manifest")
 
@@ -148,7 +148,7 @@ def convert(name, *, repo_root, raw_dir, sealed_dir, crosscheck=False, chunk_val
         entry["faults"][fault] = {"runs": spec["runs_per_fault"],
                                   "samples_per_run": spec["samples_per_run"], "rows": table.num_rows}
         entry["files"][str(path.relative_to(side_dirs[side]))] = {
-            "rows": table.num_rows, "sha256": _file_hash(path, "sha256")}
+            "rows": table.num_rows, "sha256": file_hash(path, "sha256")}
         for c in VARIABLES:
             entry["nonfinite"][c] += int(np.count_nonzero(~np.isfinite(frame.columns[c][idx])))
         print(f"  fault {fault}: {spec['runs_per_fault']} runs x {spec['samples_per_run']} samples "
@@ -169,7 +169,7 @@ def convert(name, *, repo_root, raw_dir, sealed_dir, crosscheck=False, chunk_val
         if side == "open":
             snippet["open_reports"][name] = {"commit": commit, "dirty": dirty, "files": entry["files"]}
         else:
-            snippet["sealed_reports"][name] = _file_hash(path, "sha256")
+            snippet["sealed_reports"][name] = file_hash(path, "sha256")
         print(f"  {side} report: {path}")
     for side, entry in sides.items():
         for rel, f in entry["files"].items():
@@ -290,7 +290,7 @@ def library_versions():
     return versions
 
 
-def _file_hash(path, algo):
+def file_hash(path, algo):
     h = hashlib.new(algo)
     with open(path, "rb") as f:
         while chunk := f.read(1 << 20):

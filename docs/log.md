@@ -74,3 +74,34 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **McNemar's test assumes independent cases**, but diagnosis cases that share a run number aren't independent. Keep McNemar with a stated caveat, or use a paired bootstrap over run numbers.
   - **PCA component-count rule:** the protocol has a rule for DPCA lags but none for PCA components. It must be written in before the fit is used.
   - **Metric details for session 3:** the delay median with misses (proposed: misses count as +∞); whether an alert already on at the first sample after warm-up counts as a notification (proposed: yes); the exact warm-up value (still open from week 0).
+
+### 2026-09-27: week 1 session 2, run-number splits, loader, leak tests
+- **Changed:**
+  - **Wording fix (decision 49 and PROTOCOL run-numbers paragraph):** the sharing was checked by Raj on faults 1, 2, 3 and 13. The open-data test in `tests/test_splits.py` checks all open faults 1–15. Faults 16–20 are sealed.
+  - **`dataset/splits.py`** (seed 20260928) and **`dataset/splits.yaml`**, written once by `python -m dataset.splits --write`. A second run was refused. The file's SHA-256 is recorded in `dataset/manifest.yaml` (`splits: {file, sha256}`), which is the authority.
+  - **`dataset/loader.py`:**
+    - **Pools:** `load_normal(pool)` and `load_faulty(fault, pool)` take their run numbers only from the committed assignment.
+    - **Refusals:** `load_testing()` always refuses in week 1, as do faults 16–20 and paths that resolve outside `<repo>/data` or into the sealed folder.
+    - **Integrity checks:** each file's SHA-256 against `open_reports`, and the structure (runs 1..500, samples 1..N).
+  - **`dataset/convert.py`:** `_file_hash` renamed to `file_hash` (approved). No behaviour change.
+  - **`tests/conftest.py`:** the autouse fixture now also points the loader at non-existent roots and unsets `EVAL_MODE`.
+  - **`pyproject.toml`:** an `opendata` marker, excluded by default (`-m 'not opendata'`).
+  - **New test files:** `tests/test_splits.py`, `tests/test_loader.py`, and `tests/test_walls.py` (import and read walls). The plan had the walls in `test_loader.py`; I put them in their own file because they aren't about the loader.
+- **Tests:**
+  - **Default run:** `pytest -q` gives 249 passed, 1 deselected (179 existing and 70 new). The new tests cover:
+    - the partition of 1..500 and the pool sizes
+    - the checksum match
+    - the seed comparison, which runs only when the numpy version matches
+    - write-once
+    - tampered, unlisted or invalid splits files
+    - rule 1 (every pool, every fault's dev numbers equal normal dev)
+    - rule 2 (the same 5 authoring numbers for every fault, none of them dev; forest ceiling is 445 numbers with no dev or authoring numbers; faulty runs refused in the normal pools)
+    - sealed refusals (faults 16–20, the test split, a sealed absolute path, `..` traversal, a symlink into the sealed folder), all with `EVAL_MODE` unset
+    - changed data files, missing runs and wrong fault numbers
+    - `app/` imports and raw-file reads outside `dataset/`
+  - **Open-data check:** `pytest -q -m opendata` passed. On the real open data, samples 1–20 of every run of every open fault (1–15) equal the fault-free run with the same number. This extends Raj's check on faults 1, 2, 3 and 13 to all open faults.
+  - Rules 3 and 4 get their tests with the metric code in session 3.
+- **Unsure about:**
+  - The loader hashes each file on every load, about 55 MB each. That's fine now; add a cache if it gets slow.
+  - The read-wall scan is textual (`.parquet`, `pyarrow`, `pyreadr`, and so on), so a future non-data use of pyarrow outside `dataset/` would trip it.
+- **Decisions needed:** nothing new.
