@@ -456,3 +456,36 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - How the replay resumes after a data gap, once the data-quality layer is built: reset the engine with a new warm-up, or bridge short gaps.
   - Whether to move the test client to `httpx2`.
   - Still open: the Yin 2012 component count and the agreement band; theoretical 99% limits into PROTOCOL; the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; moving the replay data to Neon (later).
+
+### 2026-09-27: week 2 session 7, web page and deploy config
+- **Changed:**
+  - **Session 6 artifacts (Raj, committed before this session):** `app/bundles/pca_v1/`, `app/replay/run.csv` and `eval/replay_source.yaml`. Raj's local replay: 9 Unknown, 56 Normal, 435 Alert, first alert at 09:15 (sample 66).
+  - **Raj's test change (65a1352, before this session):** the replay-ratio tests in `tests/test_replay.py` now compare ratios to 12 significant digits (`RATIO_REL = 1e-12`), not exact equality, so they pass on CI's maths libraries. Bands are still compared exactly. So the session 6 entry's "bands and ratios identical" now means identical bands and ratios equal to about 12 significant digits. CI is green.
+  - **`web/index.html` (Claude):** a static page, with no build step and no external scripts or fonts. It shows:
+    - the current band as a labelled pill, with the Unknown reason (warm-up, missing data, or "holding" during the off-delay)
+    - the current ratio against the limit of 1, with a meter
+    - plant time, and the band counts so far
+    - a chart: the ratio on a log scale with the limit line, over a band strip per sample
+    - Play/Pause, Step and Reset controls, plus a speed setting of 1, 4 or 16 samples per tick. They call `/replay/status` with an increasing `upto`, one request at a time.
+    - notes: advisory only, the Watch band not built (taken from `/replay/info`), as-of scoring, and the warm-up
+    - a "waking the server" message after 3 s, for Render's cold start
+
+    The API base comes from the hostname: `localhost`, `127.0.0.1` or `file://` use `http://127.0.0.1:8000`; anything else uses the single constant `RENDER_API_URL`, marked "Fill this in after the Render deploy". It uses light and dark colours, works at phone width, and never shows a fault or run number.
+  - **`web/vercel.json`:** a static site (`cleanUrls`, and `nosniff` and referrer-policy headers), with no builds, functions or rewrites.
+  - **`render.yaml`:** App 2's pattern. `runtime: python`, `region: singapore`, `plan: free`, `buildCommand: pip install -r requirements-app.txt`, `startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT`, `healthCheckPath: /health`, `PYTHON_VERSION` "3.13", and `ALLOWED_ORIGIN` with `sync: false`. There's no `DATABASE_URL` and no `rootDir`, because the app reads `library/tags.yaml` from the repo root.
+  - **`requirements-app.txt`:** 15 pins, derived rather than guessed. They're the third-party packages `app/` imports (fastapi, numpy, PyYAML), uvicorn, and every dependency of those from their installed metadata. There's no pandas, pyarrow, matplotlib, pytest or httpx on the server.
+  - **Leak scan:** `web/` is added to the served-text scan in `tests/test_leak_scan.py`.
+  - **CLAUDE.md:** the command for running the page locally (API with `ALLOWED_ORIGIN=http://localhost:8080`, and `python -m http.server 8080 -d web`).
+- **Tests:** `pytest -q` gives 587 passed, 1 deselected. The 4 artifact tests from session 6 now run and pass. 11 are new:
+  - `tests/test_requirements_app.py` (5): every app pin equals the `requirements.txt` pin; everything `app/` imports is installed, plus uvicorn; the list is closed under runtime dependencies; no data or test tooling is deployed; and the `render.yaml` fields
+  - `tests/test_web.py` (6): one marked API constant and the local rule; the advisory and Watch notes; only `/health`, `/replay/info` and `/replay/status`, all GET; no external scripts or URLs; no run or fault number wording; a static Vercel config
+- **Local smoke test (Claude):** uvicorn with `ALLOWED_ORIGIN=http://localhost:8080`.
+  - `/health` gave 200 with the CORS header for that origin, and the self-test passed.
+  - `/replay/info` gave 500 samples, 06:00 to 06:57 the next day.
+  - `/replay/status` up to 23:57 gave 360 samples: 9 Unknown, 56 Normal, 295 Alert, with the first alert at 09:15. That matches Raj's run.
+  - The page wasn't opened in a browser by Claude: Raj checks it by eye.
+- **Unsure about:**
+  - **`PYTHON_VERSION: "3.13"`** (Raj's value): I believe Render accepts major.minor and uses the latest patch. If the build log says otherwise, set it to 3.13.15, the version the pins were resolved on.
+  - **The dependency closure test evaluates markers on macOS.** The only platform-marked dependencies in this set are Windows-only, so Linux on Render installs the same list.
+  - **`app/detector/alerting.py`** again shows a trailing-newline change I didn't make.
+- **Decisions needed:** none new. Still open: the Yin 2012 component count and the agreement band; the theoretical 99% limits in PROTOCOL; how the replay resumes after a data gap; `httpx2`; the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; Neon (later).

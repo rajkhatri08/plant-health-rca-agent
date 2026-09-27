@@ -64,6 +64,7 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 - Tests: `pytest -q`
 - Convert raw data (Raj runs this; Claude Code never runs it): `python -m dataset.convert <name>`, one of `fault_free_training` (first, with `--crosscheck`), `fault_free_testing`, `faulty_training`, `faulty_testing`.
 - Run the API locally: `uvicorn app.api:app --reload` (health at `/health`, replay at `/replay/info` and `/replay/status?upto=<ts>`).
+- Run the page locally: `ALLOWED_ORIGIN=http://localhost:8080 uvicorn app.api:app --reload` in one terminal and `python -m http.server 8080 -d web` in another, then open http://localhost:8080.
 - Build the detector bundle (after a fit and a calibration run): `python -m eval.build_bundle`.
 - Export the replay stream once: `python -m ingest.export_replay`.
 - CI: `.github/workflows/ci.yml` runs `pytest -q` on every push, with no data and no secrets.

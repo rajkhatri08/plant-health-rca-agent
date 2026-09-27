@@ -1,0 +1,19 @@
+# Render blueprint for the API. Committed rather than configured in the dashboard, so the
+# deploy is reproducible and reviewable (App 2's pattern).
+# No rootDir: the app reads library/tags.yaml and its bundle from the repo root.
+# The bundle (app/bundles/pca_v1) and replay stream (app/replay/run.csv) are committed;
+# no data files, parquet or raw names are needed at runtime.
+services:
+  - type: web
+    name: plant-health-api
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements-app.txt
+    startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      - key: ALLOWED_ORIGIN
+        sync: false            # the Vercel URL, set in the dashboard after the Vercel deploy

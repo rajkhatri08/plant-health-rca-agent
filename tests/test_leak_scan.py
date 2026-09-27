@@ -21,9 +21,9 @@ PATTERNS = [
 RAW_ONLY = [re.compile(r"(?:xmeas|xmv)", re.IGNORECASE)]
 
 AGENT_VISIBLE = ["library", "app/agent/prompts"]
-# What the API serves or is built from: its source, the replay stream and the bundle's
-# text files (binary .npz is skipped: random bytes can spell a short word).
-SERVED = ["app/api.py", "app/replay", "app/bundles"]
+# What the API and the web page serve or are built from: the API source, the replay stream, the bundle
+# text files and web/ (binary .npz is skipped: random bytes can spell a short word).
+SERVED = ["app/api.py", "app/replay", "app/bundles", "web"]
 TEXT_SUFFIXES = {".py", ".json", ".csv", ".yaml", ".yml", ".md", ".txt", ".html"}
 
 
