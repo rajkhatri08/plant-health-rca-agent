@@ -71,3 +71,7 @@ conversion:
     fault_free_testing: bfc78d610de70f46f52a50e37ec20304e2094c3a6e292c47fdcc6306fa087da4
     faulty_training: 3a25f2dbb9f644667ba5db5c5bceac920bc3f4f8717b833d7e593e2e2523e79f
     faulty_testing: ed43876d5ac0c77e86986a421314c0c9836ca005dc87e56e3a16527b184c2417
+
+selection:
+  file: dataset/selection.yaml
+  sha256: 6c9019d48dcc9dfb616385ecbb90d4ad3214f7fbc72378318af97807fa5248bd

@@ -1,0 +1,14 @@
+# Selection runs for choosing persistence n and off-delay G (decision 54), written once by
+# `python -m dataset.selection --write`. 100 run numbers from forest_ceiling in
+# dataset/splits.yaml, the same for every selection fault.
+# Fixed by its SHA-256 in dataset/manifest.yaml: never edit or regenerate this file.
+seed: 20260929
+generator: numpy.random.default_rng (PCG64)
+numpy: 2.5.3
+source: forest_ceiling
+splits_sha256: 99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c
+numbers: [1, 3, 9, 12, 13, 16, 17, 28, 34, 38, 43, 50, 62, 75, 80, 81, 85, 86, 92, 97, 107, 108, 110,
+  114, 117, 118, 121, 123, 127, 129, 130, 133, 136, 137, 139, 143, 145, 146, 163, 177, 180, 188, 192,
+  195, 197, 201, 202, 203, 208, 210, 212, 216, 228, 233, 236, 243, 248, 251, 252, 261, 267, 270, 275,
+  276, 277, 279, 298, 303, 305, 317, 319, 323, 324, 332, 333, 336, 370, 375, 380, 390, 397, 409, 418,
+  419, 422, 434, 441, 443, 447, 449, 451, 457, 461, 465, 471, 484, 485, 489, 492, 496]
