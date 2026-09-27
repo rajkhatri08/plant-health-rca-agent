@@ -178,3 +178,15 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 51. **Scoring refuses NaN or inf (Raj's decision).** `scores()` in the PCA detector raises `ValueError` on any NaN or inf value, instead of returning NaN T² and SPE. Revisit when the data-quality layer is built: it will mark gaps as Unknown (decision 12) before scoring, so they never reach the detector.
 
     *Why:* NaN compares as "below the limit", so a gap would otherwise silently read as normal.
+
+## Week 2 decisions, 27 September 2026
+
+52. **Warm-up is 9 samples (Raj's decision).**
+    - **Rule:** each run's first 9 samples (27 minutes) aren't scored, the most decision 37 allows. Scoring starts at sample 10.
+    - **Memory bound:** any detector's memory must fit inside the warm-up. With L lags (past samples appended; the current sample isn't a lag) and a persistence window of n samples, L + n − 1 ≤ 9.
+      - Static PCA (L = 0) allows n ≤ 10.
+      - DPCA with 2 lags allows n ≤ 8.
+    - **Consequence:** the DPCA lag rule (week 3) is capped by the persistence window, and the other way round.
+    - Training runs keep 11 scored pre-onset samples (10–20).
+
+    *Why:* the first scored decision must use only samples from the same run, with no padding or state from before the run started. A longer warm-up isn't allowed by decision 37.

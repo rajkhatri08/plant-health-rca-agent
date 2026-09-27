@@ -10,7 +10,7 @@ Confirm these before the protocol commit.
 |---|---|
 | False-alert budget | at most 1 false alert per 24 h of normal operation, on the single plant-level alert stream |
 | Watch-band cap | at most 2% of normal operating time, calibrated per equipment group |
-| Warm-up | the longest lag or window used, in samples; under 10 samples; exact value fixed here before the protocol commit |
+| Warm-up | 9 samples (27 min); scoring starts at sample 10. Every detector's memory fits inside it: lags + persistence window − 1 ≤ 9 (decision 52) |
 | Useful detection window | 4 h after onset |
 | Notification window (alarm comparison) | first 2 h after onset |
 | Detector selection | simplest detector within 3 points of the best dev detection rate, at the same budget |
@@ -40,7 +40,7 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
 ## Detection
 - **Detector:** PCA on the 33 fast tags (22 continuous measurements, 11 valves); DPCA, with the lag count chosen on the fit pool by a written rule; autoencoder (when built). Analyzer tags are diagnosis evidence only.
 - **PCA components:** parallel analysis on the fit pool after warm-up. Each tag is standardised with the fit pool's mean and standard deviation. Each column is then shuffled independently 20 times, with fixed seed 20260927, which keeps each tag's spread but destroys correlations. k is the number of leading components whose eigenvalue exceeds the 95th percentile of the shuffled eigenvalues at the same rank. The cumulative explained variance at the chosen k is reported as a sanity figure, not as the rule. A tag with zero variance in the fit pool stops the fit with its name. Known caveat: with about 125,000 autocorrelated samples, the shuffled eigenvalues sit very close to 1, so the rule behaves like "λ > about 1.03". Autocorrelation makes the effective sample size smaller than the count, so it may keep one or two extra components.
-- **Limits:** empirical percentiles from the calibration pool. The limit, the persistence rule and episode grouping are calibrated together to the false-alert budget on the plant-level statistic. Equipment groups are attributed, not alerted separately; each group's Watch boundary is calibrated to the watch-band cap.
+- **Limits:** empirical percentiles from the calibration pool. The limit, the persistence rule and episode grouping are calibrated together to the false-alert budget on the plant-level statistic. The persistence window is bound by the warm-up: lags + window − 1 ≤ 9. Equipment groups are attributed, not alerted separately; each group's Watch boundary is calibrated to the watch-band cap.
 - **Selection:** the production detector is chosen on dev by the selection rule. Test only confirms it.
 - **Published-number check:** static PCA per-fault detection at the conventional 99% per-sample limit, using the variable set and the number of components of the published table it compares against (decision 39). Table: _TBD_. Variable set: _TBD_. Number of components: _TBD_. All three are recorded here before the check runs. The production detector stays on the 33 fast tags.
 

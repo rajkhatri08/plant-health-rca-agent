@@ -219,3 +219,30 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The warm-up value (still open).
   - The published table, its variable set and its number of components.
   - Whether the component-count choice for the published-number check becomes its own decision.
+
+### 2026-09-27: week 2 session 1, warm-up decision and week 2 plan
+- **Changed:** docs only.
+  - **`docs/decisions.md`:** decision 52 (Raj's): the warm-up is 9 samples (27 min), and scoring starts at sample 10. It's filed under a new heading, "Week 2 decisions, 27 September 2026". Raj called it decision 51, but 51 was already taken by the NaN refusal.
+  - **`eval/PROTOCOL.md`:** the warm-up row now reads "9 samples (27 min); scoring starts at sample 10; lags + persistence window − 1 ≤ 9". A sentence under Detection → Limits binds the persistence window to the warm-up.
+  - **Week 2 plan approved:**
+    - Today: sessions 1–3, each stopped for review and commit.
+    - Later: calibration implementation and driver, recording the published-number check, the thin-slice backend, and the UI and deploy.
+  - **Raj's answers, to record as decisions 53 and 54 in session 3:**
+    - Plant ratio: r = max(T²/T²lim, SPE/SPElim) at a shared percentile q.
+    - Persistence: n consecutive samples, n in 1–10. Grouping: an off-delay G, in 0–20 samples.
+    - q is the lowest value that meets the budget on the calibration pool.
+    - (n, G) is chosen by the mean detection rate on a seeded subsample of 100 forest-ceiling run numbers, not on dev.
+    - Every compared detector uses the same search.
+  - **Other choices:**
+    - The published table is Yin et al. 2012 (33 variables). Raj confirms the component count from the full text; otherwise the check uses our parallel-analysis k and says so. It gets recorded in PROTOCOL in session 5.
+    - The thin slice reads a committed CSV of one dev run, with columns `ts, tag, value, quality`.
+    - Approved dependencies: fastapi, uvicorn, httpx and matplotlib.
+    - The dataset's public-domain dedication is confirmed.
+- **Tests:** none (docs only).
+- **Unsure about:** nothing new.
+- **Decisions needed:**
+  - The warm-up is closed by decision 52.
+  - Does the (n, G) selection mean include faults 3, 9 and 15, which the protocol's summary excludes as near-undetectable? Raj's rule says faults 1–15.
+  - The published table's component count: Raj is confirming it from the full text.
+  - Still open from week 1: the onset-to-divergence window, McNemar against a paired bootstrap, and how to report a paired delay comparison when resamples hit ∞ − ∞.
+  - Later item: move the replay data from the committed CSV to a Neon historian table.
