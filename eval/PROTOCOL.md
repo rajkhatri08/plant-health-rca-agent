@@ -21,17 +21,19 @@ Confirm these before the protocol commit.
 | LLM repeats | 5; headline cases are a seeded subsample of 10 test runs per fault |
 
 ## Data and splits
-Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence in the data manifest). Split whole runs, never samples. Fit all preprocessing on the fit pool. Skip each run's warm-up samples; windows never cross run boundaries. The onset offset is fixed within each split: 1 h into training runs, 8 h into testing runs.
+Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence in the data manifest). Split whole runs, never samples. Fit all preprocessing on the fit pool. Skip each run's warm-up samples; windows never cross run boundaries. The onset offset is fixed within each split: 1 h into training runs, 8 h into testing runs. The last pre-fault sample is 20 in training runs and 160 in testing runs; the fault starts between that sample and the next.
+
+**Run numbers (decision 49).** In the training files, run number k is one random stream shared by the fault-free file and every fault: samples 1–20 of faulty run k are exact copies of fault-free run k. So pools are assigned by run number, once, with a fixed seed, and the same assignment applies to the fault-free file and every fault. Each number belongs to exactly one of fit, early stop, calibration or dev. The assignment is committed in `dataset/splits.yaml`, fixed by its checksum in the data manifest. Training and testing seeds don't overlap (dataset notes). Whether the testing files share run numbers among themselves can't be checked without opening them, so the interval and false-alert rules below treat test as if they do.
 
 | Split | Source | Used for |
 |---|---|---|
-| Fit | 250 normal training runs | scalers, PCA/DPCA, autoencoder weights |
-| Early stop | 50 normal training runs | autoencoder early stopping only |
-| Calibration | 150 normal training runs | limits, persistence, grouping and the conventional baseline, all to the same budget |
-| Normal dev | 50 normal training runs | dev false alerts per 24 h and dev chance rates |
-| Authoring | 5 training runs per known fault | library signatures, 5-run forest |
-| Dev | 50 other training runs per known fault | settings, prompt iteration, decline thresholds, confidence check |
-| Forest ceiling | remaining training runs per known fault | ceiling classifier only |
+| Fit | 250 run numbers, normal training runs | scalers, PCA/DPCA, autoencoder weights |
+| Early stop | 50 run numbers, normal training runs | autoencoder early stopping only |
+| Calibration | 150 run numbers, normal training runs | limits, persistence, grouping and the conventional baseline, all to the same budget |
+| Normal dev | the 50 dev run numbers, normal training runs | dev false alerts per 24 h and dev chance rates |
+| Authoring | the same 5 non-dev run numbers for every known fault | library signatures, 5-run forest |
+| Dev | the 50 dev run numbers, for each known fault | settings, prompt iteration, decline thresholds, confidence check |
+| Forest ceiling | the other 445 non-dev run numbers, for each known fault | ceiling classifier only |
 | Test (sealed) | all testing runs | reported once per frozen version |
 | Quarantined | faults 16–20, in every split | final unknown-fault test only |
 
@@ -43,12 +45,12 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
 
 ## Detection metrics
 - **Detected:** a new notification after onset, within the useful window. An alert already active at onset doesn't count, and alerts before onset are false alerts.
-- **Chance rate:** the same scoring on normal runs from the same split as the fault runs being compared (normal dev on dev, normal test on test), with fake onsets at that split's offset (1 h for training runs, 8 h for testing runs). Reported next to every detection rate.
+- **Chance rate:** the same scoring on normal runs only, from the same split as the fault runs being compared (normal dev on dev, normal test on test), with fake onsets at that split's offset (1 h for training runs, 8 h for testing runs). Reported next to every detection rate.
 - **Right place:** the top-ranked group belongs to the true family's equipment.
 - **Delay:** median and IQR in minutes, with misses counted. Plot a cumulative detection curve, and a delay vs false-alerts-per-24-h curve (AMOC) with the operating point marked. Note the analyzer delay floor per fault.
-- **False alerts per 24 h:** over normal runs plus the pre-onset hours of fault runs from the same split (normal dev on dev, normal test on test), excluding warm-up and gaps. State the hours counted.
+- **False alerts per 24 h:** over normal runs only, from the same split (normal dev on dev, normal test on test), excluding warm-up and gaps. The pre-onset part of a fault run isn't counted: it is a copy of the normal run with the same number (decision 49). State the hours counted.
 - **Persistence:** the share of each fault's duration still flagged after first detection.
-- **Intervals:** bootstrap over whole runs; paired bootstrap to compare detectors.
+- **Intervals:** bootstrap over run numbers, on dev and on test. Each resample draws run numbers with replacement and takes every file's run with that number together (the normal run and every fault's run), because runs sharing a number are correlated. The paired bootstrap to compare detectors uses the same draws for both.
 - **Summary:** the per-fault table comes first. The summary averages faults 1–20 except 3, 9 and 15 (reported separately), each fault weighted equally.
 
 | Fault | Family | Masked | Detected (any / right place) | Chance rate | Median delay (IQR) | Share still flagged | Lead time vs grouped alarms |
@@ -93,7 +95,7 @@ Headline results use no work-order history (C0).
 - Candidate recall (true entry among the matcher's top-k) and, when work orders exist, clue recall. Label each miss as a retrieval miss or a reasoning miss.
 - Per-entry results: picked when right, picked when wrong, number of cases
 - Confidence check: accuracy per stated confidence level, on dev and on test
-- LLM variance: bootstrap interval over cases, spread across repeats, per-case agreement, with unstable cases listed
+- LLM variance: bootstrap interval over run numbers (as in Detection metrics), spread across repeats, per-case agreement, with unstable cases listed
 - Paired comparisons: McNemar's test on per-case correctness
 
 ## LLM measurement

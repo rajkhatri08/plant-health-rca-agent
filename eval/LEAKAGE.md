@@ -17,7 +17,7 @@ Three walls. CI enforces walls 1 and 2; wall 3 is audited from the access log an
 - Memorization probes run once on the pinned model, with the results saved in `eval/probes/`. Anonymisation is partial; say so under Limitations.
 
 ## 3. The builder can't peek
-- Signatures are written from at most 5 authoring runs per known fault. `eval/provenance` lists which runs.
+- Signatures are written from at most 5 authoring runs per known fault, using run numbers outside the dev pool (decision 49), listed in `dataset/splits.yaml`. `eval/provenance` lists which runs.
 - Raw downloads (the dataset's four RData files) live in `~/PycharmProjects/plant-health-sealed/raw`, never in the repo. Raj runs the one-time conversion in a normal terminal. Claude Code may write the script but never runs it. The script writes open data (normal training runs, and training runs of faults 1–15) to `data/`. It writes everything else (all testing files, and faults 16–20 from any file) to the sealed folder. It prints only counts and checksums, never values.
 - The test split is sealed, and faults 16–20 are quarantined in every split. Both are stored outside the project folder. They load only through `dataset/` with `EVAL_MODE=1`, which Raj sets for a pre-registered run. Every such load is logged with its commit in `eval/test_access.log`, which is committed.
 - During development, the historian, replay and UI use train and dev data only.

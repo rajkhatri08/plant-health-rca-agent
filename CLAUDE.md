@@ -30,7 +30,7 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 - Test labels and anything about faults 16–20 live only in the sealed folder. Train/dev labels are used only in `dataset/`, `eval/` and notebooks, never in `app/` or `library/`.
 - Nothing the agent sees (prompts, `library/`, tool outputs) may contain fault labels (IDV…), raw benchmark tag names (XMEAS/XMV), the benchmark's name or its source paper. Raw names are allowed only on the builder side (`dataset/`, `ingest/`) and never appear in `app/`, `library/`, prompts or tool outputs.
 - Historian columns are `ts, tag, value, quality`. No run or segment IDs.
-- Split by whole runs, never by samples. Fit all preprocessing on the fit pool only.
+- Split by run number, the same number across every training file, never by samples. Fit all preprocessing on the fit pool only.
 
 ### Time
 - No look-ahead when scoring: no centred windows, zero-phase filters, per-run normalisation, interpolation or backward shifts. Use past samples only.
