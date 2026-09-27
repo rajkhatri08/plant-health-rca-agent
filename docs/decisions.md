@@ -228,3 +228,11 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Consequence:** for a setting at the floor, the limit is set by the grid, not the budget, and it uses less of the budget. The flag and the share make that visible.
 
     *Why:* below the 95th percentile, r > 1 would be common in normal operation, and the ratio shown next to the status band (decision 12) would lose its meaning.
+
+56. **Published-number check: Yin et al. 2012 (Raj's decision).**
+    - **Table:** Yin, S., Ding, S. X., Haghani, A., Hao, H., Zhang, P. (2012). "A comparison study of basic data-driven fault diagnosis and process monitoring methods on the benchmark Tennessee Eastman process." *Journal of Process Control* 22(9), 1567–1581. doi:10.1016/j.jprocont.2012.06.009. It's the per-fault detection-rate table for PCA T² and SPE, cited by later papers as Table 4.
+    - **Variable set:** 33 variables (22 continuous measurements and 11 manipulated variables). These are the same as our 33 fast tags, which map exactly to the first 22 measurements and the 11 manipulated variables (checked against `ingest/tag_map.yaml`).
+    - **Components:** to be confirmed from the full text before the check runs. If it can't be confirmed, the check uses our parallel-analysis k = 12 (`eval/runs/20260927T093509Z_fit_pca.json`) and reports that as a deviation.
+    - **Method:** the check reproduces the paper's per-sample detection rate at its 99% limit on our dev runs. It checks the method, not identical data.
+
+    *Why:* the table uses exactly our production variable set, so the check is like-for-like on variables (decision 39) and needs no analyzer tags.

@@ -380,3 +380,24 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:**
   - None new from these runs; the chosen setting follows decisions 53–55 as written.
   - Still open: the Yin 2012 component count (Raj); the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; and moving the replay data to a Neon historian (later).
+
+### 2026-09-27: week 2 session 5, published-number check recorded (decision 56)
+- **Changed:** docs only.
+  - **`docs/decisions.md`:** decision 56 (Raj's).
+    - **Table:** Yin, Ding, Haghani, Hao and Zhang (2012), *J. Process Control* 22(9) 1567–1581, doi:10.1016/j.jprocont.2012.06.009. It's the per-fault detection-rate table for PCA T² and SPE, cited by later papers as Table 4.
+    - **Variable set:** 33 variables (22 continuous measurements and 11 manipulated variables).
+    - **Components:** to be confirmed from the full text; otherwise k = 12, reported as a deviation.
+    - **Method:** the paper's per-sample rate at its 99% limit, on our dev runs. It checks the method, not identical data.
+  - **`eval/PROTOCOL.md`, Detection → Published-number check:** the three _TBD_s are replaced with the table, the variable set and the component rule, with the same method sentence and a pointer to decision 56.
+  - **Checked (read-only):** the 33 fast tags map exactly to the first 22 continuous measurements and the 11 manipulated variables in `ingest/tag_map.yaml`, so Yin's variable set equals the production tag set.
+  - Raj's earlier answer in chat: the 99% limits are theoretical, as published. That's an F-distribution limit for T² and the Jackson–Mudholkar limit for SPE. It isn't in PROTOCOL yet (see below).
+- **Tests:** none (docs only).
+- **Unsure about:**
+  - **The table number:** "Table 4" comes from later papers citing Yin, not from the paper itself, and it's recorded that way. The component count is still unconfirmed.
+  - **Dev runs aren't the paper's test runs:** they're training runs, with 500 samples and onset after sample 20. The paper's test runs have 960 samples and onset after 160. So the post-onset stretch is 480 samples here against 800 there. That's part of "method, not identical data".
+- **Decisions needed:**
+  - **The component count (Raj),** from the full text before the check runs.
+  - **The kind of 99% limit, in PROTOCOL:** Raj chose theoretical in chat. Write it into PROTOCOL: an F-distribution limit for T² and the Jackson–Mudholkar limit for SPE at α = 0.01, fitted on the fit pool. They're PCA limits, so they're Raj's code: Claude writes stubs and hand-built tests.
+  - **What counts as agreement:** not decided. My proposal is per-fault rates for T² and SPE on the dev runs of open faults except 3, 9 and 15, with agreement within 10 points; report how many agree and list those that don't, with no overall pass or fail.
+  - **The committed-selection test** is still to write: `dataset/selection.yaml` against the manifest and the draw.
+  - Still open: the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; and moving the replay data to a Neon historian (later).
