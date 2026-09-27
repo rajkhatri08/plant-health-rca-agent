@@ -36,6 +36,23 @@ def ts_of(sample):
 
 
 END = ts_of(10_000)
+RATIO_REL = 1e-12       # ratios agree to about 12 significant digits
+
+
+def assert_same_rows(got, want):
+    """Same samples, bands and reasons exactly; ratios to RATIO_REL.
+
+    Matrix products can round the last digit differently for different batch sizes
+    (for example OpenBLAS on Linux against Accelerate on macOS), so an exact float
+    comparison between two scorings isn't portable. The bands must still match exactly.
+    """
+    key = lambda r: (r["ts"], r["band"], r["reason"])
+    assert [key(r) for r in got] == [key(r) for r in want]
+    for g, w in zip(got, want):
+        if w["ratio"] is None:
+            assert g["ratio"] is None
+        else:
+            assert g["ratio"] == pytest.approx(w["ratio"], rel=RATIO_REL)
 
 
 def test_csv_round_trips_float32_exactly(tmp_path, run_values):
@@ -58,7 +75,7 @@ def test_one_engine_bands_equal_the_evaluation_tracks(tmp_path, b, run_values):
     rows = replay.status(b, stream(tmp_path, run_values), END)
     w = lim["warmup"]
     assert [r["band"] for r in rows[w:]] == ["Alert" if a else "Normal" for a in track[w:]]
-    assert [r["ratio"] for r in rows[w:]] == ratio[w:].tolist()
+    assert [r["ratio"] for r in rows[w:]] == pytest.approx(ratio[w:].tolist(), rel=RATIO_REL)
     # Not a vacuous match: the run is Normal before the step and alerts after it.
     assert {r["band"] for r in rows[w:29]} == {"Normal"}
     assert "Alert" in {r["band"] for r in rows[29:]}
@@ -77,7 +94,7 @@ def test_as_of_is_a_prefix_of_the_full_replay(tmp_path, b, run_values):
     full = replay.status(b, s, END)
     for k in range(0, len(run_values) + 1, 7):
         upto = ts_of(k) if k else ts_of(1) - timedelta(minutes=1)
-        assert replay.status(b, s, upto) == full[:k]
+        assert_same_rows(replay.status(b, s, upto), full[:k])
 
 
 def test_as_of_between_samples(tmp_path, b, run_values):
@@ -111,7 +128,7 @@ def test_bad_data_is_unknown_from_there_on_and_earlier_is_unchanged(tmp_path, b,
     rows = replay.status(b, stream(tmp_path, run_values, edit), END)
     before = [r for r in rows if r["ts"] < ts_of(first_unknown).strftime(export_replay.TS_FORMAT)]
     after = [r for r in rows if r["ts"] >= ts_of(first_unknown).strftime(export_replay.TS_FORMAT)]
-    assert before == full[:first_unknown - 1]
+    assert_same_rows(before, full[:first_unknown - 1])
     assert after and all(r == {"ts": r["ts"], "band": "Unknown", "ratio": None, "reason": "data"}
                          for r in after)
 
@@ -128,7 +145,7 @@ def test_other_tags_are_ignored(tmp_path, b, run_values):
     plain = replay.status(b, stream(tmp_path, run_values), END)
     (tmp_path / "run.csv").unlink()
     extra = stream(tmp_path, run_values, lambda rows: rows + [(rows[0][0], "RX-AI-211", "1.5", "good")])
-    assert replay.status(b, extra, END) == plain
+    assert_same_rows(replay.status(b, extra, END), plain)
 
 
 @pytest.mark.parametrize("text", [
@@ -158,4 +175,4 @@ def test_scoring_matches_pca_scores(tmp_path, b, run_values):
     t2, spe = pca.scores(b.model, run_values[:, COLS])
     lim = b.limits
     expected = np.maximum(t2 / lim["t2_lim"], spe / lim["spe_lim"])
-    assert [r["ratio"] for r in rows[3:]] == expected[3:].tolist()
+    assert [r["ratio"] for r in rows[3:]] == pytest.approx(expected[3:].tolist(), rel=RATIO_REL)
