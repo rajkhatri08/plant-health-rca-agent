@@ -246,3 +246,37 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The published table's component count: Raj is confirming it from the full text.
   - Still open from week 1: the onset-to-divergence window, McNemar against a paired bootstrap, and how to report a paired delay comparison when resamples hit ∞ − ∞.
   - Later item: move the replay data from the committed CSV to a Neon historian table.
+
+### 2026-09-27: week 2 session 2, run records, real fit, autocorrelation plot
+- **Changed:**
+  - **`eval/run_record.py` (new, Claude):** writes `eval/runs/<UTC stamp>_<name>.json`. Each record holds:
+    - the commit and a dirty flag
+    - the config and seeds
+    - the SHA-256 of `dataset/manifest.yaml` and `dataset/splits.yaml`
+    - numpy and Python versions
+    - the SHA-256 of each output file
+    - the metrics
+
+    Guards:
+    - A dirty tree, or no git, is refused unless `--allow-dirty`, and the record then says `dirty: true`. `eval/runs/` itself doesn't count as a change.
+    - Metrics are scalars or flat lists of at most 64 values, so data values can't be stored. +∞ is written as `"inf"`, and NaN is refused.
+    - A record is never overwritten.
+  - **`eval/fit_pca.py`:** checks for a clean tree before loading anything, and writes a `fit_pca` record after saving. It gains an `--allow-dirty` flag.
+  - **`eval/plot_autocorr.py` (new, Claude):** pooled autocorrelation of T² and SPE on the fit pool, lags 0–40. Each run is scored on its own after the warm-up, and lag pairs never cross a run boundary. It saves a PNG to `data/plots/` (gitignored). It's a script instead of a notebook, so no Jupyter.
+  - **`requirements.txt`:** matplotlib 3.11.2 (approved) and its six transitive dependencies, pinned.
+  - **`tests/conftest.py`:** tests can't reach the real `eval/runs/`. A new `git_repo` fixture gives tests a throwaway committed repo.
+  - Committed as 7070ab7.
+  - **Fit, run by Raj at 7070ab7 with a clean tree:** `python -m eval.fit_pca --warmup 9`. Record `eval/runs/20260927T093509Z_fit_pca.json`:
+    - 250 fit runs and 122,750 samples (250 × 491)
+    - k = 12 by parallel analysis
+    - cumulative explained variance 0.7886 (a sanity figure)
+  - **Plot, run by Raj:** `python -m eval.plot_autocorr --warmup 9` wrote `data/plots/autocorr_fit.png`. Raj's reading (exploration only, not reported): T² lag-1 about 0.33, with a long tail near 0.1–0.2; SPE close to white.
+- **Tests:** `pytest -q` gives 389 passed, 1 deselected. 34 are new:
+  - 22 in `tests/test_run_record.py`
+  - 8 in `tests/test_plot_autocorr.py`: hand-computed autocorrelations, including one where joining runs would give a different answer; an AR(1) check; and a check that the plot writes a PNG
+  - 4 in `tests/test_fit_pca.py`: the record, the dirty-tree refusal before loading, `--allow-dirty`, and `main`'s exit code
+- **Unsure about:**
+  - **k sits at the edge of the rule.** From the record, the 12th eigenvalue is 1.035 and the 13th is 0.976. That's the λ ≈ 1.03 regime from the caveat in PROTOCOL: a different seed or shuffle count could plausibly give k = 11 or 13. This isn't a change request; the rule is pre-registered and k = 12 stands.
+  - **Autocorrelation makes the effective sample size smaller than the count.** T²'s lag-1 of 0.33 with a long tail means exceedances come in clusters. That's why the limit, persistence and grouping are calibrated as events on whole runs (session 3), not as a per-sample rate. It's also why the bootstrap resamples whole runs.
+  - `app/detector/pca.py` gained a trailing newline, probably when the IDE saved it. Raj committed it with this session.
+- **Decisions needed:** nothing new. Still open: whether the (n, G) selection mean includes faults 3, 9 and 15; and the Yin 2012 component count.
