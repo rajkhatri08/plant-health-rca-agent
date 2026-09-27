@@ -280,3 +280,40 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Autocorrelation makes the effective sample size smaller than the count.** T²'s lag-1 of 0.33 with a long tail means exceedances come in clusters. That's why the limit, persistence and grouping are calibrated as events on whole runs (session 3), not as a per-sample rate. It's also why the bootstrap resamples whole runs.
   - `app/detector/pca.py` gained a trailing newline, probably when the IDE saved it. Raj committed it with this session.
 - **Decisions needed:** nothing new. Still open: whether the (n, G) selection mean includes faults 3, 9 and 15; and the Yin 2012 component count.
+
+### 2026-09-27: week 2 session 3, limits, persistence and grouping: decisions, stubs, tests
+- **Changed:**
+  - **Two corrections to the approved plan, with Raj's answers:**
+    - **No bisection.** Notifications don't always fall as q rises: a higher limit can split one alert into two. So q is searched on a grid, and for each (n, G) it's the lowest grid value such that it and every higher one meet the budget. The scan goes from the top down and stops at the first failure.
+    - **Warm-up in the persistence window.** The plan's test list said the window "never reaches back into the warm-up". Decision 52 means the opposite: the window may use warm-up samples, but never reaches before sample 1.
+    - Raj also chose to leave faults 3, 9 and 15 out of the selection mean.
+  - **`docs/decisions.md`:** decision 53, the plant ratio r = max(T²/T²lim, SPE/SPElim) at a shared percentile q, with alert condition r > 1. Decision 54 covers:
+    - persistence as an on-delay of n consecutive samples, n in 1..10 − L
+    - grouping as an off-delay G in 0..20, which visibly holds the alert for G samples, with its state starting at the first scored sample
+    - the grid 95.00 … 99.99 (500 points) and the stable-lowest-q rule
+    - selection by mean detection rate over the 12 faults, on a seeded subsample of 100 forest-ceiling run numbers, with ties going to the smaller n, then the smaller G
+    - the same search for every compared detector
+  - **`eval/PROTOCOL.md`, Detection → Limits:** the same rules, in short.
+  - **`app/detector/alerting.py` (stubs for Raj):** `plant_ratio`, `persist`, `group`, `alert_track`. Runtime code, pure numpy, with no imports from `eval/`. The docstrings fix the conventions: whole-run arrays, causal, 0/1 integer tracks.
+  - **`eval/calibrate.py` (stubs for Raj):** the constants `Q_GRID`, `GAP_RANGE`, `SELECTION_FAULTS`, `BUDGET_PER_24H` and `TIE_TOL`, and the functions `n_range`, `limits_at`, `lowest_stable_q`, `selection_score`, `choose`. `lowest_stable_q` takes a function from q to ratio tracks, so the week 3 alarm baseline can reuse it.
+  - **`tests/test_alerting.py` and `tests/test_calibrate.py`:** 84 hand-built cases, each with its expected values worked out in a comment. They cover:
+    - the ratio and its refusals
+    - on-delay and off-delay edges
+    - a window that uses warm-up samples, and n = 10 reaching exactly sample 1
+    - the memory bound
+    - no look-ahead, checked by truncating the input and by changing future samples
+    - grouping merging notifications across a dip
+    - pooled linear-percentile limits
+    - a lucky pass below a failure being skipped, with the top-down scan checked by recording which q values were asked for
+    - the budget pooled over runs, with warm-up excluded
+    - equal fault weights, with 3, 9 and 15 ignored
+    - the tie rules
+  - **Checking the expected values:** the tests were run against a throwaway reference implementation in the session scratchpad, outside the repo, and all 84 passed.
+- **Tests:** `pytest -q` gives 83 failed, 390 passed, 1 deselected. The 83 failures are all `NotImplementedError` from the stubs, and they pass once Raj implements `alerting.py` and `calibrate.py`. The one new test that already passes checks the constants.
+- **Unsure about:**
+  - **Calibrating exactly to the budget.** Tuning q exactly to 1 per 24 h on calibration makes dev likely to land a little above it (a winner's-curse effect). Dev false alerts, with an interval, will show how much. There's no margin in the protocol, and I'm not proposing one before seeing dev.
+  - **The off-delay adds to "share still flagged".** It holds the alert G samples after clearing, which raises the persistence metric slightly. Delay and detection are unaffected.
+- **Decisions needed:**
+  - **The selection subsample for session 4:** a seed for the 100 forest-ceiling run numbers, and where the list lives. I propose `dataset/selection.yaml`, written once like `splits.yaml`, with its SHA-256 in `dataset/manifest.yaml`.
+  - The Yin 2012 component count (Raj, from the full text).
+  - Still open from week 1: the onset-to-divergence window; McNemar against a paired bootstrap; and how to report a paired delay comparison when resamples hit ∞ − ∞.

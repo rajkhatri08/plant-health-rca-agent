@@ -190,3 +190,34 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - Training runs keep 11 scored pre-onset samples (10–20).
 
     *Why:* the first scored decision must use only samples from the same run, with no padding or state from before the run started. A longer warm-up isn't allowed by decision 37.
+
+53. **One plant ratio from T² and SPE (Raj's decision).**
+    - **Rule:** r = max(T² / T²lim, SPE / SPElim). Both limits are the same per-sample percentile q of the calibration pool's scored samples (after warm-up, pooled over runs, numpy's default linear percentile), each taken for its own statistic.
+    - **Alert condition:** r > 1.
+    - **Display:** the ratio shown next to the status band is this r (decision 12).
+
+    *Why:* the protocol has one plant-level alert stream (decision 40). Giving both statistics one percentile makes one number drive both the alert and the band.
+
+54. **Persistence, grouping and how they're calibrated (Raj's decision).**
+    - **Persistence (on-delay):** the condition holds at sample t when r > 1 at t and at each of the n − 1 samples before it, n in 1..10 − L (decision 52).
+      - The window may use warm-up samples; that is what the warm-up is for.
+      - It never reaches before sample 1.
+      - Nothing before sample 10 is scored, so the track is off there.
+    - **Episode grouping (off-delay):** the alert is on at t when the persistence condition held at any scored sample from t − G to t, G in 0..20.
+      - A re-alert within G samples of clearing continues the same episode.
+      - The alert visibly holds for G samples after the condition clears.
+      - Grouping state starts at the first scored sample.
+    - **Limit search:**
+      - The grid is q = 95.00, 95.01 … 99.99 (500 points).
+      - For each (n, G), q is the lowest grid value such that it and every higher grid value give at most 1 notification per 24 h on the calibration pool (normal runs, warm-up excluded).
+      - If no grid value qualifies, that (n, G) isn't eligible.
+      - Notifications don't always fall as q rises, because a higher limit can split one alert into two. So the search checks the grid and doesn't bisect.
+    - **Choosing (n, G):**
+      - The setting with the highest mean detection rate wins. Detection is per PROTOCOL: training onset 20, a 4 h window, and warm-up 9.
+      - The mean is over the open faults except 3, 9 and 15 (12 faults), matching the protocol's summary.
+      - The runs are a fixed, seeded subsample of 100 run numbers from the forest-ceiling pool, the same numbers for every fault. The seed and the list are committed, with the list's SHA-256 in `dataset/manifest.yaml`.
+      - Ties within 1e-12 go to the smaller n, then the smaller G.
+      - Dev is not used, so it stays an honest preview.
+    - **Same search for every detector:** every compared detector that gives a ratio track, including the grouped conventional-alarm baseline, uses this budget, grid, (n, G) range and tie rule (decision 6).
+
+    *Why:* the limit, persistence and grouping trade off against each other, so they're calibrated together to one budget. The choice among settings that meet the budget needs fault runs, and dev must stay unused.
