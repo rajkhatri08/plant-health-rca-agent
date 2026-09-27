@@ -317,3 +317,30 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The selection subsample for session 4:** a seed for the 100 forest-ceiling run numbers, and where the list lives. I propose `dataset/selection.yaml`, written once like `splits.yaml`, with its SHA-256 in `dataset/manifest.yaml`.
   - The Yin 2012 component count (Raj, from the full text).
   - Still open from week 1: the onset-to-divergence window; McNemar against a paired bootstrap; and how to report a paired delay comparison when resamples hit ∞ − ∞.
+
+### 2026-09-27: week 2 session 3 (continued), alerting and calibration implemented and reviewed
+- **Changed:**
+  - **`app/detector/alerting.py` and `eval/calibrate.py`:** implemented by Raj, with step-by-step guidance from the Claude.ai chat, against `tests/test_alerting.py` and `tests/test_calibrate.py`. Claude reviewed them and didn't change them.
+  - **Review:** saved word for word to `~/Desktop/review-w2s3.md`, outside the repo. The implementation is correct against decisions 52–54.
+    - Your vectorised `persist` and `group` matched the plain-loop reference on 3,000 random cases, with 0 mismatches.
+    - The findings, for Raj to act on or not:
+      1. **Design:** on synthetic calibration-sized data, (n = 10, G = 20) passed the budget at every grid value, so q landed on the grid floor (95.00). The floor then sets the limit, not the budget.
+      2. **Speed:** about 35 ms per grid step (ratios 12, tracks 11, counting 13). Up to 12.7 s per (n, G), and at most about 45 min for all 210 settings. The session 4 driver can reuse the ratio tracks per q across settings.
+      3. **Non-integer n or gap** gives `TypeError` or `IndexError` instead of `ValueError`, and `True` is accepted as n = 1.
+      4. **Small gaps:** `n_range` accepts negative lags; `limits_at` passes NaN through (caught later by `plant_ratio`); the budget comparison is a float comparison against 1.0.
+    - None of these affects results today.
+  - Scratch timing and equivalence scripts are in the session scratchpad, not in the repo.
+- **Tests:** `pytest -q` gives 473 passed, 1 deselected.
+- **Unsure about:** the floor finding comes from synthetic data. Whether real calibration data reaches `Q_GRID[0]` will only show in the session 4 run.
+- **Raj's decisions on the review:**
+  - **Finding 1 (decision 55):** the grid floor stays at 95.00 on purpose. A setting that meets the budget at the floor stays eligible. The session 4 driver flags it in the run record with the share of the budget it uses. Recorded in `docs/decisions.md`, and in `eval/PROTOCOL.md` under Detection → Limits.
+  - **Finding 2:** no change. The driver reuses the ratio tracks per q (session 4).
+  - **Findings 3 and 4:** no change now. They stay as known minor items:
+    - `persist` or `group` with a non-integer n or gap raises `TypeError` or `IndexError` instead of `ValueError`, and `True` is accepted as n = 1
+    - `n_range` accepts negative lags or warm-up
+    - `limits_at` passes NaN through (caught later by `plant_ratio`)
+    - the budget check is a float comparison against 1.0
+- **Decisions needed:**
+  - **The selection subsample:** the seed and the file (proposed: `dataset/selection.yaml`, write-once, with its SHA-256 in the manifest).
+  - The Yin 2012 component count (Raj).
+  - Still open from week 1: the onset-to-divergence window; McNemar against a paired bootstrap; and how to report a paired delay comparison when resamples hit ∞ − ∞.

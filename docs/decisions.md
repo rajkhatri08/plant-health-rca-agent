@@ -221,3 +221,10 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Same search for every detector:** every compared detector that gives a ratio track, including the grouped conventional-alarm baseline, uses this budget, grid, (n, G) range and tie rule (decision 6).
 
     *Why:* the limit, persistence and grouping trade off against each other, so they're calibrated together to one budget. The choice among settings that meet the budget needs fault runs, and dev must stay unused.
+
+55. **The q grid's floor stays at 95.00 (Raj's decision).**
+    - **Rule:** the grid's lower end is 95.00, on purpose. A setting that meets the budget at the floor stays eligible.
+    - **Record:** the calibration driver flags every such setting in the run record, with the share of the budget it uses (its false alerts per 24 h on the calibration pool, divided by the budget).
+    - **Consequence:** for a setting at the floor, the limit is set by the grid, not the budget, and it uses less of the budget. The flag and the share make that visible.
+
+    *Why:* below the 95th percentile, r > 1 would be common in normal operation, and the ratio shown next to the status band (decision 12) would lose its meaning.

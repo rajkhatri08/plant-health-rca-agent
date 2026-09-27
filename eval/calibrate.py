@@ -1,6 +1,6 @@
 """Calibrating the limit, persistence and grouping to one budget (decision 54).
 
-Stubs for Raj. The driver that loads data and writes the run record comes in session 4.
+The driver that loads data and writes the run record comes in session 4.
 
 The search, the same for every compared detector (a detector only has to give a ratio
 track for each q):
@@ -29,7 +29,9 @@ TIE_TOL = 1e-12
 def n_range(lags=0, warmup=9) -> range:
     """Persistence windows allowed with this many lags: 1 .. warmup - lags + 1
     (decision 52: lags + n - 1 <= warmup). Raises ValueError if lags > warmup."""
-    raise NotImplementedError
+    if lags > warmup:
+        raise ValueError(f"lags ({lags}) can't be more than the warm-up ({warmup})")
+    return range(1, warmup - lags + 2)          # the largest n satisfies lags + n - 1 == warmup
 
 
 def limits_at(t2_runs, spe_runs, q, warmup) -> tuple[float, float]:
@@ -39,7 +41,23 @@ def limits_at(t2_runs, spe_runs, q, warmup) -> tuple[float, float]:
     Raises ValueError if q isn't in (0, 100], if there are no runs, if the two lists
     differ in length or a run's T² and SPE differ in length, or if the warm-up doesn't
     end inside every run."""
-    raise NotImplementedError
+    if not 0 < q <= 100:
+        raise ValueError(f"q must be in (0, 100], got {q}")
+    if len(t2_runs) == 0:
+        raise ValueError("no runs to calibrate on")
+    if len(t2_runs) != len(spe_runs):
+        raise ValueError("T² and SPE must cover the same runs")
+    t2_scored, spe_scored = [], []
+    for t2, spe in zip(t2_runs, spe_runs):
+        t2, spe = np.asarray(t2, dtype=np.float64), np.asarray(spe, dtype=np.float64)
+        if len(t2) != len(spe):
+            raise ValueError("a run's T² and SPE differ in length")
+        if not 0 <= warmup < len(t2):
+            raise ValueError(f"the warm-up ({warmup}) doesn't end inside a run")
+        t2_scored.append(t2[warmup:])          # scored samples only
+        spe_scored.append(spe[warmup:])
+    return (float(np.percentile(np.concatenate(t2_scored), q)),
+            float(np.percentile(np.concatenate(spe_scored), q)))
 
 
 def lowest_stable_q(ratio_runs_at: Callable[[float], Mapping[int, np.ndarray]], n, gap,
@@ -58,7 +76,18 @@ def lowest_stable_q(ratio_runs_at: Callable[[float], Mapping[int, np.ndarray]], 
     doesn't count.
 
     Raises ValueError if q_grid is empty or not strictly increasing."""
-    raise NotImplementedError
+    grid = list(q_grid)
+    if not grid or any(b <= a for a, b in zip(grid, grid[1:])):
+        raise ValueError("q_grid must be non-empty and strictly increasing")
+    lowest = None
+    for q in reversed(grid):                    # from the strictest limit down
+        runs = [metrics.ScoredRun(0, k, alerting.alert_track(r, n, gap, warmup, lags))
+                for k, r in ratio_runs_at(q).items()]
+        _, _, per_24h = metrics.false_alerts_per_24h(runs, warmup)
+        if per_24h > BUDGET_PER_24H:
+            break                               # first failure: nothing below it counts
+        lowest = q
+    return lowest
 
 
 def selection_score(tracks_by_fault: Mapping[int, list], warmup) -> float:
@@ -71,7 +100,18 @@ def selection_score(tracks_by_fault: Mapping[int, list], warmup) -> float:
 
     Raises ValueError if a fault in SELECTION_FAULTS is missing or has no tracks, or if
     any key isn't an open fault (1-15)."""
-    raise NotImplementedError
+    for f in tracks_by_fault:
+        if not 1 <= f <= 15:
+            raise ValueError(f"fault {f} isn't an open fault (1-15)")
+    rates = []
+    for f in SELECTION_FAULTS:
+        tracks = tracks_by_fault.get(f)
+        if not tracks:
+            raise ValueError(f"fault {f} is missing or has no tracks")
+        hits = sum(metrics.detection(t, metrics.TRAIN_ONSET, warmup=warmup).detected
+                   for t in tracks)
+        rates.append(hits / len(tracks))        # this fault's detection rate
+    return float(np.mean(rates))                # every fault weighted equally
 
 
 def choose(candidates: Mapping[tuple[int, int], tuple[float | None, float]]
@@ -84,4 +124,10 @@ def choose(candidates: Mapping[tuple[int, int], tuple[float | None, float]]
     smaller gap.
 
     Raises ValueError if no setting is eligible."""
-    raise NotImplementedError
+    eligible = {s: (q, score) for s, (q, score) in candidates.items() if q is not None}
+    if not eligible:
+        raise ValueError("no (n, gap) setting meets the budget")
+    best = max(score for _, score in eligible.values())
+    tied = [s for s, (_, score) in eligible.items() if score >= best - TIE_TOL]
+    n, gap = min(tied)                          # smaller n first, then smaller gap
+    return n, gap, eligible[(n, gap)][0]
