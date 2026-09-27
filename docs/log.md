@@ -116,3 +116,24 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Which simulator version generated the data:** the Dataverse text doesn't say and the dataset paper is paywalled. A secondary source says it was the revised model. It doesn't affect decision 50, because both versions share the analyzer logic.
   - **Which recorded 3-minute sample first shows each new analyzer value:** that depends on the recording side (update time against record time, and `TGAS` accumulating in single precision), not on the process code. The step pattern in the data already fixes the update interval. Check the alignment on the open data when the analyzer evidence tool is built (week 4 or 6).
 - **Decisions needed:** none new. The analyzer dead-time item from week 0 is closed by decision 50.
+
+### 2026-09-27: week 1 session 3, metric definitions, stubs and tests
+- **Changed:**
+  - Explained the detection-metric definitions in chat with a worked example. Raj confirmed he understood.
+  - **`eval/metrics.py`:** stubs only (signatures, docstrings, constants, the `ScoredRun` and `Detection` types). Every function raises `NotImplementedError`. Raj implements them.
+  - **`tests/test_metrics.py`:** 50 hand-built cases, each with its expected value worked out in a comment:
+    - notifications, including the rule-2 case of an alert on at the first scored sample
+    - detection and delay, on training and testing onsets and at the window edges
+    - delay median and IQR with misses as +∞, including the case where two infinities are interpolated
+    - false alerts per 24 h and chance rate, which refuse fault runs (rule 4)
+    - share still flagged
+    - the bootstrap over run-number groups (rule 3) and the paired bootstrap using the same draw
+  - Raj's answers used: misses count as +∞; an alert on at the first scored sample is a notification; warm-up is a parameter; the onset-to-divergence window isn't tested.
+- **Tests:** `tests/test_metrics.py` gives 50 failed, all `NotImplementedError`, as expected until Raj implements. The rest of the suite gives 249 passed, 1 deselected.
+- **Unsure about:** nothing new.
+- **Decisions needed:** three placeholders in `tests/test_metrics.py`, which Claude proposed and Raj hasn't explicitly confirmed:
+  - quantiles use linear interpolation, and any interpolation touching +∞ gives +∞
+  - the bootstrap uses B = 2000 with a percentile interval
+  - share still flagged runs from first detection to the end of the run, both ends included, with misses excluded
+
+  Once confirmed, write them into PROTOCOL.md (Detection metrics).
