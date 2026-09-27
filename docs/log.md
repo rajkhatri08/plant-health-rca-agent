@@ -137,3 +137,30 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - share still flagged runs from first detection to the end of the run, both ends included, with misses excluded
 
   Once confirmed, write them into PROTOCOL.md (Detection metrics).
+
+### 2026-09-27: week 1 session 3 (continued), metric code implemented and reviewed
+- **Changed:**
+  - **`eval/metrics.py`:** implemented by Raj, with step-by-step guidance from the Claude.ai chat, against `tests/test_metrics.py`. Claude reviewed it and didn't change it.
+  - **Review findings** (Raj fixes `metrics.py` himself; tests now added for each):
+    1. **Bootstrap intervals return NaN when the statistic can be +∞** (for example a median delay with many misses). `np.percentile` interpolates ∞ with ∞ into NaN: `bootstrap_ci` with a +∞ statistic gives `(nan, nan)`. The paired version gives ∞ − ∞ = NaN.
+    2. **NaN delays pass through `delay_summary` silently** and give `(nan, nan, nan)`.
+    3. **Tracks aren't checked for 0/1:** NaN counts as on (`notifications([0, nan, 0], 0)` gives `[2]`), so gaps could count as alerts.
+    4. **A warm-up longer than a run gives negative hours** in `false_alerts_per_24h`.
+    5. **Untested:** the paired run-number mismatch error in `paired_bootstrap_ci`.
+    6. **Untested:** the empty-input errors in `bootstrap_ci` and `paired_bootstrap_ci`.
+  - **Raj's answers:**
+    - The three placeholders are confirmed.
+    - Tests for 1–6 expect `ValueError` only, with no message matching.
+    - For 1: `bootstrap_ci` never returns NaN. A statistic that is +∞ in every resample gives (∞, ∞), and one that is sometimes finite gives (finite, ∞). `paired_bootstrap_ci` raises when both statistics are the same infinity in a resample.
+  - **`eval/PROTOCOL.md`, Detection metrics:**
+    - **Detected:** defines a notification, including that an alert already on at the first scored sample counts.
+    - **Delay:** misses count as +∞ (so the median is +∞ when more than half are missed); linear quantiles, and +∞ wins.
+    - **Persistence:** from first detection to the end of the run, both ends included, with misses left out and the detected count reported.
+    - **Intervals:** B = 2000, percentile method, seed in the run record.
+  - **`tests/test_metrics.py`:** 14 new tests for findings 1–6, and the header now says the placeholders are confirmed.
+- **Tests:**
+  - `pytest -q` gives 10 failed, 303 passed, 1 deselected.
+  - The 10 failures are the new tests for findings 1–4, expected until Raj fixes `metrics.py`.
+  - These new tests already pass: 5, 6, and the case of 4 where a run's length equals the warm-up (it already raises through the zero-hours check).
+- **Unsure about:** nothing new.
+- **Decisions needed:** how a paired delay comparison is reported when resamples hit ∞ − ∞. The code will raise, so a delay comparison can't run until a protocol line says what to do (for example compare detection rates, or drop those resamples and report how many).

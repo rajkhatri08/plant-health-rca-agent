@@ -4,7 +4,7 @@ Every expected value is worked out in a comment. Samples are 1-based; 3 min per
 sample; training onset after sample 20 (window 21..100), testing onset after 160
 (window 161..240).
 
-Placeholders proposed by Claude, not yet confirmed by Raj (change them here if needed):
+Confirmed by Raj and written into PROTOCOL.md (Detection metrics):
 - quantiles: linear interpolation, and an interpolation touching +inf gives +inf
 - bootstrap: B = 2000, percentile interval
 - share still flagged: first detection to end of run, both ends included
@@ -274,3 +274,83 @@ def test_paired_uses_the_same_draw_for_both():
         runs_a.append(ScoredRun(0, k, track(50, (1, n_on + 1))))
     lo, hi = m.paired_bootstrap_ci(runs_a, runs_b, _total_on, np.random.default_rng(6), n=500)
     assert (lo, hi) == (pytest.approx(1.0), pytest.approx(1.0))
+
+
+# --- review findings 1-4 and untested error paths 5-6 (ValueError only) ---------------
+
+# 1. Bootstrap intervals never return NaN.
+
+def test_bootstrap_always_infinite_stat_gives_inf_inf():
+    runs = [ScoredRun(1, k, track(10)) for k in range(1, 5)]
+    lo, hi = m.bootstrap_ci(runs, lambda rs: INF, np.random.default_rng(0), n=200)
+    assert (lo, hi) == (INF, INF)
+
+
+def test_bootstrap_sometimes_infinite_stat_gives_finite_inf():
+    # Runs 1 and 2; the stat is 5.0 when run 2 isn't drawn (prob 1/4), else +inf
+    # (prob 3/4). So the 2.5th percentile is 5.0 and the 97.5th is +inf.
+    runs = [ScoredRun(1, 1, track(10)), ScoredRun(1, 2, track(10))]
+
+    def stat(rs):
+        return INF if any(r.run == 2 for r in rs) else 5.0
+
+    lo, hi = m.bootstrap_ci(runs, stat, np.random.default_rng(0))
+    assert not math.isnan(lo) and not math.isnan(hi)
+    assert math.isfinite(lo) and hi == INF
+
+
+def test_paired_bootstrap_refuses_inf_minus_inf():
+    runs = [ScoredRun(1, k, track(10)) for k in range(1, 5)]
+    with pytest.raises(ValueError):
+        m.paired_bootstrap_ci(runs, runs, lambda rs: INF, np.random.default_rng(0), n=50)
+
+
+# 2. NaN delays are refused.
+
+def test_delay_summary_refuses_nan():
+    with pytest.raises(ValueError):
+        m.delay_summary([3.0, math.nan, 6.0])
+
+
+# 3. Tracks must be 0/1, and warm-up can't be negative.
+
+@pytest.mark.parametrize("bad", [math.nan, 2, 0.5])
+def test_notifications_refuse_non_binary_values(bad):
+    alert = np.array([0, bad, 0], dtype=float)
+    with pytest.raises(ValueError):
+        m.notifications(alert, 0)
+
+
+def test_notifications_refuse_negative_warmup():
+    with pytest.raises(ValueError):
+        m.notifications(track(10, (3, 4)), -1)
+
+
+# 4. The warm-up must end inside every run (at least one scored sample).
+
+@pytest.mark.parametrize("lengths", [[3], [5], [500, 3]])  # warm-up 5
+def test_false_alerts_refuse_warmup_not_ending_inside_a_run(lengths):
+    runs = [ScoredRun(0, k, track(n)) for k, n in enumerate(lengths, start=1)]
+    with pytest.raises(ValueError):
+        m.false_alerts_per_24h(runs, warmup=W)
+
+
+# 5. Paired bootstrap needs the same run numbers for both detectors.
+
+def test_paired_bootstrap_refuses_different_run_numbers():
+    a = [ScoredRun(0, k, track(10)) for k in (1, 2, 3)]
+    b = [ScoredRun(0, k, track(10)) for k in (1, 2, 4)]
+    with pytest.raises(ValueError):
+        m.paired_bootstrap_ci(a, b, _total_on, np.random.default_rng(0), n=50)
+
+
+# 6. Empty input is refused.
+
+def test_bootstrap_refuses_empty():
+    with pytest.raises(ValueError):
+        m.bootstrap_ci([], _total_on, np.random.default_rng(0), n=50)
+
+
+def test_paired_bootstrap_refuses_empty():
+    with pytest.raises(ValueError):
+        m.paired_bootstrap_ci([], [], _total_on, np.random.default_rng(0), n=50)
