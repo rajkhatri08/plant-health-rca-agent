@@ -1,7 +1,8 @@
 # Tag register (agent-visible). No raw names, original letters or source names here.
 # group follows decision 48: a tag belongs to the unit its instrument sits on.
-# Intervals and dead times are in minutes; analyzer dead times are nominal until
-# confirmed from the simulator code (see docs/log.md, Decisions needed).
+# Intervals and dead times are in minutes. Analyzer dead times are confirmed from the
+# simulator code (decision 50): the value published at an update is the sample taken
+# one update interval earlier.
 tags:
 - {tag: FD-FI-101, description: Reactant-1 feed flow, units: thousand standard m³/h, group: feed, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}
 - {tag: FD-FI-102, description: Reactant-3 feed flow, units: kg/h, group: feed, kind: measurement, signal_type: flow, update_interval_min: 3, dead_time_min: 0}

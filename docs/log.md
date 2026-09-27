@@ -105,3 +105,14 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The loader hashes each file on every load, about 55 MB each. That's fine now; add a cache if it gets slow.
   - The read-wall scan is textual (`.parquet`, `pyarrow`, `pyreadr`, and so on), so a future non-data use of pyarrow outside `dataset/` would trip it.
 - **Decisions needed:** nothing new.
+
+### 2026-09-27: week 1 session 5, analyzer dead time
+- **Changed:**
+  - **`docs/decisions.md`:** decision 50. Analyzer dead time equals one update interval: 6/6 min for the 14 reactor-feed and purge analyzers, 15/15 min for the 5 product analyzers. The value published at an update is the sample taken at the previous update. Cited to `teprob.f` (`TEFUNC`, lines 132–164 and 730–756) and `temexd_mod.c` v1.3.3 (lines 3215–3269), both from Ricker's archive, retrieved today, with zip checksums.
+  - **`library/tags.yaml`:** header comment only. "Nominal until confirmed" becomes "confirmed (decision 50)", with the one-interval rule and no source names (agent-visible). All 19 analyzer rows already had the confirmed values.
+  - The code was downloaded to the session scratchpad, outside the repo, and not committed.
+- **Tests:** `pytest -q` gives 249 passed, 1 deselected (leak scan still clean). No new tests.
+- **Unsure about:**
+  - **Which simulator version generated the data:** the Dataverse text doesn't say and the dataset paper is paywalled. A secondary source says it was the revised model. It doesn't affect decision 50, because both versions share the analyzer logic.
+  - **Which recorded 3-minute sample first shows each new analyzer value:** that depends on the recording side (update time against record time, and `TGAS` accumulating in single precision), not on the process code. The step pattern in the data already fixes the update interval. Check the alignment on the open data when the analyzer evidence tool is built (week 4 or 6).
+- **Decisions needed:** none new. The analyzer dead-time item from week 0 is closed by decision 50.

@@ -157,3 +157,20 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Rule 4:** false-alert and chance rates come from normal runs only. The pre-fault part of a faulty run is a copy of the normal run with the same number and isn't counted again. This applies on test too.
 
     *Why:* runs that share a number are correlated. Pooling them separately per file would put the same stream in calibration and dev, and treating them as independent overstates precision.
+
+50. **Analyzer dead time equals one update interval (confirmed from the simulator code).**
+    - **Rule:** at each analyzer update, the published value is the composition captured at the previous update, plus measurement noise. Then the current composition is stored for the next update. So the value published at time t is the sample taken at t − interval.
+      - Reactor feed and purge analyzers (14 tags): update every 0.1 h, dead time 0.1 h (6/6 minutes).
+      - Product analyzer (5 tags): update every 0.25 h, dead time 0.25 h (15/15 minutes).
+      - The nominal values already in `library/tags.yaml` are confirmed. Only its header comment changed.
+    - **Sources:** both retrieved 27 September 2026 from N. L. Ricker's Tennessee Eastman archive, https://depts.washington.edu/control/LARRY/TE/download.html.
+      - **Original code:** `tecode.zip` (sha256 `2536e8a8…4b16b0d`), `teprob.f`, subroutine `TEFUNC`.
+        - Header comments, lines 132–164: "Sampling Frequency = 0.1 hr / Dead Time = 0.1 hr", and 0.25 / 0.25 for the product analysis.
+        - Code, lines 730–756: on the first call (time 0), `XDEL` and `XMEAS` are both set to the current composition, with `TGAS=0.1` and `TPROD=0.25`. At each update, `XMEAS(I)=XDEL(I)` plus noise from `TESUB6`, then `XDEL(I)=XCMP(I)`, then `TGAS=TGAS+0.1` (0.25 for `TPROD`).
+      - **Revised model:** `temexd_mod.zip` (sha256 `e43227aa…a8db724`), `temexd_mod.c` version 1.3.3 (Bathelt, Ricker and Jelali, 2015).
+        - Lines 3215–3269 contain the same logic.
+        - Its change log (version 1.1.0) adds a random-seed parameter.
+    - **Which version made the data:** the Dataverse description doesn't name the simulator, and the dataset paper is paywalled. A secondary source says the data came from the revised model. The seed parameter in version 1.1.0 fits a dataset of 500 seeded runs per fault. Either way, the analyzer logic is identical in both versions, so the conclusion doesn't depend on which one was used.
+    - **Consequence for decision 11:** the historian timestamps a value at the update time. The evidence layer treats it as describing the process one interval earlier, and holds it until the next update.
+
+    *Why:* diagnosis evidence and the analyzer delay floor per fault in the protocol both depend on how late an analyzer value is.
