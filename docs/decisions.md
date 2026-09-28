@@ -236,3 +236,16 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Method:** the check reproduces the paper's per-sample detection rate at its 99% limit on our dev runs. It checks the method, not identical data.
 
     *Why:* the table uses exactly our production variable set, so the check is like-for-like on variables (decision 39) and needs no analyzer tags.
+
+## Week 3 decisions, 28 September 2026
+
+57. **Detection is scored from the documented onset; twin divergence is a diagnostic only (Raj's decision).**
+    - **Rule:** detection stays scored from the documented onset (after sample 20 in training runs, after 160 in testing runs), as PROTOCOL says. Nothing is credited or dropped by comparing with the fault-free twin.
+    - **Twin:** the normal run with the same run number (decision 49). On dev, that's the normal dev run with the same number.
+    - **Diagnostic column:** per fault, the share of detections whose notification came before the run first differs from its twin.
+      - **First divergence:** the first sample where any of the detector's own input tags differs from the twin, by exact equality on the stored float32 values. For PCA and DPCA that's the 33 fast tags; for the alarm baseline, its alarmed tags.
+      - **Before:** the notification sample is less than the divergence sample.
+      - Reported as a count out of the detected runs. It changes nothing in detection, delay or the summary.
+    - **Where:** computed on dev. On test it's reported only if the test twins turn out to share streams. That's checked once, at the frozen test run, and logged. Otherwise the column reads "not reported".
+
+    *Why:* the fault's effect can reach the tags some samples after the documented onset. Up to the divergence sample, the detector's inputs equal the twin's, so a causal detector's track is identical too: a detection there is a false alert that happened to land after onset. Rescoring from divergence would move the pre-registered definition, so the share is shown instead of being used.

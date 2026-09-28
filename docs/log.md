@@ -505,3 +505,52 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:**
   - Week 2's "done when" is "an alert shows in the UI, and the referrer gets the link". The alert shows. Sending the link is Raj's step and isn't recorded here yet.
   - Still open: the Yin 2012 component count and the agreement band; the theoretical 99% limits in PROTOCOL; how the replay resumes after a data gap; `httpx2`; the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; Neon (later).
+
+### 2026-09-28: week 3 session 1, decision 57 and week 3 plan
+- **Changed:** docs only.
+  - **`docs/decisions.md`:** decision 57 (Raj's), under a new heading "Week 3 decisions, 28 September 2026".
+    - Detection stays scored from the documented onset (20 in training runs, 160 in testing runs). Nothing is credited or dropped by comparing with the fault-free twin.
+    - A diagnostic column gives the share of detections that came before the run first differs from its twin (the normal run with the same run number).
+    - First divergence uses the detector's own input tags, with exact float32 equality. "Before" means notification sample < divergence sample.
+    - It's computed on dev. On test it's reported only if the test twins share streams, which is checked once at the frozen test run and logged.
+  - **`eval/PROTOCOL.md`, Detection metrics:** a new "Before divergence (diagnostic)" bullet with the same rules. The per-fault table gains a "Detected before divergence" column after "Chance rate".
+  - **`docs/PLAN.md`:** a new "Schedule notes" section. The Watch band moves to after week 4's RBC, and uses each group's joint RBC as its statistic. The page keeps "Watch isn't built yet" until then.
+  - **Week 3 plan approved.** Today: sessions 1–3, each stopped for review and commit.
+    1. Decision 57 (this session).
+    2. Dev detection table v1 for static PCA, with the divergence metric (stubs for Raj) and `eval/dev_table.py` (Claude).
+    3. Alarm baseline: decision 58, then stubs and tests.
+
+    Later:
+
+    4. Alarm calibration and lead time.
+    5. Loop map.
+    6. Masked-fault rule and valve headroom.
+    7. DPCA lag rule, stubs and tests.
+    8. DPCA fit, calibration and table rows, with the selection rule applied.
+    9. Week close.
+
+    Watch per group follows RBC in week 4.
+  - **Raj's answers, to record as decisions in their sessions:**
+    - **Alarm baseline (session 3, decision 58):**
+      - Deadbands of 0.25σ for temperature and pressure, and 0.5σ for flow, level and analyzers, all of the calibration-pool spread.
+      - Valve-at-limit alarms at ≤ 2% or ≥ 98% open, held for n samples.
+      - Analyzers are in the realistic list, with a one-update on-delay.
+      - The on-delay is per tag, before the OR. Raj adds an optional track-builder argument to `lowest_stable_q` (default: today's `alert_track`), with tests.
+      - The ungrouped row uses G = 0 and searches only n and q.
+    - **Lead time (session 4):** the median over runs where both detected, with a run-number bootstrap interval over those runs, and four counts (both, only App 3, only alarms, neither). Delay pairs with ∞ are never subtracted.
+    - **Masked rule (session 6):**
+      - The normal band is the calibration pool's central 99%.
+      - A fault is masked if ≥ 50% of its runs meet the rule, decided on the 100 selection runs, not on dev. PROTOCOL → Loops will change from "decided from dev runs" to that.
+      - Headroom is the distance to 0% and 100% open.
+      - Claude writes the code, and Raj reviews it.
+    - **DPCA lag rule (session 7):** Ku, Storer and Georgakis (1995) new-relations rule, with k from the existing parallel analysis and L_max = 4. Whatever L it gives stands, including L = 0; in that case DPCA equals static PCA and the table says so.
+    - **Carried items stay out of week 3:** the Yin component count, the agreement band and the theoretical 99% limits are decided together before the published-number check runs.
+- **Tests:** none new (docs only). `pytest -q` gives 587 passed, 1 deselected, unchanged. With the opendata test included, 588 passed.
+  - `app/detector/alerting.py` again shows only a trailing-newline change that Claude didn't make (probably the IDE). Raj decides whether to commit it.
+- **Unsure about:**
+  - **The week is over budget.** The estimate is about 17.5 h, including Raj's implementation time, against 15 planned. If sessions 1–6 run long, DPCA (sessions 7–8) moves per the cut line.
+  - **Ku's rule and the component edge.** It counts components with the parallel-analysis rule, whose k sits near the λ ≈ 1.03 edge, so relation counts may be off by one. The rule's evidence (k and r_new at each L) goes in the fit record.
+- **Decisions needed:**
+  - The onset-to-divergence window is closed by decision 57.
+  - Still open: the Yin 2012 component count, the agreement band and the theoretical 99% limits (decided together before the check); how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
+  - The ∞ − ∞ item is closed for lead time by Raj's answer above. It's still open for other paired delay comparisons, where the same rule is proposed for PCA vs DPCA.

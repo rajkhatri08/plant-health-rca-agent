@@ -78,6 +78,9 @@ Never cut: the sealed test and splits, the tested metric code, the single calibr
 1. Rehearse: teach-backs for the core topics and the likely follow-up questions.
 2. With two or more weeks before the UptimeAI interview, work down the Should list.
 
+## Schedule notes
+- **Watch band moves to after week 4 (Raj, 28 September 2026).** Each group's Watch statistic is the group's joint RBC (decision 9), so the Watch band is built after RBC in week 4. Week 3's status-band work is the plant ratio and bands already shipped. The page keeps "Watch isn't built yet" until then.
+
 ## Parking lot
 Ideas that come up mid-build go here. Nothing enters scope unless something else leaves.
 -

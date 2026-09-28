@@ -46,6 +46,7 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
 
 ## Detection metrics
 - **Detected:** a new notification after onset, within the useful window. An alert already active at onset doesn't count, and alerts before onset are false alerts. A notification is a sample where the alert turns on; an alert already on at the first scored sample after warm-up counts as a notification at that sample.
+- **Before divergence (diagnostic, decision 57):** per fault, the share of detections whose notification sample is less than the run's first divergence from its fault-free twin (the normal run with the same run number). First divergence is the first sample where any of the detector's own input tags differs from the twin, by exact equality on the stored float32 values. Such a detection is luck by construction: up to that sample the detector's track equals the twin's. Reported as a count out of the detected runs. It doesn't change detection, delay or the summary; nothing is credited or dropped by comparing with the twin. Computed on dev. On test it's reported only if the test twins share streams, which is checked once at the frozen test run and logged; otherwise the column reads "not reported".
 - **Chance rate:** the same scoring on normal runs only, from the same split as the fault runs being compared (normal dev on dev, normal test on test), with fake onsets at that split's offset (1 h for training runs, 8 h for testing runs). Reported next to every detection rate.
 - **Right place:** the top-ranked group belongs to the true family's equipment.
 - **Delay:** median and IQR in minutes, with misses counted as +∞, so the median is +∞ when more than half of the runs are missed. Quantiles use linear interpolation between sorted values, and any interpolation that touches +∞ gives +∞. Plot a cumulative detection curve, and a delay vs false-alerts-per-24-h curve (AMOC) with the operating point marked. Note the analyzer delay floor per fault.
@@ -54,8 +55,8 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
 - **Intervals:** bootstrap over run numbers, on dev and on test. Each resample draws run numbers with replacement and takes every file's run with that number together (the normal run and every fault's run), because runs sharing a number are correlated. The paired bootstrap to compare detectors uses the same draws for both. Each interval uses B = 2000 resamples and the percentile method (2.5th to 97.5th percentile), with the seed recorded in the run record.
 - **Summary:** the per-fault table comes first. The summary averages faults 1–20 except 3, 9 and 15 (reported separately), each fault weighted equally.
 
-| Fault | Family | Masked | Detected (any / right place) | Chance rate | Median delay (IQR) | Share still flagged | Lead time vs grouped alarms |
-|---|---|---|---|---|---|---|---|
+| Fault | Family | Masked | Detected (any / right place) | Chance rate | Detected before divergence | Median delay (IQR) | Share still flagged | Lead time vs grouped alarms |
+|---|---|---|---|---|---|---|---|---|
 
 Last row: normal operation, showing false alerts per 24 h with a 95% interval and the hours counted.
 
