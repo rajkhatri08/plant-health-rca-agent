@@ -1,0 +1,582 @@
+{
+  "name": "dev_table_alarms_every_grouped",
+  "time": "2026-09-28T11:24:41+00:00",
+  "commit": "1e70fb1def1ac16935a3d1234d5e7ec42edcf75b",
+  "dirty": false,
+  "config": {
+    "detector": "alarms_every_grouped",
+    "pool": "dev",
+    "warmup": 9,
+    "list": "every",
+    "row": "grouped",
+    "n": 1,
+    "gap": 0,
+    "q": 99.992,
+    "lags": 0,
+    "hl_tags": 52,
+    "valve_at_limit": 0,
+    "onset": 20,
+    "window": 80,
+    "notification_window": [
+      21,
+      60
+    ],
+    "faults": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "summary_faults": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "calibration_record": "eval/runs/20260928T105126Z_calibrate_alarms_every.json",
+    "limits_sha256": "833c97bdbd087e510d45ed95514a14c49182a2c72453978420cde13d8672be37",
+    "bootstrap": {
+      "resamples": 2000,
+      "level": 0.95,
+      "method": "percentile"
+    }
+  },
+  "seeds": {
+    "bootstrap": 20261001
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {
+    "table": {
+      "path": "data/tables/20260928T112441Z_dev_table_alarms_every_grouped.md",
+      "sha256": "38bbecd3957a4b50a8b051a80ccd8225c753cd1ba68eecf528ee70124f97d7b3"
+    }
+  },
+  "metrics": {
+    "faults": {
+      "fault_01": {
+        "family": "feed composition",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 18.0,
+        "delay_q1_min": 15.0,
+        "delay_q3_min": 18.0,
+        "delay_median_ci95": [
+          15.0,
+          18.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 34.78,
+          "per_episode_max": 44,
+          "per_10min_mean": 2.8983333333333334,
+          "peak_10min": 11,
+          "flood_share": 0.0016666666666666668,
+          "chattering_points_per_run": 1.26,
+          "chattering_share": 0.11960897067280046
+        }
+      },
+      "fault_02": {
+        "family": "feed composition",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 39.0,
+        "delay_q1_min": 33.0,
+        "delay_q3_min": 43.5,
+        "delay_median_ci95": [
+          33.0,
+          39.0
+        ],
+        "share_still_flagged": 0.9998296042245087,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 7.96,
+          "per_episode_max": 13,
+          "per_10min_mean": 0.6633333333333333,
+          "peak_10min": 5,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.02,
+          "chattering_share": 0.007537688442211055
+        }
+      },
+      "fault_03": {
+        "family": "\u2014",
+        "runs": 50,
+        "detected": 13,
+        "rate": 0.26,
+        "rate_ci95": [
+          0.14,
+          0.4
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 13,
+        "delay_median_min": "inf",
+        "delay_q1_min": "inf",
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          "inf",
+          "inf"
+        ],
+        "share_still_flagged": 0.008403252762951135,
+        "share_still_flagged_runs": 13,
+        "load": {
+          "per_episode_mean": 0.16,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.013333333333333334,
+          "peak_10min": 2,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        }
+      },
+      "fault_04": {
+        "family": "reactor cooling",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 3.0,
+        "delay_q1_min": 3.0,
+        "delay_q3_min": 3.0,
+        "delay_median_ci95": [
+          3.0,
+          3.0
+        ],
+        "share_still_flagged": 0.9999166666666668,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 2.24,
+          "per_episode_max": 4,
+          "per_10min_mean": 0.18666666666666668,
+          "peak_10min": 3,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        }
+      },
+      "fault_05": {
+        "family": "condenser cooling",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 3.0,
+        "delay_q1_min": 3.0,
+        "delay_q3_min": 3.0,
+        "delay_median_ci95": [
+          3.0,
+          3.0
+        ],
+        "share_still_flagged": 0.4171203897007654,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 36.74,
+          "per_episode_max": 47,
+          "per_10min_mean": 3.0616666666666665,
+          "peak_10min": 11,
+          "flood_share": 0.0016666666666666668,
+          "chattering_points_per_run": 1.26,
+          "chattering_share": 0.1366358192705498
+        }
+      },
+      "fault_06": {
+        "family": "feed supply",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 3.0,
+        "delay_q1_min": 3.0,
+        "delay_q3_min": 3.0,
+        "delay_median_ci95": [
+          3.0,
+          3.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 26.16,
+          "per_episode_max": 35,
+          "per_10min_mean": 2.18,
+          "peak_10min": 9,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.92,
+          "chattering_share": 0.1620795107033639
+        }
+      },
+      "fault_07": {
+        "family": "feed supply",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 3.0,
+        "delay_q1_min": 3.0,
+        "delay_q3_min": 3.0,
+        "delay_median_ci95": [
+          3.0,
+          3.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 66.66,
+          "per_episode_max": 75,
+          "per_10min_mean": 5.555,
+          "peak_10min": 20,
+          "flood_share": 0.08166666666666667,
+          "chattering_points_per_run": 2.02,
+          "chattering_share": 0.11581158115811581
+        }
+      },
+      "fault_08": {
+        "family": "feed composition",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 55.5,
+        "delay_q1_min": 48.0,
+        "delay_q3_min": 73.5,
+        "delay_median_ci95": [
+          51.0,
+          63.0
+        ],
+        "share_still_flagged": 0.9878966692344783,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 14.68,
+          "per_episode_max": 29,
+          "per_10min_mean": 1.2233333333333334,
+          "peak_10min": 9,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.04,
+          "chattering_share": 0.008174386920980926
+        }
+      },
+      "fault_09": {
+        "family": "\u2014",
+        "runs": 50,
+        "detected": 13,
+        "rate": 0.26,
+        "rate_ci95": [
+          0.14,
+          0.38
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 13,
+        "delay_median_min": "inf",
+        "delay_q1_min": "inf",
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          "inf",
+          "inf"
+        ],
+        "share_still_flagged": 0.009882551997763002,
+        "share_still_flagged_runs": 13,
+        "load": {
+          "per_episode_mean": 0.16,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.013333333333333334,
+          "peak_10min": 2,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        }
+      },
+      "fault_10": {
+        "family": "feed temperature",
+        "runs": 50,
+        "detected": 27,
+        "rate": 0.54,
+        "rate_ci95": [
+          0.4,
+          0.68
+        ],
+        "before_divergence": 1,
+        "before_divergence_of": 27,
+        "delay_median_min": 231.0,
+        "delay_q1_min": 162.75,
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          186.0,
+          "inf"
+        ],
+        "share_still_flagged": 0.3963810481080185,
+        "share_still_flagged_runs": 27,
+        "load": {
+          "per_episode_mean": 0.2,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.016666666666666666,
+          "peak_10min": 2,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        }
+      },
+      "fault_11": {
+        "family": "reactor cooling",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 22.5,
+        "delay_q1_min": 15.0,
+        "delay_q3_min": 27.0,
+        "delay_median_ci95": [
+          21.0,
+          27.0
+        ],
+        "share_still_flagged": 0.7432474804021507,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 8.48,
+          "per_episode_max": 13,
+          "per_10min_mean": 0.7066666666666667,
+          "peak_10min": 3,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.14,
+          "chattering_share": 0.08018867924528301
+        }
+      },
+      "fault_12": {
+        "family": "condenser cooling",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 21.0,
+        "delay_q1_min": 15.0,
+        "delay_q3_min": 29.25,
+        "delay_median_ci95": [
+          15.0,
+          24.0
+        ],
+        "share_still_flagged": 0.985745961485653,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 31.98,
+          "per_episode_max": 62,
+          "per_10min_mean": 2.665,
+          "peak_10min": 16,
+          "flood_share": 0.006666666666666667,
+          "chattering_points_per_run": 0.4,
+          "chattering_share": 0.043777360850531584
+        }
+      },
+      "fault_13": {
+        "family": "reaction kinetics",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 2,
+        "before_divergence_of": 50,
+        "delay_median_min": 114.0,
+        "delay_q1_min": 90.75,
+        "delay_q3_min": 158.25,
+        "delay_median_ci95": [
+          99.0,
+          139.5
+        ],
+        "share_still_flagged": 0.9847926607329895,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 3.5,
+          "per_episode_max": 18,
+          "per_10min_mean": 0.2916666666666667,
+          "peak_10min": 6,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.04,
+          "chattering_share": 0.03428571428571429
+        }
+      },
+      "fault_14": {
+        "family": "reactor cooling",
+        "runs": 50,
+        "detected": 50,
+        "rate": 1.0,
+        "rate_ci95": [
+          1.0,
+          1.0
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 50,
+        "delay_median_min": 3.0,
+        "delay_q1_min": 3.0,
+        "delay_q3_min": 6.0,
+        "delay_median_ci95": [
+          3.0,
+          4.5
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 50,
+        "load": {
+          "per_episode_mean": 99.02,
+          "per_episode_max": 104,
+          "per_10min_mean": 8.251666666666667,
+          "peak_10min": 12,
+          "flood_share": 0.10166666666666667,
+          "chattering_points_per_run": 6.0,
+          "chattering_share": 0.9983841648151889
+        }
+      },
+      "fault_15": {
+        "family": "\u2014",
+        "runs": 50,
+        "detected": 12,
+        "rate": 0.24,
+        "rate_ci95": [
+          0.12,
+          0.36
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 12,
+        "delay_median_min": "inf",
+        "delay_q1_min": "inf",
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          "inf",
+          "inf"
+        ],
+        "share_still_flagged": 0.009743454818640442,
+        "share_still_flagged_runs": 12,
+        "load": {
+          "per_episode_mean": 0.12,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.01,
+          "peak_10min": 2,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        }
+      }
+    },
+    "summary": {
+      "faults": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "rate": 0.9616666666666666,
+      "rate_ci95": [
+        0.9500000000000001,
+        0.9733333333333333
+      ]
+    },
+    "excluded": {
+      "faults": [
+        3,
+        9,
+        15
+      ],
+      "rate": 0.25333333333333335,
+      "rate_ci95": [
+        0.14,
+        0.37333333333333335
+      ]
+    },
+    "normal": {
+      "runs": 50,
+      "notifications": 80,
+      "hours": 1227.5,
+      "per_24h": 1.5641547861507128,
+      "per_24h_ci95": [
+        1.2317718940936864,
+        1.8965376782077394
+      ],
+      "chance_rate": 0.26,
+      "chance_rate_ci95": [
+        0.14,
+        0.38
+      ]
+    }
+  }
+}
