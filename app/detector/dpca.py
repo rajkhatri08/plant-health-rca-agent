@@ -41,13 +41,27 @@ def lagged(X, lags) -> np.ndarray:
     row i is sample t = i + lags (0-based), laid out [x_t | x_{t-1} | ... | x_{t-lags}].
     lags = 0 returns X as float64. Raises ValueError on lags < 0, X that isn't 2-D,
     T <= lags (no complete row), and NaN or inf."""
-    raise NotImplementedError("Raj: week 3 session 7")
+    if lags < 0:
+        raise ValueError(f"lags can't be negative, got {lags}")
+    X = np.asarray(X, dtype=np.float64)
+    if X.ndim != 2:
+        raise ValueError("X must be a 2-D array (samples x tags)")
+    T = len(X)
+    if T <= lags:
+        raise ValueError(f"{T} samples can't hold one complete row with {lags} lags")
+    if not np.isfinite(X).all():
+        raise ValueError("X holds NaN or inf")
+    # Block j holds x_{t-j} for t = lags .. T-1 (0-based): rows lags-j .. T-1-j of X.
+    return np.hstack([X[lags - j:T - j] for j in range(lags + 1)])
 
 
 def lagged_tags(tags, lags) -> tuple:
     """Column names for lagged(X, lags): the lag-0 block keeps the plain names, then lag j
     uses f"{tag}@t-{j}", block by block in tag order. Raises ValueError on lags < 0."""
-    raise NotImplementedError("Raj: week 3 session 7")
+    if lags < 0:
+        raise ValueError(f"lags can't be negative, got {lags}")
+    tags = tuple(tags)
+    return tags + tuple(f"{t}@t-{j}" for j in range(1, lags + 1) for t in tags)
 
 
 def stack_lagged(runs, lags, warmup) -> np.ndarray:
@@ -55,19 +69,37 @@ def stack_lagged(runs, lags, warmup) -> np.ndarray:
     order. Lag columns may read warm-up samples, so the rows are the same samples at
     every lags value and only the columns change. Rows never mix runs. Raises ValueError
     if lags > warmup, lags < 0 or warmup < 0, plus everything lagged raises."""
-    raise NotImplementedError("Raj: week 3 session 7")
+    if lags < 0 or warmup < 0:
+        raise ValueError(f"lags and warm-up can't be negative, got {lags} and {warmup}")
+    if lags > warmup:
+        raise ValueError(f"{lags} lags would reach before sample 1: the warm-up is {warmup} "
+                         "(decision 52)")
+    blocks = []
+    for X in runs:
+        if len(X) <= warmup:
+            raise ValueError(f"a run of {len(X)} samples ends inside the {warmup}-sample warm-up")
+        rows = lagged(X, lags)                 # row i is sample i + lags (0-based)
+        blocks.append(rows[warmup - lags:])    # keep samples warmup+1 .. T (1-based)
+    return np.vstack(blocks)
 
 
 def relation_count(runs, tags, lags, warmup, rng, n_shuffles=20, percentile=95) -> tuple[int, int]:
     """(k, r) at this lag count: k = pca.parallel_analysis on stack_lagged(runs, lags,
     warmup) with lagged_tags, rng, n_shuffles and percentile; r = m(lags+1) - k."""
-    raise NotImplementedError("Raj: week 3 session 7")
+    X = stack_lagged(runs, lags, warmup)
+    k = pca.parallel_analysis(X, lagged_tags(tags, lags), rng, n_shuffles, percentile)
+    return k, len(tags) * (lags + 1) - k
 
 
 def new_relations(r) -> tuple:
     """r_new(l) = r(l) - sum over i < l of (l - i + 1) * r_new(i), for every l in r.
     Values can be negative when a count is off by one. Returns a tuple of ints."""
-    raise NotImplementedError("Raj: week 3 session 7")
+    r_new = []
+    for l, r_l in enumerate(r):
+        # relations first seen at an earlier lag i show up (l - i + 1) times here
+        earlier = sum((l - i + 1) * r_new[i] for i in range(l))
+        r_new.append(int(r_l) - earlier)
+    return tuple(r_new)
 
 
 def choose_lags(count, l_max=L_MAX) -> LagChoice:
@@ -75,4 +107,14 @@ def choose_lags(count, l_max=L_MAX) -> LagChoice:
     never past the stop or past l_max. Stop at the first l* >= 1 with r_new(l*) <= 0:
     L = l* - 1. No stop by l_max: L = l_max, capped. The evidence tuples cover every l
     evaluated. Raises ValueError if l_max < 1."""
-    raise NotImplementedError("Raj: week 3 session 7")
+    if l_max < 1:
+        raise ValueError(f"l_max must be at least 1, got {l_max}")
+    ks, rs = [], []
+    for l in range(l_max + 1):
+        k, r = count(l)
+        ks.append(int(k))
+        rs.append(int(r))
+        r_new = new_relations(rs)
+        if l >= 1 and r_new[l] <= 0:           # lag l adds nothing new: stop
+            return LagChoice(l - 1, tuple(ks), tuple(rs), r_new, capped=False)
+    return LagChoice(l_max, tuple(ks), tuple(rs), new_relations(rs), capped=True)
