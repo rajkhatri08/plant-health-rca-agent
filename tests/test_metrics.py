@@ -8,7 +8,8 @@ Confirmed by Raj and written into PROTOCOL.md (Detection metrics):
 - quantiles: linear interpolation, and an interpolation touching +inf gives +inf
 - bootstrap: B = 2000, percentile interval
 - share still flagged: first detection to end of run, both ends included
-The onset-to-divergence window is still open and deliberately not tested.
+Decision 57: detection is scored from the documented onset. Twin divergence is only a
+diagnostic (first_divergence, before_divergence_share, at the end of this file).
 """
 
 import math
@@ -354,3 +355,121 @@ def test_bootstrap_refuses_empty():
 def test_paired_bootstrap_refuses_empty():
     with pytest.raises(ValueError):
         m.paired_bootstrap_ci([], [], _total_on, np.random.default_rng(0), n=50)
+
+
+# ---------------------------------------------------------------------------
+# Decision 57: first divergence from the fault-free twin, and the share of detections
+# that came before it (luck by construction). Samples are 1-based: row i is sample i + 1.
+
+def twin_pair(samples=6, cols=3):
+    """A run and an identical twin (float32, as stored)."""
+    base = np.arange(samples * cols, dtype=np.float32).reshape(samples, cols)
+    return base.copy(), base.copy()
+
+
+def test_first_divergence_identical_runs_is_none():
+    run, twin = twin_pair()
+    assert m.first_divergence(run, twin) is None
+
+
+def test_first_divergence_one_column_only():
+    # Row 3 (sample 4), column 2 changes; every other value is equal: divergence at 4.
+    run, twin = twin_pair()
+    run[3, 2] += 1
+    assert m.first_divergence(run, twin) == 4
+
+
+def test_first_divergence_takes_the_earliest_column():
+    # Column 0 differs from sample 5, column 1 from sample 3: the first is 3.
+    run, twin = twin_pair()
+    run[4:, 0] += 1
+    run[2:, 1] -= 1
+    assert m.first_divergence(run, twin) == 3
+
+
+def test_first_divergence_at_sample_1():
+    run, twin = twin_pair()
+    run[0, 0] = -1
+    assert m.first_divergence(run, twin) == 1
+
+
+def test_first_divergence_is_exact_equality():
+    # The smallest float32 step above 7.0 is still a difference: no tolerance.
+    run, twin = twin_pair()
+    run[5, 1] = np.nextafter(run[5, 1], np.float32(np.inf))
+    assert m.first_divergence(run, twin) == 6
+
+
+def test_first_divergence_later_samples_equal_again_still_diverged():
+    # A difference at sample 2 that disappears afterwards: the first divergence is 2.
+    run, twin = twin_pair()
+    run[1, 0] += 1
+    assert m.first_divergence(run, twin) == 2
+
+
+@pytest.mark.parametrize("shape", [(6, 2), (5, 3)])
+def test_first_divergence_refuses_different_shapes(shape):
+    run, _ = twin_pair()
+    with pytest.raises(ValueError):
+        m.first_divergence(run, np.zeros(shape, dtype=np.float32))
+
+
+def test_first_divergence_refuses_1d():
+    with pytest.raises(ValueError):
+        m.first_divergence(np.zeros(4), np.zeros(4))
+
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf])
+@pytest.mark.parametrize("which", ["run", "twin"])
+def test_first_divergence_refuses_nan_and_inf(bad, which):
+    run, twin = twin_pair()
+    (run if which == "run" else twin)[2, 1] = bad
+    with pytest.raises(ValueError):
+        m.first_divergence(run, twin)
+
+
+def det(sample):
+    """A Detection at a training onset (20); None is a miss."""
+    if sample is None:
+        return m.Detection(False, None, INF)
+    return m.Detection(True, sample, float((sample - 20) * 3))
+
+
+def test_before_divergence_counts_strictly_before():
+    # Detections at 22, 25, 30; divergences 24, 25, 23.
+    # 22 < 24 before; 25 < 25 no (the detector could see the difference); 30 < 23 no.
+    assert m.before_divergence_share([det(22), det(25), det(30)], [24, 25, 23]) == (1, 3)
+
+
+def test_before_divergence_leaves_misses_out():
+    # Two misses (their divergences don't matter) and one detection at 21 before 26.
+    assert m.before_divergence_share([det(None), det(21), det(None)], [22, 26, None]) == (1, 1)
+
+
+def test_before_divergence_never_diverging_is_before():
+    # A run identical to its twin: a detection there is luck, whatever its sample.
+    assert m.before_divergence_share([det(90), det(40)], [None, 30]) == (1, 2)
+
+
+def test_before_divergence_no_detections():
+    assert m.before_divergence_share([det(None), det(None)], [21, 21]) == (0, 0)
+
+
+def test_before_divergence_empty():
+    assert m.before_divergence_share([], []) == (0, 0)
+
+
+def test_before_divergence_refuses_length_mismatch():
+    with pytest.raises(ValueError):
+        m.before_divergence_share([det(22), det(23)], [24])
+
+
+@pytest.mark.parametrize("bad", [0, -3, 2.5, "21", True])
+def test_before_divergence_refuses_bad_divergence(bad):
+    with pytest.raises(ValueError):
+        m.before_divergence_share([det(22)], [bad])
+
+
+def test_before_divergence_accepts_numpy_integers():
+    # 22 < 24 (numpy int64) before; 30 < 23 no.
+    assert m.before_divergence_share([det(22), det(30)], [np.int64(24), np.int32(23)]) == (1, 2)

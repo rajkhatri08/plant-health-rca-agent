@@ -150,6 +150,33 @@ def share_still_flagged(alert, first_detection) -> float:
     return float(rest.mean())                     # mean of True/False = share that is on
 
 
+def first_divergence(run, twin) -> int | None:
+    """1-based first sample where run and its fault-free twin differ in any column, by
+    exact equality; None if they're identical (decision 57).
+
+    run and twin are 2-D arrays (samples x columns), already cut to the detector's own
+    input tags, in the same column order. Up to the sample before this one, a causal
+    detector sees the same inputs on both runs, so its tracks are identical there.
+
+    Raises ValueError if either isn't 2-D, if their shapes differ, or if either holds
+    NaN or inf (NaN never equals itself, so it would read as a divergence)."""
+    raise NotImplementedError
+
+
+def before_divergence_share(detections: Sequence[Detection],
+                            divergences: Sequence[int | None]) -> tuple[int, int]:
+    """(detections before divergence, detected runs) over one fault's runs (decision 57).
+
+    detections[i] and divergences[i] belong to the same run. Missed runs are left out.
+    A detected run counts as "before" when its notification sample is less than its
+    divergence sample, or when it never diverges (None): either way the twin's track is
+    identical up to that notification, so the detection is luck.
+
+    Raises ValueError if the two sequences differ in length, or a divergence isn't None
+    or an integer >= 1 (Python or numpy integers; bool is refused)."""
+    raise NotImplementedError
+
+
 def _by_run_number(runs):
     """Group runs by run number: {number: [every run with that number]}."""
     groups = {}

@@ -554,3 +554,46 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The onset-to-divergence window is closed by decision 57.
   - Still open: the Yin 2012 component count, the agreement band and the theoretical 99% limits (decided together before the check); how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
   - The ∞ − ∞ item is closed for lead time by Raj's answer above. It's still open for other paired delay comparisons, where the same rule is proposed for PCA vs DPCA.
+
+### 2026-09-28: week 3 session 2, dev detection table v1: divergence stubs, driver, tests
+- **Changed:**
+  - **`eval/metrics.py` (stubs for Raj, decision 57):**
+    - `first_divergence(run, twin)`: the 1-based first sample where any column differs, by exact equality, or None if the runs are identical. It refuses non-2-D input, shape mismatches, NaN and inf.
+    - `before_divergence_share(detections, divergences)` returns (before, detected). Misses are left out. "Before" means notification < divergence, and a run that never diverges counts as before. It refuses a length mismatch and a divergence that isn't None or an integer ≥ 1 (bool refused, numpy integers accepted).
+  - **`tests/test_metrics.py`:** 25 new hand-built cases, each with a worked comment. The header now points to decision 57 instead of "not tested".
+  - **`eval/dev_table.py` (Claude):**
+    - **Checks before loading anything:** a clean tree, then that the limits file came from one `calibrate_pca` record (reusing `check_dev.calibration_record_for`) and that the model matches. It refuses lags ≠ 0 until session 8.
+    - **Loads:** only `load_normal("dev")` and `load_faulty(f, "dev")` for f = 1..15.
+    - **Scoring:** through `calibrate_driver.score_runs` and `tracks`, the same path as calibration.
+    - **Per fault:**
+      - rate with interval
+      - before divergence (count of detected), on the model's own input columns against the normal dev run with the same number; a run that differs from its twin at or before sample 20 stops the run (decision 49)
+      - median delay and IQR, with the median's interval
+      - share still flagged (the mean over detected runs, with the count)
+      - family
+    - **Summary:** the equal-weight mean over the 12 faults, and over 3, 9 and 15 separately. Each has a joint run-number bootstrap and refuses faults with different run numbers.
+    - **Last row:** normal dev false alerts per 24 h with an interval, the hours, and the chance rate with an interval.
+    - **Intervals:** every one uses seed 20261001, so every statistic sees the same draws. Per-run values are computed once with the metric functions and looked up inside the bootstrap.
+    - **Outputs:** a `dev_table_<detector>` record, plus `data/tables/<stamp>_dev_table_<detector>.md`, rendered from the record's stored values. The record holds the table's SHA-256.
+    - "Right place", "Masked" and "Lead time" read "—".
+  - **`tests/test_dev_table.py`:** 17 tests on synthetic runs. They cover:
+    - only dev loaded, each fault once
+    - rows equal direct metric calls
+    - detections before a late divergence are counted
+    - refusal of a divergence before onset
+    - fault keys 1–15 only, and no 16–20 anywhere in the record
+    - the table equals `render` of the saved record
+    - the same seed gives the same numbers
+    - refusals before loading
+    - equal-weight means, and unequal run numbers refused
+    - the normal row checked by hand
+    - rendering of ∞ and "—"
+- **Tests:** `pytest -q` gives 32 failed, 596 passed, 1 deselected.
+  - All 32 failures are `NotImplementedError` from the two stubs: 25 in `test_metrics.py`, and the 7 run-level tests in `test_dev_table.py`.
+  - Against a throwaway reference implementation in the session scratchpad, outside the repo, all 628 pass.
+- **Unsure about:**
+  - **Share still flagged is aggregated as the mean over detected runs.** PROTOCOL defines it per run but doesn't say mean or median. I used the mean, with the count of runs.
+  - **The chance rate is one number, repeated in each fault's row.** It comes from the normal dev runs at fake onset 20, so it's the same for every fault. It's stored once in the record.
+  - **The summary rows use a joint bootstrap** (one draw of run numbers brings every fault's run along), per rule 3. Per-fault intervals resample that fault's runs by the same draws.
+- **Decisions needed:** none new.
+- **Next (Raj):** implement the two stubs, then `pytest -q`. After committing, run `python -m eval.dev_table` on a clean tree.
