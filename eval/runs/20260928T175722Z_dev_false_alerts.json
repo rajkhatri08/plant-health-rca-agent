@@ -1,0 +1,45 @@
+{
+  "name": "dev_false_alerts",
+  "time": "2026-09-28T17:57:22+00:00",
+  "commit": "952b4221fd6c27ee7c4f20573401c1bbcf137a49",
+  "dirty": false,
+  "config": {
+    "detector": "pca_dynamic",
+    "pool": "dev",
+    "warmup": 9,
+    "lags": 1,
+    "n": 3,
+    "gap": 13,
+    "q": 97.07,
+    "calibration_record": "eval/runs/20260928T175708Z_calibrate_pca.json",
+    "limits_sha256": "e8b8c436336776105491212e95ef694d3845b36d29fc077f5d54321d26fa558c",
+    "bootstrap": {
+      "resamples": 2000,
+      "level": 0.95,
+      "method": "percentile"
+    }
+  },
+  "seeds": {
+    "bootstrap": 20260930
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "runs": 50,
+    "notifications": 55,
+    "hours": 1227.5,
+    "per_24h": 1.075356415478615,
+    "ci95": [
+      0.7820773930753564,
+      1.4077393075356417
+    ],
+    "budget_per_24h": 1.0
+  }
+}
