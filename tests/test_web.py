@@ -29,7 +29,7 @@ def test_calls_only_the_read_routes():
 def test_no_external_scripts_styles_or_urls():
     assert "<script src" not in PAGE and "<link" not in PAGE
     urls = set(re.findall(r"https?://[^\s\"'`)]+", PAGE))
-    assert urls <= {"http://127.0.0.1:8000", "https://REPLACE-WITH-YOUR-SERVICE.onrender.com"}
+    assert urls <= {"http://127.0.0.1:8000", "https://plant-health-api.onrender.com"}
 
 
 def test_never_names_a_run_or_label():
