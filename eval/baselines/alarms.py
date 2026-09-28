@@ -27,7 +27,7 @@ from app.detector import alerting
 # Deadband as a multiple of the tag's calibration-pool spread, by signal type
 # (decision 58). A type missing here has no agreed deadband yet.
 DEADBAND_SIGMA = {"temperature": 0.25, "pressure": 0.25, "flow": 0.5, "level": 0.5,
-                  "composition": 0.5}
+                  "composition": 0.5, "power": 0.5, "valve": 0.5}
 VALVE_LOW = 2.0                      # % open: at or below is "at limit"
 VALVE_HIGH = 98.0                    # % open: at or above is "at limit"
 ANALYZER_ON_DELAY = 1                # samples of the held series: the first reading past the limit

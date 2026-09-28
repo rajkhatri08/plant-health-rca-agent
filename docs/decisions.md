@@ -266,5 +266,14 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
       - the counts of runs where both, only App 3, only the alarms, or neither detected
       - delay pairs with ∞ are never subtracted
     - The baseline lives in `eval/baselines/`. It's a comparator, not runtime code.
+    - **Details confirmed by Raj, 28 September 2026:**
+      - **Edges:** an alarm turns on at a strict edge (x > hi, x < lo) and clears at an inclusive one (x ≤ hi − band, x ≥ lo + band). Every alarm starts off at sample 1.
+      - **σ:** the pooled ddof-0 standard deviation of the calibration pool's scored samples, computed once, not per q.
+      - **Analyzer on-delay:** the first reading past the limit (1 sample of the held series), not searched with n.
+      - **Compressor power:** 0.5σ, like flow.
+      - **Tag lists:**
+        - realistic: high and low alarms on the 22 measurements and 19 analyzers, plus valve-at-limit alarms on the 11 valves
+        - every tag: high and low alarms on all 52 tags, with a 0.5σ deadband for valves, and no valve-at-limit alarms
+      - **Valve-at-limit alarms have no deadband:** they clear as soon as the valve leaves the ≤ 2% or ≥ 98% zone.
 
     *Why:* a strawman baseline makes any lead time meaningless (decision 6). Deadbands and per-tag on-delays are what real alarm systems use (ISA-18.2) to cut chattering, and holding every tag to one false rate and the plant stream to the same budget makes the comparison fair.

@@ -703,3 +703,48 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
     - whether the valve-at-limit alarm has no deadband (proposed: none)
   - **Findings 2 and 3 above:** change or leave.
   - Still open: how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later). The Yin component count, agreement band and theoretical 99% limits are decided together before the published-number check runs.
+
+### 2026-09-28: week 3 session 4a, alarm calibration driver
+- **Changed:**
+  - **Raj's answers (recorded in decision 58, under "Details confirmed"):**
+    - Compressor power 0.5σ.
+    - The every-tag list: high and low alarms on all 52 tags, valves at 0.5σ, and no valve-at-limit alarms.
+    - Valve-at-limit alarms have no deadband.
+    - The three details Raj confirmed after session 3 (hysteresis edges, σ, analyzer on-delay) are now written into decision 58 as well.
+    - The question on review findings 2 and 3 came back unanswered, so `plant_track` is unchanged.
+  - **`eval/baselines/alarms.py`:** `DEADBAND_SIGMA` gains `"power": 0.5` and `"valve": 0.5`, per the answers. Claude edited only this constant in Raj's file; `tests/test_alarms.py` is updated to match, and its header now says the details are confirmed.
+  - **`eval/calibrate_alarms.py` (Claude):** `python -m eval.calibrate_alarms --list realistic|every`.
+    - **Lists from `library/tags.yaml`:**
+      - realistic: 41 high/low tags (22 measurements, 19 analyzers) plus 11 valve-at-limit alarms
+      - every: 52 high/low tags
+      - a signal type without an agreed deadband is refused
+    - **The search:** σ comes from the calibration pool, computed once. For each q the search asks for, the latched points are built once, and the base track (the OR of on-delayed points, from `plant_track` with G = 0) is cached as packed bits for every n. The track builder given to Raj's `lowest_stable_q` then applies only `alerting.group` for G. That's the speed plan from the session 3 review.
+    - **Selection:** each eligible setting is scored on the 100 selection runs × 12 faults at its own q, taking settings in q order so each q's points build once.
+    - **The two rows:** the grouped row is `calibrate.choose` over every (n, G); the ungrouped row is `choose` over G = 0 only.
+    - **Outputs:** `data/models/alarms_<list>_limits.json` (lists, σ, bands, and each row's n, G, q and per-tag lo/hi), and a `calibrate_alarms_<list>` run record with both rows, their calibration budget and selection rates, and the full settings table with floor flags and budget shares.
+    - **Guards:** it never loads dev, and a dirty tree or an existing output is refused before any loading. The warm-up is 9 (decision 52), passed as a parameter so tests can use 3.
+  - **`tests/test_calibrate_alarms.py`:** 14 tests on synthetic runs. They cover:
+    - both lists' composition and on-delays
+    - the cached track equals `plant_track` on directly built points, for several q, n, G and runs, on both lists
+    - grouping after the cache equals grouping the raw OR
+    - the limits file equals `tag_limits` at each chosen q
+    - both rows equal `choose` on the recorded table
+    - every eligible setting meets the budget by a direct count, with the recorded budget share
+    - only calibration and selection are loaded
+    - the every-tag list runs
+    - refusals before loading
+- **Tests:** `pytest -q` gives 695 passed, 1 deselected.
+- **Checked on the real calibration pool (read only, nothing recorded):**
+  - One grid step (points plus 10 values of n) takes about 4.5 s for the realistic list and 5.0 s for the every-tag list. One budget check takes about 18 ms.
+  - The worst case is 1 to 1.5 h per list. The two lists can run in parallel terminals.
+  - At q = 99.99, n = 3, G = 15, both lists give 0.38 false alerts per 24 h, so both can meet the budget.
+- **Unsure about:**
+  - **The analyzer alarms set a floor that n can't lower.** Their on-delay is fixed at the first reading, so only q suppresses them. At q = 99.99 the 38 analyzer points alone give 0.36 per 24 h on the calibration pool. Expect the realistic list's q to sit high and its settings to differ less across n than PCA's did. That follows from decision 58; it isn't a bug.
+  - **The synthetic test data now holds analyzer values for 5 samples,** like real updates. With fresh noise every sample, no setting met the budget in the small test pool, for the reason above.
+- **Decisions needed:**
+  - Review findings 2 and 3 (`plant_track` with no points, and non-integer on-delays): change or leave. The driver always passes non-empty lists and integer n.
+  - **For session 4b (dev rows, lead time, notification counts):**
+    - how "per 10 minutes" is counted with 3-minute samples (proposed: 10-minute periods on the clock, with a sample counted in the period its time falls in)
+    - how chattering is defined for 3-minute samples (proposed: an alarm point that turns on 3 or more times in 10 samples, which is 30 minutes)
+  - Still open: how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
+- **Next (Raj):** commit, then run `python -m eval.calibrate_alarms --list realistic` and `--list every` on a clean tree.

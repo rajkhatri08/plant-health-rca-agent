@@ -3,9 +3,9 @@
 Index 0 is sample 1. Every expected value is worked out in a comment. These fail with
 NotImplementedError until Raj implements the stubs.
 
-Details proposed by Claude and still to be confirmed by Raj (docs/log.md, week 3
-session 3): the strict/inclusive edges of the hysteresis, σ as the pooled ddof-0
-standard deviation, and the analyzer on-delay as the first reading past the limit.
+Confirmed by Raj (decision 58): strict edges to turn an alarm on and inclusive edges to
+clear it, σ as the pooled ddof-0 standard deviation, and the analyzer on-delay as the
+first reading past the limit. Power and valve deadbands are 0.5σ.
 """
 
 import numpy as np
@@ -28,7 +28,7 @@ def bits(a):
 
 def test_constants():
     assert al.DEADBAND_SIGMA == {"temperature": 0.25, "pressure": 0.25, "flow": 0.5,
-                                 "level": 0.5, "composition": 0.5}
+                                 "level": 0.5, "composition": 0.5, "power": 0.5, "valve": 0.5}
     assert (al.VALVE_LOW, al.VALVE_HIGH) == (2.0, 98.0)
     assert al.ANALYZER_ON_DELAY == 1
 
