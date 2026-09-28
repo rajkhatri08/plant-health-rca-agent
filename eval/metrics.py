@@ -160,7 +160,17 @@ def first_divergence(run, twin) -> int | None:
 
     Raises ValueError if either isn't 2-D, if their shapes differ, or if either holds
     NaN or inf (NaN never equals itself, so it would read as a divergence)."""
-    raise NotImplementedError
+    a, b = np.asarray(run), np.asarray(twin)
+    if a.ndim != 2 or b.ndim != 2:
+        raise ValueError("run and twin must be 2-D arrays (samples x columns)")
+    if a.shape != b.shape:
+        raise ValueError(f"run and twin differ in shape: {a.shape} vs {b.shape}")
+    if not (np.isfinite(a).all() and np.isfinite(b).all()):
+        raise ValueError("run or twin holds NaN or inf")
+    differs = (a != b).any(axis=1)              # one True/False per sample: any column differs?
+    if not differs.any():
+        return None                             # identical all the way through
+    return int(np.argmax(differs)) + 1          # first differing row, as a 1-based sample
 
 
 def before_divergence_share(detections: Sequence[Detection],
@@ -174,7 +184,19 @@ def before_divergence_share(detections: Sequence[Detection],
 
     Raises ValueError if the two sequences differ in length, or a divergence isn't None
     or an integer >= 1 (Python or numpy integers; bool is refused)."""
-    raise NotImplementedError
+    if len(detections) != len(divergences):
+        raise ValueError("detections and divergences must have the same length")
+    before = detected = 0
+    for d, div in zip(detections, divergences):
+        if div is not None and (isinstance(div, bool) or not isinstance(div, (int, np.integer))
+                                or div < 1):
+            raise ValueError(f"a divergence must be None or an integer >= 1, got {div!r}")
+        if not d.detected:
+            continue                            # misses are left out
+        detected += 1
+        if div is None or d.sample < div:
+            before += 1                         # the twin's track is identical up to here: luck
+    return before, detected
 
 
 def _by_run_number(runs):
@@ -235,5 +257,3 @@ def paired_bootstrap_ci(runs_a: Sequence[ScoredRun], runs_b: Sequence[ScoredRun]
                              "their difference is undefined; compare a finite statistic")
         values.append(a - b)
     return _percentile_interval(values, level)
-
-
