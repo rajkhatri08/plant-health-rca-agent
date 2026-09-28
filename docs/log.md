@@ -863,3 +863,50 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - `python -m eval.dev_table` (App 3, with lead time against realistic grouped)
   - `python -m eval.dev_table --limits data/models/alarms_realistic_limits.json --row grouped`, then `--row ungrouped`
   - `python -m eval.dev_table --limits data/models/alarms_every_limits.json --row grouped`, then `--row ungrouped`
+
+### 2026-09-28: week 3 session 4b (continued), dev tables for App 3 and the alarm baseline
+- **Changed:**
+  - **Raj implemented** `period_counts`, `is_chattering`, `lead_time` and `point_tracks` (1e70fb1). Claude didn't review them in this session; all tests pass.
+  - **Runs (Raj, 1e70fb1, clean tree), committed as 02f1893:**
+    - `eval/runs/20260928T112351Z_dev_table_pca_static.json`: App 3, with lead time against `alarms_realistic_grouped`
+    - `eval/runs/20260928T112413Z_dev_table_alarms_realistic_grouped.json`
+    - `eval/runs/20260928T112441Z_dev_table_alarms_every_grouped.json`
+    - The ungrouped rows weren't run. Both lists chose G = 0, so ungrouped is the same setting as grouped.
+  - **No retuning on dev** (Raj). Nothing here feeds back into calibration or selection.
+- **Findings (dev, 50 run numbers). Every figure below is from the three records.**
+  1. **The lead-time hypothesis isn't supported on dev.**
+     - **Where the realistic alarms (n = 1) are earlier:** on 8 of the 12 summary faults, by 3 to 9 min in median.
+       - 9 min on fault 2 (interval −12 to −6)
+       - 6 min on faults 4, 5, 6, 7, 12 and 14
+       - 3 min on fault 13 (interval −6 to 0)
+     - **Where App 3 is earlier:**
+       - 3 min on fault 1 (interval 3 to 3)
+       - 4.5 min on fault 8 (3 to 6)
+       - 10.5 min on fault 10 (−6 to 55.6, over only 24 runs where both detected)
+       - 3 min on fault 11 (−3 to 15)
+       - Only faults 1 and 8 have intervals above 0.
+     - **Where the alarms' lead comes from:** much of it is the persistence floor. With n = 3, App 3 can't notify before sample 23, 9 min after onset. With n = 1, the alarms can notify at sample 21, 3 min after onset. On faults 4, 5, 6, 7 and 14, App 3 is at its 9-min floor and the alarms at their 3-min floor, which is exactly the −6 min. That doesn't change the finding. It says where the gap comes from: the calibrated persistence, not the monitoring statistic.
+     - (Raj's summary said 7 faults; the record has 8, listed above.)
+  2. **The alarms exceed the budget on unseen normal runs.**
+     - **Realistic:** 1.39 false alerts per 24 h (1.08 to 1.70; 71 in 1,227.5 h). The whole interval is above the budget of 1. The chance rate is 0.22 (0.12 to 0.34).
+     - **Every-tag:** 1.56 (1.23 to 1.90; 80 in 1,227.5 h), chance rate 0.26.
+     - **App 3:** 0.92 (0.65 to 1.21; 47 in 1,227.5 h), chance 0.06 (0.00 to 0.14).
+     - **Why, most likely:** at q = 99.992 each per-tag limit rests on about 3 extreme calibration samples, so the limits don't carry over to new runs. App 3's single statistic, at q = 95.57, is set by thousands of samples.
+     - **What it means for finding 1:** on dev, the alarm baseline effectively runs at about 1.4 times the budget. That's a looser operating point than App 3's, and it favours the alarms' lead time.
+     - **Luck in the alarm detections:** the alarms also have detections before divergence, which App 3 has none of (decision 57). Realistic has 1 of 26 on fault 10 and 2 of 49 on fault 13; every-tag has 1 of 27 and 2 of 50. That's consistent with their higher chance rate.
+  3. **Operator load in the first 2 h (decision 60).**
+     - **App 3:** 1 notification per episode on every detected fault (mean 1.0; fault 13 has 0.5, fault 11 a maximum of 2), with no floods and no chattering.
+     - **Realistic alarms:** up to 65.3 per episode on fault 14 (max 68), all from chattering (share 1.00, 4.0 chattering points per run). 52.5 on fault 7 (max 60), with floods in 4% of 10-minute periods (peak 16). Between 24 and 30 on faults 1, 5, 6 and 12.
+     - **Every-tag alarms:** higher again. 99.0 on fault 14 (floods 10%), 66.7 on fault 7 (floods 8%).
+  4. **Coverage on fault 10:** App 3 detects 0.80 (median delay 139.5 min), against 0.52 for realistic (231 min) and 0.54 for every-tag. On the 16 runs only App 3 detected, the alarms have no delay to compare. That's why the lead time there covers only 24 runs.
+  5. **Share still flagged on fault 4:**
+     - App 3 1.00 against realistic 0.01. The realistic alarms clear while the control loop masks the fault.
+     - Every-tag gives 1.00: it has high and low alarms on the valves, and the valve carries the fault once the loop compensates. The realistic list has only valve-at-limit alarms, so it loses the fault.
+     - This is the masking mechanism session 6 formalises.
+     - Fault 7 shows the same pattern, milder: realistic 0.62, every-tag 1.00. So does fault 11: 0.35 against 0.74, with App 3 at 0.99.
+- **Summary detection (12 faults):** App 3 0.982 (0.972 to 0.990), realistic 0.958 (0.947 to 0.970), every-tag 0.962 (0.950 to 0.973).
+- **Tests:** 752 passed, 1 deselected.
+- **Unsure about:**
+  - **The comparison isn't at equal false-alert rates on dev,** even though both were calibrated to one budget. Decision 54's rule was applied as written; the alarm baseline overshoots on new runs. How the README states this is Raj's call. The AMOC curve (delay against false alerts per 24 h) in PROTOCOL is the tool that would put both on one axis.
+  - **The persistence floor** (finding 1) is a property of the selection (n = 3 won on detection rate, which delay doesn't enter). It isn't a reason to change anything on dev.
+- **Decisions needed:** none new from these runs; no retuning on dev. Still open: findings 2 and 3 on `plant_track`; how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
