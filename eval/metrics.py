@@ -225,7 +225,14 @@ def period_counts(notification_samples, onset, window=NOTIFY_SAMPLES, period_min
     Samples outside the window are ignored.
 
     Raises ValueError if window < 1, period_min <= 0 or sample_min <= 0."""
-    raise NotImplementedError
+    if window < 1 or period_min <= 0 or sample_min <= 0:
+        raise ValueError("window must be >= 1, and period_min and sample_min > 0")
+    counts = [0] * math.ceil(window * sample_min / period_min)       # 12 periods by default
+    for s in notification_samples:
+        if onset + 1 <= s <= onset + window:                        # inside the window
+            minutes = (s - onset) * sample_min                      # time after onset
+            counts[math.ceil(minutes / period_min) - 1] += 1        # (10j, 10j + 10] -> period j
+    return counts
 
 
 def is_chattering(notification_samples, first, last, times=CHATTER_TIMES,
@@ -238,7 +245,19 @@ def is_chattering(notification_samples, first, last, times=CHATTER_TIMES,
 
     Raises ValueError if they aren't strictly ascending, first > last, times < 1 or
     span < 1."""
-    raise NotImplementedError
+    s = list(notification_samples)
+    if any(b <= a for a, b in zip(s, s[1:])):
+        raise ValueError("notification samples must be strictly ascending")
+    if first > last:
+        raise ValueError(f"first ({first}) can't be after last ({last})")
+    if times < 1 or span < 1:
+        raise ValueError("times and span must be at least 1")
+    inside = [x for x in s if first <= x <= last]
+    for i in range(len(inside) - times + 1):
+        # `times` consecutive turn-ons from inside[i]: do they fit in `span` samples?
+        if inside[i + times - 1] - inside[i] <= span - 1:
+            return True
+    return False
 
 
 def lead_time(app: Sequence[Detection], base: Sequence[Detection]) -> LeadTime:
@@ -250,7 +269,20 @@ def lead_time(app: Sequence[Detection], base: Sequence[Detection]) -> LeadTime:
     never subtracted: they are only counted (only_app, only_base, neither).
 
     Raises ValueError if the sequences differ in length."""
-    raise NotImplementedError
+    if len(app) != len(base):
+        raise ValueError("app and base must cover the same runs")
+    gaps, only_app, only_base, neither = [], 0, 0, 0
+    for a, b in zip(app, base):
+        if a.detected and b.detected:
+            gaps.append(b.delay_min - a.delay_min)                  # positive: App 3 earlier
+        elif a.detected:
+            only_app += 1
+        elif b.detected:
+            only_base += 1
+        else:
+            neither += 1                                            # misses are only counted
+    median = float(np.median(gaps)) if gaps else None
+    return LeadTime(median, len(gaps), only_app, only_base, neither)
 
 
 def _by_run_number(runs):

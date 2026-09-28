@@ -130,20 +130,9 @@ def at_limit(valves, low=VALVE_LOW, high=VALVE_HIGH) -> np.ndarray:
     return (v <= low) | (v >= high)           # nearly shut or nearly wide open
 
 
-def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
-    """The plant alarm stream as 0/1 integers, one value per sample.
-
-    points is bool (samples x alarm points). Each point gets its own on-delay: on at t
-    when it is on at t and at each of the n - 1 samples before (alerting.persist). The
-    stream is the OR over points, then alerting.group(stream, gap, warmup): the warm-up
-    is off, and the stream holds gap samples after clearing.
-
-    n_per_point is 1-D, one on-delay per point (n for tags and valves,
-    ANALYZER_ON_DELAY for analyzers).
-
-    Raises ValueError if points isn't 2-D or holds anything but 0/1, n_per_point doesn't
-    match its columns, any n < 1, any n - 1 > warmup (the memory bound, decision 52),
-    gap < 0 or warmup < 0."""
+def _checked_points(points, n_per_point, gap, warmup):
+    """points as a 2-D array and the on-delays as ints, with the checks plant_track and
+    point_tracks share (see plant_track's docstring)."""
     p = np.asarray(points)
     if p.ndim != 2:
         raise ValueError("points must be a 2-D array (samples x alarm points)")
@@ -159,10 +148,29 @@ def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
     if any(n - 1 > warmup for n in ns):
         raise ValueError(f"memory bound broken: an on-delay n - 1 is more than the warm-up "
                          f"{warmup} (decision 52)")
+    return p, ns
+
+
+def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
+    """The plant alarm stream as 0/1 integers, one value per sample.
+
+    points is bool (samples x alarm points). Each point gets its own on-delay: on at t
+    when it is on at t and at each of the n - 1 samples before (alerting.persist). The
+    stream is the OR over points, then alerting.group(stream, gap, warmup): the warm-up
+    is off, and the stream holds gap samples after clearing.
+
+    n_per_point is 1-D, one on-delay per point (n for tags and valves,
+    ANALYZER_ON_DELAY for analyzers).
+
+    Raises ValueError if points isn't 2-D or holds anything but 0/1, n_per_point doesn't
+    match its columns, any n < 1, any n - 1 > warmup (the memory bound, decision 52),
+    gap < 0 or warmup < 0."""
+    p, ns = _checked_points(points, n_per_point, gap, warmup)
     held = np.zeros(len(p), dtype=bool)
     for j, n in enumerate(ns):
         held |= alerting.persist(p[:, j], n)  # each point's own on-delay, then OR them
     return alerting.group(held, gap, warmup).astype(int)
+
 
 def point_tracks(points, n_per_point, gap, warmup) -> np.ndarray:
     """Each alarm point's own track as 0/1 integers (samples x points), for counting what
@@ -171,4 +179,9 @@ def point_tracks(points, n_per_point, gap, warmup) -> np.ndarray:
     because the off-delay is a running max and commutes with the OR.
 
     Raises ValueError on the same inputs as plant_track."""
-    raise NotImplementedError
+    p, ns = _checked_points(points, n_per_point, gap, warmup)
+    out = np.zeros(p.shape, dtype=int)
+    for j, n in enumerate(ns):
+        # this point alone: its on-delay, then the off-delay, with the warm-up off
+        out[:, j] = alerting.group(alerting.persist(p[:, j], n), gap, warmup)
+    return out
