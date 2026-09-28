@@ -1,5 +1,5 @@
-"""eval/masked.py (decision 62): hand-built cases for the rule, then the driver on
-synthetic runs (never data/)."""
+"""eval/masked.py (decision 62, amended): hand-built cases for the plant-level label and
+the per-loop evidence, then the driver on synthetic runs (never data/)."""
 
 import json
 
@@ -119,16 +119,75 @@ def test_shares_and_verdict():
     assert mk.verdict(s) == ["A"] and mk.verdict({"A": 0.49}) == []
 
 
+# ---------- plant_masked (the label) and absorbing_valves ----------
+
+PB = {c: (-1.0, 1.0) for c in range(4)}     # columns 0, 1 held (measurement, analyzer); 2, 3 valves
+
+
+def plant_run(out_cols_samples, samples=120):
+    """Zeros, with column c at 5 on the given 1-based samples: {col: samples}."""
+    r = np.zeros((samples, 4))
+    for c, ss in out_cols_samples.items():
+        for s in ss:
+            r[s - 1, c] = 5.0
+    return r
+
+
+@pytest.mark.parametrize("outs, expected", [
+    ({2: (70, 71, 72)}, (True, [2])),                        # one valve out, nothing held is out
+    ({2: (70, 71, 72), 3: (90, 91, 92)}, (True, [2, 3])),    # two valves out
+    ({}, (False, [])),                                       # nothing out: normal, not masked
+    ({2: (70, 71, 72), 1: (80, 81, 82)}, (False, [])),       # an analyzer is out too: visible
+    ({2: (70, 71, 72), 0: (80, 81)}, (True, [2])),           # a 2-sample blip doesn't count
+    ({2: (70, 71, 72), 0: (21, 22, 23, 24)}, (True, [2])),   # an onset transient before 61 doesn't count
+    ({2: (30, 31, 32)}, (False, [])),                        # a valve out only in the first 2 h
+])
+def test_plant_masked(outs, expected):
+    assert mk.plant_masked(plant_run(outs), [0, 1], [2, 3], PB, onset=20, window=80, n=3) == expected
+
+
+def test_plant_masked_checks_the_window():
+    with pytest.raises(ValueError):
+        mk.plant_masked(np.zeros((99, 4)), [0, 1], [2, 3], PB, onset=20, window=80)
+    with pytest.raises(ValueError):
+        mk.plant_masked(plant_run({}), [0, 1], [2, 3], PB, onset=20, window=80, settle=80)
+
+
+def test_absorbing_valves():
+    names = {2: "V-A", 3: "V-B", 4: "V-C"}
+    # 4 masked runs: V-A out in 3 (0.75), V-B in 2 (0.5, counts), V-C in 1 (0.25).
+    valves, share = mk.absorbing_valves([[2, 3], [2], [2, 3], [4]], names)
+    assert valves == ["V-A", "V-B"] and share == {"V-A": 0.75, "V-B": 0.5, "V-C": 0.25}
+
+
+def test_absorbing_valves_fallback_and_empty():
+    names = {2: "V-A", 3: "V-B", 4: "V-C", 5: "V-D"}
+    # 3 masked runs, each a different valve (1/3 each, none at 0.5): all tied, all named.
+    assert mk.absorbing_valves([[2], [3], [4]], names)[0] == ["V-A", "V-B", "V-C"]
+    # V-A in 2 of 5 (0.4), the others 1 of 5 (0.2): below 0.5, so the most frequent is named.
+    valves, share = mk.absorbing_valves([[2], [2], [3], [4], [5]], names)
+    assert valves == ["V-A"] and share["V-A"] == 0.4
+    assert mk.absorbing_valves([], names) == ([], {})
+
+
+def test_plant_columns_split_the_register():
+    held, valves = mk.plant_columns(VARIABLES)
+    assert len(held) == 41 and len(valves) == 11                 # 22 measurements + 19 analyzers
+    assert set(valves.values()) == {r["tag"] for r in tagmap.register() if r["kind"] == "valve"}
+    assert not set(held) & set(valves)
+
+
 def test_constants():
     assert (mk.BAND, mk.PERSIST, mk.MASKED_SHARE, mk.WARMUP) == ((0.5, 99.5), 3, 0.5, 9)
     assert mk.WINDOW == 80 and mk.SETTLE == 40 and mk.ONSET == 20 and mk.FAULTS == tuple(range(1, 16))
+    assert mk.RULE == "plant"
 
 
 # ---------- the driver ----------
 
-def plant_runs(numbers, seed, masked_valve=None, shift_meas=False, samples=120):
+def plant_runs(numbers, seed, masked_valve=None, shift_meas=False, shift_tag=None, samples=120):
     """Independent noise on every column; optionally a fault from sample 25 that pushes
-    one valve far out (masked) or pushes every loop measurement out too (not masked)."""
+    one valve far out, every loop measurement out, or one other tag out."""
     rng = np.random.default_rng(seed)
     loops = loop_map.load()
     meas_cols = tagmap.column_indices(VARIABLES, [lp.controlled for lp in loops.values()])
@@ -140,6 +199,9 @@ def plant_runs(numbers, seed, masked_valve=None, shift_meas=False, samples=120):
             x[24:, c] += 10
         if shift_meas:
             x[24:, meas_cols] += 10
+        if shift_tag:
+            (c,) = tagmap.column_indices(VARIABLES, [shift_tag])
+            x[24:, c] += 10
         runs[k] = x
     return runs
 
@@ -159,7 +221,13 @@ def setup(monkeypatch, git_repo):
         calls.append(("faulty", fault, pool))
         if pool != "forest_ceiling":
             pytest.fail(f"masked rule loaded fault {fault} from {pool}")
-        spec = {5: {"masked_valve": "CD-FV-302"}, 7: {"shift_meas": True}}.get(fault, {})
+        # 5: a valve absorbs and the plant looks normal (masked).
+        # 6: the same valve absorbs, but reactor pressure (in no loop) shows the fault:
+        #    the production-rate loop still absorbs it, the plant-level label says visible.
+        # 7: every loop measurement moves too (not masked, nothing absorbs).
+        spec = {5: {"masked_valve": "CD-FV-302"},
+                6: {"masked_valve": "CD-FV-302", "shift_tag": "RX-PI-202"},
+                7: {"shift_meas": True}}.get(fault, {})
         return Runs("faulty_training", fault, pool, VARIABLES, plant_runs(range(1, 13), seed=100 + fault, **spec))
 
     monkeypatch.setattr(loader_mod, "load_normal", load_normal)
@@ -173,19 +241,27 @@ def the_record(s):
     return json.loads(path.read_text())
 
 
-def test_driver_finds_the_masked_fault_and_its_loop(setup):
+def test_driver_plant_label_and_loop_evidence(setup):
     per_fault = mk.run(repo_root=setup["repo"])
-    # Fault 5: the condenser cooling water valve (production-rate loop ST-FIC-603) is
-    # pushed out while its measurement is untouched: masked by that loop in every run.
-    assert per_fault["fault_05"]["masked"] and per_fault["fault_05"]["by"] == "ST-FIC-603"
-    assert per_fault["fault_05"]["shares"]["ST-FIC-603"] == 1.0
-    # Fault 7: every loop measurement is pushed out too, so nothing is held.
-    assert not per_fault["fault_07"]["masked"] and per_fault["fault_07"]["max_share"] == 0.0
+    f5, f6, f7 = per_fault["fault_05"], per_fault["fault_06"], per_fault["fault_07"]
+    # Fault 5: only the condenser cooling water valve moves: masked, absorbed by that
+    # valve, and the production-rate loop is the evidence.
+    assert f5["masked"] and f5["masked_share"] == 1.0
+    assert f5["absorbing_valves"] == "CD-FV-302" and f5["valve_shares"] == {"CD-FV-302": 1.0}
+    assert f5["absorbing_loops"] == "ST-FIC-603" and f5["loop_shares"]["ST-FIC-603"] == 1.0
+    # Fault 6: the same loop absorbs, but a measurement in no loop shows the fault, so the
+    # plant-level label says visible (the superseded any-loop rule said masked).
+    assert not f6["masked"] and f6["masked_share"] == 0.0 and f6["absorbing_valves"] is None
+    assert f6["absorbing_loops"] == "ST-FIC-603"
+    # Fault 7: every loop measurement moves: neither masked nor absorbed by any loop.
+    assert not f7["masked"] and f7["absorbing_loops"] is None
     rec = the_record(setup)
     assert rec["metrics"]["masked_faults"] == [5]
+    assert rec["config"]["rule"] == "plant" and rec["config"]["held_tags"] == 41 and rec["config"]["valves"] == 11
     assert rec["config"]["selection_runs"] == len(SELECTION) and rec["config"]["persist"] == 3
     assert rec["config"]["judged_samples"] == [61, 100]
-    assert 0.0 <= rec["metrics"]["normal_calibration"]["any_loop"] <= 1.0
+    normal = rec["metrics"]["normal_calibration"]
+    assert 0.0 <= normal["plant"] <= 1.0 and set(normal["loop_shares"]) == set(loop_map.load())
 
 
 def test_driver_loads_only_calibration_and_selection_pools(setup):

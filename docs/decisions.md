@@ -345,16 +345,26 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 
     *Why:* the masked-fault rules and valve headroom (session 6), and later the diagnosis evidence, need to know which valve holds which measurement. A map guessed from tag names, or taken from a different control strategy, would point the agent at the wrong valve.
 
-62. **The masked-fault rule and valve headroom (Raj's decisions, with Claude's code).**
+62. **The masked-fault rule and valve headroom (Raj's decisions, with Claude's code; amended 28 September 2026).**
     - **Where it's decided:** on the 100 selection runs (`dataset/selection.yaml`, forest-ceiling numbers), never on dev, so dev stays an independent check. The list goes into PROTOCOL → Loops before test.
     - **Normal band:** each tag's central 99% on the calibration pool, the 0.5th to 99.5th percentile of the pooled scored samples after warm-up. For a proportional-only loop (decision 61), "held" means inside this band, not at the setpoint.
-    - **Rule, per loop and run,** judged on the settled half of the 4 h window, samples onset + 41 … onset + 80 (2 to 4 h after onset; Raj's change on review, before anything ran):
-      - **held:** the controlled measurement is never outside its band for 3 consecutive samples in that half
-      - **absorbed:** the loop's end valve is outside its band for 3 consecutive samples somewhere in it. For a cascade master, the end valve is the valve at the bottom of its cascade (reactor temperature → RX-FV-206).
-      - A run of consecutive samples outside the band counts only from onset + 41 on. The band edges count as inside.
-    - **Why 3 consecutive samples (Raj's choice):** judged sample by sample, the rule calls 91% of normal calibration runs masked by at least one loop, because with a 99% band each tag is outside about 1% of the time. With 3 consecutive samples (App 3's calibrated n), 3% of them are. Those figures were measured over the whole 4 h; the run records the figure for the settled half.
+    - **Judged on the settled half** of the 4 h window, samples onset + 41 … onset + 80 (2 to 4 h after onset; Raj's change on review, before anything ran). A tag is "out" when it's outside its band for 3 consecutive samples in that half. A run of consecutive samples counts only from onset + 41 on, and the band edges count as inside.
+    - **The label, plant level (amended by Raj after the first run, below):**
+      - **A run is masked** when no measurement or analyzer in the register (41 tags) is out, while at least one valve (of 11) is. The plant looks normal and only the valves show the fault.
+      - **A fault is masked** when at least 50% of its selection runs are.
+      - **Its absorbing valves** are the valves out in at least 50% of its masked runs, or, if none reaches that, the most frequent (ties included). The dev table shows "yes (valves)" or "no".
+    - **Per-loop evidence (kept in the record for diagnosis, not the label):**
+      - A loop absorbs the fault on a run when its controlled measurement isn't out (held) and its end valve is out. For a cascade master, the end valve is the valve at the bottom of its cascade (reactor temperature → RX-FV-206).
+      - A loop absorbs a fault when it does on at least 50% of the runs.
+      - This says which loops compensated.
+    - **Why 3 consecutive samples (Raj's choice):** judged sample by sample, the per-loop rule calls 91% of normal calibration runs masked by at least one loop, because with a 99% band each tag is outside about 1% of the time. With 3 consecutive samples (App 3's calibrated n), 3% of them are. Those figures were measured over the whole 4 h; the run records the plant-level figure for the settled half.
     - **Why the settled half:** compensation is what the loop leaves behind once it has acted. A loop's measurement can leave its band briefly at onset, before the controller has moved the valve, and that transient shouldn't disqualify a fault the loop then holds. Fault 4's realistic alarms fired at 3 min and cleared within a few samples, so its reactor temperature may leave the 99% band briefly at onset. The valve has to be out of its band in the same settled half, so a valve that only moves during the transient doesn't count as absorbing.
-    - **Fault level:** a fault is masked by loop L when at least 50% of its selection runs meet the rule for L, and it's masked when any loop masks it. The table names the loop(s).
+    - **Why the label became plant level (amendment, 28 September 2026):**
+      - **The first run** (`eval/runs/20260928T154511Z_masked_faults.json`, per-loop rule, fault masked when any loop masks it) labelled 10 of 15 faults masked: 1, 2, 4, 5, 6, 7, 8, 11, 12 and 13. Seven of them were masked by the recycle-flow loop CP-FIC-501.
+      - **That loop absorbs nearly every plant-wide disturbance.** That's real compensation, but it doesn't mean the fault is hidden: faults 1 and 6 are visible in many measurements. So "any loop" didn't separate faults usefully.
+      - **The plant-level rule asks the question the report needs:** does the plant look normal while only valves show the fault?
+      - **The amendment is fair** because the rule is decided on the selection runs, not dev. The first record is kept as the evidence, and is superseded.
+      - The dev table refuses a record without `rule: plant`.
     - **Valve headroom:** min(position, 100 − position) in % open, the distance to the physical limits, as of the latest sample. It's evidence for diagnosis, with no alarm threshold (`app/detector/loops.py`).
     - **It's a label, not a detector,** so it may look ahead within the window. It never reaches `app/` or `library/`.
 

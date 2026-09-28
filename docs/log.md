@@ -1019,3 +1019,42 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Not run:** nothing on selection or dev.
 - **Unsure about:** the settled half has 40 samples instead of 80, so a chance 3-sample excursion is less likely there. The normal sanity figure will likely fall below the 3% measured over 4 h. The run records it.
 - **Decisions needed:** decision 50's swapped hash suffixes are still open.
+
+### 2026-09-28: week 3 session 6 (continued), first masked run and the plant-level amendment
+- **Changed:**
+  - **First run (Raj, 774108d, clean tree):** `eval/runs/20260928T154511Z_masked_faults.json`, per-loop rule on the settled half.
+    - 10 of 15 faults came out masked: 1, 2, 4, 5, 6, 7, 8, 11, 12 and 13. The recycle-flow loop CP-FIC-501 was among the masking loops for 7 of them: 1, 2, 5, 6, 7, 8 (with RX-TIC-204 on 1, 6 and 7), 12 and 13. Faults 4 and 11 were masked by the reactor temperature loops.
+    - Not masked: 3, 9, 10, 14 and 15.
+    - Normal calibration runs: 0.02 masked by any loop.
+    - **Raj's reading:** the recycle loop absorbs nearly every plant-wide disturbance. That's real compensation, but not hiding (faults 1 and 6 are visible in many measurements), so "any loop" doesn't separate faults usefully.
+    - The record is kept as the evidence, and is superseded. It isn't committed yet.
+  - **Decision 62 amended (Raj's):**
+    - **The label becomes plant level.** A run is masked when, in samples onset + 41 … onset + 80, no measurement or analyzer is out for 3 consecutive samples while at least one valve is. A fault is masked when at least 50% of its selection runs are. The bands and PERSIST are unchanged.
+    - **Per-loop results stay in the record as diagnosis evidence.**
+    - **The sanity figure** uses the plant-level rule on the normal calibration runs.
+    - **Absorbing valves** (Claude's detail, to confirm): the valves out in at least 50% of a fault's masked runs; if none reaches that, the most frequent, ties included.
+  - **`eval/masked.py`:**
+    - New: `RULE = "plant"`, `plant_columns()` (41 held tags, 11 valves, from the register), `plant_masked()` (returns the verdict and the valves out) and `absorbing_valves()`.
+    - `run_masked`, `shares` and `verdict` are unchanged, and are now the per-loop evidence.
+    - Per fault, the record holds `masked`, `masked_share`, `absorbing_valves`, `valve_shares`, `absorbing_loops` and `loop_shares`.
+    - The config gains `rule`, `held_tags` and `valves`. The normal sanity figure has `plant`, `max_loop` and `loop_shares`.
+  - **`eval/dev_table.py`:**
+    - The Masked column shows the plant-level verdict, "yes (absorbing valves)" or "no".
+    - It refuses a record without `rule: plant`, so the superseded record can't fill the column. The loop-map check stays.
+  - **`docs/decisions.md`, decision 62:** the label, the per-loop evidence and "why the label became plant level", citing the first record and its 10-of-15 result.
+  - **`eval/PROTOCOL.md`, Loops:** the label and the per-loop evidence.
+  - **Tests:**
+    - **`tests/test_masked.py`:**
+      - `plant_masked`: one or two valves out; nothing out; an analyzer out too; a 2-sample blip; an onset transient; a valve out only in the first 2 h
+      - window refusals
+      - `absorbing_valves`: the threshold, the tie fallback and the single-most-frequent fallback, and empty input
+      - the register split
+      - the driver: fault 5 (only CD-FV-302 moves) is masked with absorbing valve CD-FV-302 and loop ST-FIC-603. Fault 6 (the same valve, plus reactor pressure, which is in no loop) isn't masked at plant level, but ST-FIC-603 still absorbs it, which is the case the amendment fixes. Fault 7 is neither.
+    - **`tests/test_dev_table.py`:** the column shows the absorbing valves; the superseded record is refused.
+- **Tests:** `pytest -q` gives 835 passed, 2 deselected.
+- **Not run:** the amended rule hasn't run on the selection runs.
+- **Unsure about:** the plant-level label is strict. One measurement or analyzer out for 3 samples in the settled half makes a run visible, so the masked list may be short or empty. That fits "hidden from a measurement-based view", and the per-loop evidence still records the compensation.
+- **Decisions needed:**
+  - Confirm the absorbing-valve rule (above).
+  - Decision 50's swapped hash suffixes (still open).
+- **Next (Raj):** commit, including the superseded record; then `python -m eval.masked`.

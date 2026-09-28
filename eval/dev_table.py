@@ -27,7 +27,8 @@ run-number bootstrap interval (B = 2000, percentile). Every interval uses the sa
 so every statistic sees the same run-number draws (rule 3). Summary: the mean rate over
 faults 1-15 except 3, 9 and 15, and the mean over those three separately, each fault
 weighted equally. Masked comes from a masked_faults run record (eval/masked.py, decided on
-the selection runs, decision 62) when --masked names one. Right place reads "—" until
+the selection runs, decision 62): the plant-level verdict, naming the absorbing valves
+when masked. Right place reads "—" until
 its session builds it.
 
 Writes a dev_table_<detector> run record holding every number, and a Markdown rendering
@@ -141,11 +142,14 @@ def _record_for(limits_path, repo_root, pattern):
 
 
 def load_masked(record_path, repo_root):
-    """(relative path, {fault key: {"masked", "by"}}) from a masked_faults run record."""
+    """(relative path, {fault key: {"masked", "valves"}}) from a masked_faults run record
+    made with the plant-level rule (decision 62, amended) and the current loop map."""
     path = Path(record_path)
     if not path.name.endswith("_masked_faults.json"):
         raise DevTableError(f"{path} isn't a masked_faults run record")
     rec = json.loads(path.read_text())
+    if rec["config"].get("rule") != "plant":
+        raise DevTableError(f"{path} was made with the superseded any-loop rule; re-run eval.masked")
     if rec["config"].get("loop_map_sha256") != run_record.sha256(loop_map.LOOPS_FILE):
         raise DevTableError(f"{path} was made with a different loop map than library/loops.yaml")
     faults = rec["metrics"]["faults"]
@@ -153,7 +157,7 @@ def load_masked(record_path, repo_root):
     if missing:
         raise DevTableError(f"{path} has no verdict for {missing[:3]}")
     rel = path.resolve().relative_to(Path(repo_root).resolve()).as_posix()
-    return rel, {k: {"masked": v["masked"], "by": v["by"]} for k, v in faults.items()}
+    return rel, {k: {"masked": v["masked"], "valves": v["absorbing_valves"]} for k, v in faults.items()}
 
 
 def load_detector(limits_path, model_path, row, repo_root):
@@ -336,7 +340,7 @@ def _lead(lead):
 def _masked(m):
     if not m:
         return PENDING
-    return f"yes ({m['by']})" if m["masked"] else "no"
+    return f"yes ({m['valves']})" if m["masked"] else "no"
 
 
 def render(record, record_path):

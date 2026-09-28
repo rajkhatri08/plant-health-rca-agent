@@ -74,8 +74,9 @@ Last row: normal operation, showing false alerts per 24 h with a 95% interval an
 ## Loops
 The loop map is `library/loops.yaml`, taken from the control code that generated the data (decision 61). The masked-fault list (measurement held while a valve absorbs the fault) is decided on the 100 selection runs (never on dev) by `eval/masked.py`, and written here before test (decision 62). Detection and diagnosis are reported separately for masked and unmasked faults.
 - **Normal band:** a tag's central 99% on the calibration pool (0.5th to 99.5th percentile of the pooled scored samples).
-- **Rule, per loop and run,** on the settled half of the 4 h after onset, samples onset + 41 … onset + 80: the loop's controlled measurement is held (never outside its band for 3 consecutive samples), and its end valve (for a cascade master, the valve at the bottom of its cascade) is outside its band for 3 consecutive samples somewhere. For a proportional-only loop, held means inside the band, not at the setpoint.
-- **Fault:** masked by a loop when at least 50% of its selection runs meet the rule for that loop; masked when any loop masks it. The table names the loop(s).
+- **Judged on the settled half** of the 4 h after onset, samples onset + 41 … onset + 80. A tag is out when it's outside its band for 3 consecutive samples there.
+- **Label (plant level):** a run is masked when no measurement or analyzer is out while at least one valve is; a fault is masked when at least 50% of its selection runs are. The table names the absorbing valves: those out in at least 50% of the masked runs, or the most frequent.
+- **Per-loop evidence (diagnosis, not the label):** a loop absorbs the fault when its controlled measurement isn't out and its end valve (for a cascade master, the valve at the bottom of its cascade) is out, on at least 50% of the runs. For a proportional-only loop, held means inside the band, not at the setpoint.
 - **Valve headroom** is the distance to the physical limits, min(position, 100 − position) in % open (`app/detector/loops.py`).
 - **Masked list:** not yet decided.
 

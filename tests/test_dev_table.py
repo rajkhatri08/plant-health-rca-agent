@@ -429,11 +429,15 @@ def test_main_routes_lead_time(monkeypatch):
 from app.detector import loops as loop_map_mod              # noqa: E402
 
 
-def write_masked(c, masked=(5,), sha=None, name="20260928T000000Z_masked_faults.json"):
-    faults = {f"fault_{f:02d}": {"masked": f in masked, "by": "ST-FIC-603" if f in masked else None,
-                                 "max_share": 1.0 if f in masked else 0.0, "shares": {}}
+def write_masked(c, masked=(5,), sha=None, rule="plant", name="20260928T000000Z_masked_faults.json"):
+    faults = {f"fault_{f:02d}": {"masked": f in masked, "masked_share": 1.0 if f in masked else 0.0,
+                                 "absorbing_valves": "CD-FV-302" if f in masked else None,
+                                 "absorbing_loops": "ST-FIC-603", "valve_shares": {}, "loop_shares": {}}
               for f in range(1, 16)}
-    rec = {"config": {"loop_map_sha256": sha or run_record.sha256(loop_map_mod.LOOPS_FILE)},
+    config = {"loop_map_sha256": sha or run_record.sha256(loop_map_mod.LOOPS_FILE)}
+    if rule:
+        config["rule"] = rule
+    rec = {"config": config,
            "metrics": {"masked_faults": list(masked), "faults": faults}}
     path = c["repo"] / "eval" / "runs" / name
     path.write_text(json.dumps(rec))
@@ -443,16 +447,17 @@ def write_masked(c, masked=(5,), sha=None, name="20260928T000000Z_masked_faults.
 def test_masked_column_from_a_record(calibrated):
     path = write_masked(calibrated)
     results = build(calibrated, masked=path)
-    assert results["faults"]["fault_05"]["masked"] == {"masked": True, "by": "ST-FIC-603"}
-    assert results["faults"]["fault_04"]["masked"] == {"masked": False, "by": None}
+    assert results["faults"]["fault_05"]["masked"] == {"masked": True, "valves": "CD-FV-302"}
+    assert results["faults"]["fault_04"]["masked"] == {"masked": False, "valves": None}
     rec_path, rec = the_record(calibrated)
     assert rec["config"]["masked_record"] == "eval/runs/20260928T000000Z_masked_faults.json"
     table = next(calibrated["tables"].glob("*.md")).read_text()
-    assert "| 5 | condenser cooling | yes (ST-FIC-603) |" in table
+    assert "| 5 | condenser cooling | yes (CD-FV-302) |" in table
     assert "| 4 | reactor cooling | no |" in table
 
 
-@pytest.mark.parametrize("kw", [{"sha": "0" * 64}, {"name": "20260928T000000Z_other.json"}])
+@pytest.mark.parametrize("kw", [{"sha": "0" * 64}, {"name": "20260928T000000Z_other.json"},
+                                {"rule": None}])            # the superseded any-loop record
 def test_masked_record_refusals_before_loading(calibrated, kw):
     path = write_masked(calibrated, **kw)
     with pytest.raises(dt.DevTableError):
