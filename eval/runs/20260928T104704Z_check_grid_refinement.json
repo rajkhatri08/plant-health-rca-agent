@@ -1,0 +1,1101 @@
+{
+  "name": "check_grid_refinement",
+  "time": "2026-09-28T10:47:04+00:00",
+  "commit": "2e5db3fa980e8171b8132619bafbd8f92f05010c",
+  "dirty": false,
+  "config": {
+    "detector": "pca_static",
+    "warmup": 9,
+    "lags": 0,
+    "new_points": [
+      99.991,
+      99.992,
+      99.993,
+      99.994,
+      99.995,
+      99.996,
+      99.997,
+      99.998,
+      99.999
+    ],
+    "old_top": 99.99,
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "model_sha256": "1e4aa9e6cac5ed75f81e6f6a6adc197ba215d9390ec556012c481bc49f8afae5",
+    "calibration_runs": 150
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "settings_checked": 210,
+    "changed": 0,
+    "all_new_points_pass": 210,
+    "unchanged": true,
+    "chosen": {
+      "n": 3,
+      "gap": 15,
+      "q": 95.57,
+      "still_chosen": true
+    },
+    "settings": {
+      "n1_g0": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g1": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g2": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g3": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g4": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g5": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g6": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g7": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g8": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g9": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g10": {
+        "old_q": 99.9,
+        "new_q": 99.9,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g11": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g12": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g13": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g14": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g15": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g16": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g17": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g18": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g19": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n1_g20": {
+        "old_q": 99.89,
+        "new_q": 99.89,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g0": {
+        "old_q": 98.57,
+        "new_q": 98.57,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g1": {
+        "old_q": 98.57,
+        "new_q": 98.57,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g2": {
+        "old_q": 98.55,
+        "new_q": 98.55,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g3": {
+        "old_q": 98.53,
+        "new_q": 98.53,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g4": {
+        "old_q": 98.52,
+        "new_q": 98.52,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g5": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g6": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g7": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g8": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g9": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g10": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g11": {
+        "old_q": 98.5,
+        "new_q": 98.5,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g12": {
+        "old_q": 98.48,
+        "new_q": 98.48,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g13": {
+        "old_q": 98.46,
+        "new_q": 98.46,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g14": {
+        "old_q": 98.46,
+        "new_q": 98.46,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g15": {
+        "old_q": 98.46,
+        "new_q": 98.46,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g16": {
+        "old_q": 98.45,
+        "new_q": 98.45,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g17": {
+        "old_q": 98.45,
+        "new_q": 98.45,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g18": {
+        "old_q": 98.45,
+        "new_q": 98.45,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g19": {
+        "old_q": 98.44,
+        "new_q": 98.44,
+        "new_points_stable_from": 99.991
+      },
+      "n2_g20": {
+        "old_q": 98.44,
+        "new_q": 98.44,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g0": {
+        "old_q": 96.02,
+        "new_q": 96.02,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g1": {
+        "old_q": 96.02,
+        "new_q": 96.02,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g2": {
+        "old_q": 96.02,
+        "new_q": 96.02,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g3": {
+        "old_q": 96.0,
+        "new_q": 96.0,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g4": {
+        "old_q": 95.85,
+        "new_q": 95.85,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g5": {
+        "old_q": 95.83,
+        "new_q": 95.83,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g6": {
+        "old_q": 95.79,
+        "new_q": 95.79,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g7": {
+        "old_q": 95.77,
+        "new_q": 95.77,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g8": {
+        "old_q": 95.76,
+        "new_q": 95.76,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g9": {
+        "old_q": 95.73,
+        "new_q": 95.73,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g10": {
+        "old_q": 95.69,
+        "new_q": 95.69,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g11": {
+        "old_q": 95.69,
+        "new_q": 95.69,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g12": {
+        "old_q": 95.69,
+        "new_q": 95.69,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g13": {
+        "old_q": 95.62,
+        "new_q": 95.62,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g14": {
+        "old_q": 95.62,
+        "new_q": 95.62,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g15": {
+        "old_q": 95.57,
+        "new_q": 95.57,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g16": {
+        "old_q": 95.56,
+        "new_q": 95.56,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g17": {
+        "old_q": 95.56,
+        "new_q": 95.56,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g18": {
+        "old_q": 95.56,
+        "new_q": 95.56,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g19": {
+        "old_q": 95.51,
+        "new_q": 95.51,
+        "new_points_stable_from": 99.991
+      },
+      "n3_g20": {
+        "old_q": 95.49,
+        "new_q": 95.49,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n4_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n5_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n6_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n7_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n8_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n9_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g0": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g1": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g2": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g3": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g4": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g5": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g6": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g7": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g8": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g9": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g10": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g11": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g12": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g13": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g14": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g15": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g16": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g17": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g18": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g19": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      },
+      "n10_g20": {
+        "old_q": 95.0,
+        "new_q": 95.0,
+        "new_points_stable_from": 99.991
+      }
+    }
+  }
+}

@@ -782,3 +782,84 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The PCA check should pass.** All 210 static-PCA settings were eligible, so 99.99 already passed for all of them. At a stricter q the limits only rise, which usually lowers notifications, but the grid search itself assumes that isn't guaranteed. That's why it's checked rather than assumed.
   - `eval/baselines/alarms.py` shows only a trailing-newline change that Claude didn't make (probably the IDE).
 - **Decisions needed:** unchanged from session 4a (findings 2 and 3; the session 4b count and chattering definitions).
+
+### 2026-09-28: week 3 session 4a (continued), grid check and alarm re-calibration on the refined grid
+- **Changed:** runs only (Raj, 2e5db3f, clean tree). No code.
+  - **Grid check:** `eval/runs/20260928T104704Z_check_grid_refinement.json`.
+    - All 210 static-PCA settings pass at all nine new points, so every stable q is unchanged (0 changed).
+    - The chosen setting stands: n = 3, G = 15, q = 95.57. The PCA calibration isn't re-run.
+  - **Alarm calibrations on the 509-point grid.** Both lists have all 210 settings eligible, against 189 of 210 on the old grid.
+    - **Realistic** (`eval/runs/20260928T105104Z_calibrate_alarms_realistic.json`):
+      - n = 1, G = 0, q = 99.992, selection score 0.9533
+      - calibration: 123 notifications in 3,682.5 h, 0.802 per 24 h (80% of the budget)
+    - **Every tag** (`eval/runs/20260928T105126Z_calibrate_alarms_every.json`):
+      - n = 1, G = 0, q = 99.992, score 0.9542
+      - calibration: 147 in 3,682.5 h, 0.958 per 24 h
+    - **In both lists, the grouped and ungrouped rows chose the same setting.** The best score is at G = 0, and ties go to the smaller G.
+    - **Selection rates, both lists:** 1.00 for every selection fault except 10 (0.46 realistic, 0.47 every) and 13 (0.98).
+  - **The superseded records** (`20260928T103138Z_…realistic`, `20260928T103200Z_…every`, 500-point grid) are kept as decision 59's evidence.
+- **Tests:** unchanged, 708 passed, 1 deselected.
+- **Reading the change:**
+  - **The earlier gap between the lists, 0.84 vs 0.92, was mostly the coarse grid.**
+    - On the old grid no n = 1 setting could meet the budget, so both lists were pushed to n = 2 (q = 99.98 or 99.99).
+    - The realistic list suffered most. Fault 4 fell to 0.13 (grouped) against 0.98 for every-tag, and fault 14 to 0.48 against 0.67.
+    - With the finer top, n = 1 at q = 99.992 is eligible and wins in both lists. Fault 4 is 1.00 and fault 14 is 1.00 in both, and the gap shrinks to 0.0009: one detection in 1,200 selection runs (fault 10).
+    - So the list composition barely matters at the calibrated setting.
+  - **Decision 59's concern holds.** The coarse grid had made the baseline stricter than the budget needed. The realistic list now uses 80% of the budget instead of 96% (grouped) or 50% (ungrouped).
+  - **n = 1 means no on-delay.** Every alarm point annunciates on the first sample past its limit, and the deadband alone controls chattering. That's worth watching in the chattering count (session 4b).
+  - **The limits rest on the extremes.** At q = 99.992 each tail is 0.004%, about 3 samples per tag among 73,650. Each alarm limit sits between the third and fourth most extreme calibration samples of its tag.
+- **Decisions needed:** findings 2 and 3 on `plant_track` (still unanswered); the session 4b definitions (next).
+
+### 2026-09-28: week 3 session 4b, alarm rows, operator load and lead time: decision 60, stubs, driver, tests
+- **Changed:**
+  - **Raj's answers (decision 60, all four as recommended):**
+    - **Per 10 minutes and flood:** onset-aligned periods by sample time. There are twelve periods in the 2-h window, (10j, 10j + 10] minutes, with 3 or 4 samples each.
+    - **Chattering:** 3 or more turn-ons of one alarm point within 10 samples.
+    - **The notification unit:** each alarm point (a tag's high, a tag's low, a valve-at-limit), with its own on-delay and the row's off-delay G applied per point. App 3 counts its one plant stream.
+    - **Lead time:** against the realistic grouped row only.
+  - **`eval/PROTOCOL.md`, Alarm comparison:**
+    - the tag lists as built
+    - the definitions above
+    - the lead-time rule: the median of (baseline − App 3) over both-detected runs, positive when App 3 is earlier, with an interval over those runs and the four counts
+  - **`eval/metrics.py` (stubs for Raj):**
+    - constants `NOTIFY_SAMPLES` 40, `PERIOD_MIN` 10, `FLOOD_ABOVE` 10, `CHATTER_TIMES` 3 and `CHATTER_SPAN` 10, and the `LeadTime` tuple
+    - `period_counts(notification_samples, onset, …)`
+    - `is_chattering(notification_samples, first, last, …)`
+    - `lead_time(app, base)`
+  - **`eval/baselines/alarms.py` (stub for Raj):** `point_tracks(points, n_per_point, gap, warmup)`, each point's persist then group, for counting per point. Its OR across points equals `plant_track`.
+  - **Tests (hand-built, worked comments):**
+    - 24 in `tests/test_metrics.py`: period edges (30 min belongs to period 2), 3 or 4 samples per period, the testing onset, chattering edges (9 vs 10 samples apart), window cut-offs, lead-time counts and signs, odd medians, None without both detected, and refusals
+    - 9 in `tests/test_alarms.py`: a hand case; OR equals `plant_track` for G of 0, 3 and 15; refusals
+  - **`eval/dev_table.py` (Claude), refactored around two detector adapters:**
+    - **`PCADetector`:** as before.
+    - **`AlarmDetector`:** one row of an alarm list, rebuilt from its limits file (lo/hi, bands, on-delays) through `hysteresis`, `at_limit`, `plant_track` and `point_tracks`. Its divergence inputs are its alarmed tags.
+    - **Provenance:** the kind comes from the limits file, which must be the output of exactly one calibration record (`calibrate_pca`, or `calibrate_alarms_<list>`).
+    - **Every row** now carries `load`: notifications per episode (mean and max), per 10 min, the peak 10-min count, flood share, chattering points per run, and the share from chattering. The Markdown gains an "Operator load" table.
+    - **App 3's rows** carry `lead` against `alarms_realistic_grouped`: the median, its interval over both-detected runs, and the four counts. It refuses an every-tag file, a lead on an alarm row, and mismatched warm-ups, all before loading.
+    - **The CLI:**
+      - `--row grouped|ungrouped` for alarm files
+      - App 3 defaults `--lead-vs` to `data/models/alarms_realistic_limits.json`
+      - `--no-lead` leaves the column empty
+      - the existing PCA call still works
+  - **`tests/test_dev_table.py`:** 13 new tests. They cover:
+    - operator load by hand, including flood and no notifications
+    - `lead_row` by hand
+    - both alarm lists' rows equal direct scoring from the limits file, including their load
+    - App 3's lead time and load equal direct calls
+    - refusals before loading (no row, a bad row, a row on PCA, lead against every-tag, lead on an alarm row, an altered alarm limits file)
+    - CLI routing
+    - The fixture calibrates both alarm lists on synthetic plant-like runs first.
+- **Tests:** `pytest -q` gives 45 failed, 707 passed, 1 deselected.
+  - All 45 failures are `NotImplementedError` from the four stubs: 23 in `test_metrics.py`, 9 in `test_alarms.py` and 13 in `test_dev_table.py`.
+  - The session 2 PCA run tests are among them now, because every row computes the operator load.
+  - Against a throwaway reference implementation in the session scratchpad, outside the repo, all 752 pass.
+- **Not run:** nothing touched dev in this session.
+- **Unsure about:**
+  - **"Per 10 min" is always the per-episode count ÷ 12,** because every run has the same twelve periods. It's kept because PROTOCOL names it, and the peak 10-min count and the flood share carry the extra information.
+  - **The operator load is counted on fault runs only,** in the notification window. Normal-operation load for the alarm rows is just the false alerts per 24 h already in the last row.
+  - **With n = 1 and G = 0 (both lists' chosen settings),** grouped and ungrouped alarm rows will be identical. They're run separately anyway, because PROTOCOL lists both rows.
+- **Decisions needed:** findings 2 and 3 on `plant_track` (still unanswered).
+- **Next (Raj):** implement the four stubs. After committing, on a clean tree:
+  - `python -m eval.dev_table` (App 3, with lead time against realistic grouped)
+  - `python -m eval.dev_table --limits data/models/alarms_realistic_limits.json --row grouped`, then `--row ungrouped`
+  - `python -m eval.dev_table --limits data/models/alarms_every_limits.json --row grouped`, then `--row ungrouped`

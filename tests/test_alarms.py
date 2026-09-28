@@ -264,3 +264,38 @@ def test_memory_bound_edge_is_allowed():
 def test_plant_track_refusals(p, ns, gap, warmup):
     with pytest.raises(ValueError):
         al.plant_track(p, ns, gap, warmup)
+
+# ---------- point_tracks (decision 60: notifications per alarm point) ----------
+
+def test_point_tracks_per_point_on_and_off_delay():
+    # Point 0, n = 2: [0,1,1,0,1,1,1,0] -> held at 3, 6, 7; gap 1 -> on at 3, 4, 6, 7, 8.
+    # Point 1, n = 1: on at 8 only; gap 1 -> 8 (sample 9 doesn't exist).
+    # Warm-up 2 is off in both.
+    p = points([0, 1, 1, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 1])
+    out = al.point_tracks(p, [2, 1], gap=1, warmup=2)
+    assert out.dtype.kind == "i" and out.shape == (8, 2)
+    assert out[:, 0].tolist() == [0, 0, 1, 1, 0, 1, 1, 1]
+    assert out[:, 1].tolist() == [0, 0, 0, 0, 0, 0, 0, 1]
+
+
+def test_point_tracks_or_is_the_plant_track():
+    # The off-delay is a running max, so it commutes with the OR across points.
+    rng = np.random.default_rng(7)
+    p = rng.random((300, 5)) < 0.3
+    ns = [1, 2, 3, 1, 4]
+    for gap in (0, 3, 15):
+        assert bits(al.point_tracks(p, ns, gap, 9).max(axis=1)) == bits(al.plant_track(p, ns, gap, 9))
+
+
+@pytest.mark.parametrize("p, ns, gap, warmup", [
+    (points([1, 1, 1, 1, 1]), [5], 0, 3),
+    (points([1, 1, 1]), [0], 0, 0),
+    (points([1, 1, 1]), [1, 1], 0, 0),
+    (np.array([1, 0, 1]), [1], 0, 0),
+    (np.array([[1.0], [np.nan]]), [1], 0, 0),
+    (points([1, 1, 1]), [1], -1, 0),
+    (points([1, 1, 1]), [1], 0, -1),
+])
+def test_point_tracks_refusals(p, ns, gap, warmup):
+    with pytest.raises(ValueError):
+        al.point_tracks(p, ns, gap, warmup)

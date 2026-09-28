@@ -473,3 +473,99 @@ def test_before_divergence_refuses_bad_divergence(bad):
 def test_before_divergence_accepts_numpy_integers():
     # 22 < 24 (numpy int64) before; 30 < 23 no.
     assert m.before_divergence_share([det(22), det(30)], [np.int64(24), np.int32(23)]) == (1, 2)
+
+
+# ---------------------------------------------------------------------------
+# Decision 60: counts in the notification window (onset + 1 .. onset + 40, 2 h), in
+# twelve 10-minute periods by time after onset; chattering; lead time.
+
+def test_period_constants():
+    assert (m.NOTIFY_SAMPLES, m.PERIOD_MIN, m.FLOOD_ABOVE) == (40, 10, 10)
+    assert (m.CHATTER_TIMES, m.CHATTER_SPAN) == (3, 10)
+
+
+def test_period_counts_by_time_after_onset():
+    # Onset 20. Minutes after onset = (s - 20) * 3; period j holds (10j, 10j + 10].
+    #   21 -> 3 min  -> period 0      23 -> 9  -> 0
+    #   24 -> 12     -> 1             26 -> 18 -> 1
+    #   27 -> 21     -> 2             30 -> 30 -> 2 (the upper edge belongs to the period)
+    #   31 -> 33     -> 3             60 -> 120 -> 11 (the last sample of the window)
+    #   61, 20 and 5 are outside 21..60 and ignored.
+    counts = m.period_counts([5, 20, 21, 23, 24, 26, 27, 30, 31, 60, 61], 20)
+    assert counts == [2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1]
+
+
+def test_period_sizes_are_3_or_4_samples():
+    # Every sample of the window once: periods hold 3, 3, 4, 3, 3, 4 ... samples
+    # (times 3-9, 12-18, 21-30, 33-39, 42-48, 51-60, ...), 40 in all.
+    counts = m.period_counts(list(range(21, 61)), 20)
+    assert counts == [3, 3, 4] * 4 and sum(counts) == 40
+
+
+def test_period_counts_testing_onset_and_empty():
+    assert m.period_counts(list(range(161, 201)), 160) == [3, 3, 4] * 4
+    assert m.period_counts([], 20) == [0] * 12
+
+
+@pytest.mark.parametrize("kw", [{"window": 0}, {"period_min": 0}, {"sample_min": 0}])
+def test_period_counts_refusals(kw):
+    with pytest.raises(ValueError):
+        m.period_counts([21], 20, **kw)
+
+
+@pytest.mark.parametrize("samples, first, last, expected", [
+    ([5, 9, 14], 1, 100, True),        # 14 - 5 = 9 <= 9: three turn-ons within 10 samples
+    ([5, 9, 15], 1, 100, False),       # 15 - 5 = 10: they need 11 samples
+    ([5, 9, 15, 16], 1, 100, True),    # 9, 15, 16: 16 - 9 = 7
+    ([5, 9, 14], 6, 100, False),       # 5 is before the window: only 9 and 14 count
+    ([5, 9, 14], 1, 13, False),        # 14 is after it
+    ([], 1, 100, False),
+    ([7], 1, 100, False),
+])
+def test_is_chattering(samples, first, last, expected):
+    assert m.is_chattering(samples, first, last) is expected
+
+
+def test_is_chattering_other_thresholds():
+    assert m.is_chattering([5, 14], 1, 100, times=2) is True          # 9 <= 9
+    assert m.is_chattering([5, 9, 14], 1, 100, span=9) is False      # 9 > 8
+
+
+@pytest.mark.parametrize("samples, first, last, kw", [
+    ([9, 5], 1, 100, {}),               # not ascending
+    ([5, 5, 9], 1, 100, {}),            # not strictly ascending
+    ([5], 10, 1, {}),                   # first > last
+    ([5], 1, 100, {"times": 0}),
+    ([5], 1, 100, {"span": 0}),
+])
+def test_is_chattering_refusals(samples, first, last, kw):
+    with pytest.raises(ValueError):
+        m.is_chattering(samples, first, last, **kw)
+
+
+def test_lead_time_median_over_both_detected_with_counts():
+    # App 3:    23 (9 min), 24 (12), miss, 30 (30), miss
+    # Baseline: 25 (15),    24 (12), 27 (21), miss, miss
+    # Both detected on runs 1 and 2: 15 - 9 = 6 and 12 - 12 = 0, median 3.
+    # Run 3: only the baseline; run 4: only App 3; run 5: neither.
+    app = [det(23), det(24), det(None), det(30), det(None)]
+    base = [det(25), det(24), det(27), det(None), det(None)]
+    assert m.lead_time(app, base) == m.LeadTime(3.0, 2, 1, 1, 1)
+
+
+def test_lead_time_negative_when_the_baseline_is_earlier():
+    # 27 (21 min) - 30 (30 min) = -9; odd count: 6, 0, -9 -> median 0.
+    assert m.lead_time([det(30)], [det(27)]).median_min == -9.0
+    app = [det(23), det(24), det(30)]
+    base = [det(25), det(24), det(27)]
+    assert m.lead_time(app, base).median_min == 0.0
+
+
+def test_lead_time_without_both_detected_is_none():
+    assert m.lead_time([det(23), det(None)], [det(None), det(25)]) == m.LeadTime(None, 0, 1, 1, 0)
+    assert m.lead_time([], []) == m.LeadTime(None, 0, 0, 0, 0)
+
+
+def test_lead_time_refuses_length_mismatch():
+    with pytest.raises(ValueError):
+        m.lead_time([det(23)], [det(23), det(24)])

@@ -284,3 +284,11 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Static PCA isn't re-calibrated:** `eval/check_grid_refinement.py` checks on the calibration pool that every static-PCA (n, G) setting meets the budget at all nine new points. If so, the top-down scan passes through them to the same stable q as before, and the chosen setting (n = 3, G = 15, q = 95.57) is unchanged.
 
     *Why:* at the top of the grid, one 0.01 step halves or doubles each alarm point's per-sample false rate (0.02% → 0.01%). So the coarse grid could force the alarm baseline stricter than the budget needs, which would flatter App 3's lead time.
+
+60. **Alarm-comparison counts and lead time (Raj's decision).**
+    - **Notification:** for the alarm rows, each alarm point (a tag's high, a tag's low, a valve-at-limit) turning on after its own on-delay and the row's off-delay G, applied per point. For App 3, its one plant stream turning on.
+    - **Per 10 minutes and flood:** the 2-h notification window (samples onset + 1 … onset + 40) is split into twelve 10-minute periods by sample time after onset. Period j holds times in (10j, 10j + 10] minutes, so it gets 3 or 4 samples. Per 10 minutes is the mean count per period. Flood is a period with more than 10 notifications, reported as the share of periods.
+    - **Chattering:** an alarm point that turns on 3 or more times within any 10 consecutive samples (30 min) inside the window. Reported as chattering points per run, and the share of the window's notifications they caused.
+    - **Lead time** is against the realistic list's grouped row only. The every-tag list is reported with its own detection, delay and counts.
+
+    *Why:* 10 minutes isn't a whole number of 3-minute samples, so periods follow time. A chattering alarm needs at least 5 samples to turn on 3 times, and 30 minutes also catches slower flapping. High and low alarms annunciate separately on a real console.

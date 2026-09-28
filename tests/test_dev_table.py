@@ -1,6 +1,7 @@
-"""eval/dev_table.py on synthetic runs (never data/): calibrate with the driver first, then
-build the dev table. The run-level tests need Raj's first_divergence and
-before_divergence_share; until then they fail with NotImplementedError."""
+"""eval/dev_table.py on synthetic runs (never data/): calibrate with the drivers first, then
+build the dev table. The run-level tests need Raj's metric functions (divergence, and
+decision 60's period_counts, is_chattering, lead_time) and alarms.point_tracks; until
+those exist they fail with NotImplementedError."""
 
 import json
 
@@ -238,3 +239,185 @@ def test_refuses_limits_without_a_calibration_record(calibrated):
     with pytest.raises(drv.CalibrationError):
         build(calibrated)
     assert calibrated["calls"] == []
+
+
+# ---------------------------------------------------------------------------
+# Decision 60: operator load, alarm rows and App 3's lead time.
+
+from eval import calibrate_alarms as ca                     # noqa: E402
+from eval.baselines import alarms as al                     # noqa: E402
+from tests import test_calibrate_alarms as tca              # noqa: E402
+
+
+def det(sample):
+    if sample is None:
+        return metrics.Detection(False, None, metrics.INF)
+    return metrics.Detection(True, sample, float((sample - 20) * 3))
+
+
+def test_operator_load_by_hand():
+    # Run 1: point 0 turns on at 21, 23, 25 (25 - 21 = 4 <= 9: chattering); point 1 at 50.
+    #        In the window 21..60: 4 notifications. Minutes after onset 20: 3, 9, 15, 90,
+    #        so periods [2, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0].
+    # Run 2: point 1 at 5 and 61, both outside the window: 0 notifications.
+    # Per episode: mean (4 + 0) / 2 = 2.0, max 4. Per 10 min: 4 / 24 periods. Peak 2.
+    # Chattering points per run: (1 + 0) / 2. Share from chattering: 3 of 4.
+    load = dt.operator_load({1: [[21, 23, 25], [50]], 2: [[], [5, 61]]})
+    assert load == pytest.approx({"per_episode_mean": 2.0, "per_episode_max": 4,
+                                  "per_10min_mean": 4 / 24, "peak_10min": 2, "flood_share": 0.0,
+                                  "chattering_points_per_run": 0.5, "chattering_share": 0.75})
+
+
+def test_operator_load_flood_and_no_notifications():
+    # 11 points each turning on at sample 21 (3 min): 11 > 10 in period 0, a flood.
+    load = dt.operator_load({1: [[21]] * 11})
+    assert load["flood_share"] == pytest.approx(1 / 12) and load["peak_10min"] == 11
+    assert dt.operator_load({1: [[]], 2: [[5]]})["chattering_share"] is None
+
+
+def test_lead_row_by_hand():
+    # Runs 1-2 both detected: 15 - 9 = 6 and 12 - 12 = 0, median 3; run 3 only alarms;
+    # run 4 only App 3; run 5 neither.
+    app = {1: det(23), 2: det(24), 3: det(None), 4: det(30), 5: det(None)}
+    base = {1: det(25), 2: det(24), 3: det(27), 4: det(None), 5: det(None)}
+    row = dt.lead_row(5, app, base, n_boot=N_BOOT)
+    assert (row["median_min"], row["both"], row["only_app"], row["only_base"], row["neither"]) == (3.0, 2, 1, 1, 1)
+    assert 0.0 <= row["median_ci95"][0] <= row["median_ci95"][1] <= 6.0
+
+
+def test_lead_row_without_both_detected():
+    row = dt.lead_row(5, {1: det(23)}, {1: det(None)}, n_boot=N_BOOT)
+    assert row["median_min"] is None and row["median_ci95"] is None and row["only_app"] == 1
+
+
+@pytest.fixture
+def with_alarms(calibrated, monkeypatch, tmp_path):
+    """Both alarm lists calibrated on synthetic plant-like runs, then dev loaders serving
+    plant-like dev runs (valves near 50% open)."""
+    calib = tca.plant_runs(range(1, 21))
+    monkeypatch.setattr(loader_mod, "load_normal", lambda pool: calib if pool == "calibration" else pytest.fail(pool))
+    monkeypatch.setattr(loader_mod, "load_faulty", lambda f, pool: tca.plant_runs(
+        range(1, 13), seed=100 + f, step=1.0 + 0.3 * f, fault=f, pool="forest_ceiling"))
+    paths = {}
+    for name in ("realistic", "every"):
+        paths[name] = tmp_path / "alarms" / f"alarms_{name}_limits.json"
+        ca.run(name, paths[name], repo_root=calibrated["repo"], warmup=tca.WARMUP,
+               q_grid=tca.GRID, gap_range=tca.GAPS)
+
+    normal = tca.plant_runs(DEV, seed=11, pool="dev")
+    calls = []
+
+    def load_normal(pool):
+        calls.append(("normal", pool))
+        if pool != "dev":
+            pytest.fail(f"dev table loaded normal pool {pool}")
+        return normal
+
+    def load_faulty(fault, pool):
+        calls.append(("faulty", fault, pool))
+        if pool != "dev" or fault not in range(1, 16):
+            pytest.fail(f"dev table loaded fault {fault} from {pool}")
+        return faulty_dev(normal, fault)
+
+    monkeypatch.setattr(loader_mod, "load_normal", load_normal)
+    monkeypatch.setattr(loader_mod, "load_faulty", load_faulty)
+    return {**calibrated, "normal": normal, "calls": calls, "alarms": paths}
+
+
+def direct_alarm(limits_path, row, runs):
+    """{run: (alert track, per-point notifications)} built straight from alarms.py."""
+    lim = json.loads(limits_path.read_text())
+    r = lim[row]
+    hl = [al.ANALYZER_ON_DELAY if a else r["n"] for a in lim["hl_analyzer"]]
+    ns = hl + hl + [r["n"]] * len(lim["valve_tags"])
+    hl_cols = tagmap.column_indices(VARIABLES, lim["hl_tags"])
+    v_cols = tagmap.column_indices(VARIABLES, lim["valve_tags"]) if lim["valve_tags"] else []
+    out = {}
+    for k, x in runs.runs.items():
+        high, low = al.hysteresis(x[:, hl_cols], r["lo"], r["hi"], lim["band"])
+        pts = np.hstack([high, low] + ([al.at_limit(x[:, v_cols])] if v_cols else []))
+        per_point = al.point_tracks(pts, ns, r["gap"], lim["warmup"])
+        out[k] = (al.plant_track(pts, ns, r["gap"], lim["warmup"]),
+                  [metrics.notifications(per_point[:, j], lim["warmup"]) for j in range(per_point.shape[1])])
+    return out
+
+
+def build_alarm(c, name="realistic", row="grouped", **kw):
+    return dt.run(c["alarms"][name], None, row=row, repo_root=c["repo"], tables_dir=c["tables"],
+                  n_boot=N_BOOT, **kw)
+
+
+@pytest.mark.parametrize("name, row", [("realistic", "grouped"), ("every", "ungrouped")])
+def test_alarm_row_matches_direct_scoring(with_alarms, name, row):
+    results = build_alarm(with_alarms, name, row)
+    lim = json.loads(with_alarms["alarms"][name].read_text())
+    for f in (5, 9):
+        scored = direct_alarm(with_alarms["alarms"][name], row, faulty_dev(with_alarms["normal"], f))
+        dets = [metrics.detection(scored[k][0], dt.ONSET, warmup=lim["warmup"]) for k in sorted(scored)]
+        r = results["faults"][f"fault_{f:02d}"]
+        assert r["detected"] == sum(d.detected for d in dets)
+        assert r["delay_median_min"] == metrics.delay_summary([d.delay_min for d in dets])[0]
+        assert r["load"] == pytest.approx(dt.operator_load({k: p for k, (_, p) in scored.items()}))
+    _, rec = the_record(with_alarms)
+    assert rec["name"] == f"dev_table_alarms_{name}_{row}"
+    assert rec["config"]["row"] == row and rec["config"]["calibration_record"].endswith(
+        f"_calibrate_alarms_{name}.json")
+    assert "lead_vs" not in rec["config"]
+
+
+def test_app3_lead_time_matches_direct(with_alarms):
+    results = build(with_alarms, lead_vs=with_alarms["alarms"]["realistic"])
+    for f in (5, 13):
+        runs = faulty_dev(with_alarms["normal"], f)
+        app_tracks, lim = direct_tracks(with_alarms, runs)
+        base = direct_alarm(with_alarms["alarms"]["realistic"], "grouped", runs)
+        ks = sorted(app_tracks)
+        lt = metrics.lead_time([metrics.detection(app_tracks[k], dt.ONSET, warmup=lim["warmup"]) for k in ks],
+                               [metrics.detection(base[k][0], dt.ONSET, warmup=lim["warmup"]) for k in ks])
+        lead = results["faults"][f"fault_{f:02d}"]["lead"]
+        assert (lead["median_min"], lead["both"], lead["only_app"], lead["only_base"], lead["neither"]) == tuple(lt)
+        # App 3's operator load counts its one plant stream.
+        assert results["faults"][f"fault_{f:02d}"]["load"] == pytest.approx(dt.operator_load(
+            {k: [metrics.notifications(app_tracks[k], lim["warmup"])] for k in ks}))
+    _, rec = the_record(with_alarms)
+    assert rec["config"]["lead_vs"]["detector"] == "alarms_realistic_grouped"
+    table = next(with_alarms["tables"].glob("*.md")).read_text()
+    assert "only App 3" in table and "Operator load" in table
+
+
+@pytest.mark.parametrize("kw", [
+    {"row": None},                               # an alarm file needs a row
+    {"row": "both"},                             # not a row
+])
+def test_alarm_detector_needs_a_valid_row_before_loading(with_alarms, kw):
+    with pytest.raises(dt.DevTableError):
+        dt.run(with_alarms["alarms"]["realistic"], None, repo_root=with_alarms["repo"],
+               tables_dir=with_alarms["tables"], n_boot=N_BOOT, **kw)
+    assert with_alarms["calls"] == []
+
+
+def test_refusals_before_loading(with_alarms):
+    c = with_alarms
+    with pytest.raises(dt.DevTableError):                       # PCA takes no row
+        build(c, row="grouped")
+    with pytest.raises(dt.DevTableError):                       # lead is against realistic only
+        build(c, lead_vs=c["alarms"]["every"])
+    with pytest.raises(dt.DevTableError):                       # an alarm row has no lead column
+        build_alarm(c, lead_vs=c["alarms"]["realistic"])
+    doc = json.loads(c["alarms"]["realistic"].read_text())
+    doc["grouped"]["q"] = 1.0
+    c["alarms"]["realistic"].write_text(json.dumps(doc))        # no longer the recorded file
+    with pytest.raises(dt.DevTableError):
+        build_alarm(c)
+    assert c["calls"] == []
+
+
+def test_main_routes_lead_time(monkeypatch):
+    seen = []
+    monkeypatch.setattr(dt, "run", lambda limits, model, **kw: seen.append((limits, kw["row"], kw["lead_vs"])))
+    assert dt.main([]) == 0
+    assert dt.main(["--no-lead"]) == 0
+    assert dt.main(["--limits", "a.json", "--row", "grouped"]) == 0
+    assert dt.main(["--lead-vs", "b.json"]) == 0
+    assert seen == [(drv.DEFAULT_OUT, None, dt.DEFAULT_LEAD), (drv.DEFAULT_OUT, None, None),
+                    (dt.Path("a.json"), "grouped", None), (drv.DEFAULT_OUT, None, dt.Path("b.json"))]

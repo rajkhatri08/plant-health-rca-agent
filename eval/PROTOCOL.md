@@ -62,10 +62,14 @@ Last row: normal operation, showing false alerts per 24 h with a 95% interval an
 
 ## Alarm comparison
 - **Conventional alarms:** per-tag high/low limits, deadbands by signal type (tighter for temperature and pressure than for flow and level), and an on-delay of at least one sample (one update for analyzers). Every alarmed tag gets the same false rate, calibrated to the same budget on the calibration pool.
-- **Tag lists:** realistic (measurements plus valve-at-limit alarms) and every tag. Report both.
+- **Tag lists:** realistic (high/low on measurements and analyzers, plus valve-at-limit alarms) and every tag (high/low on all 52 tags). Report both. Deadbands, edges and on-delays are in decision 58.
 - **Rows:** per-tag alarms; per-tag alarms plus the same grouping rule; App 3.
-- **Counts:** notifications an operator must look at, per episode in the notification window and per 10 minutes. Also the share of 10-minute periods in flood (more than 10), and chattering, defined for 3-minute samples. Always report these next to detection rate and delay.
-- **Lead time** is measured against the grouped baseline.
+- **Counts:** notifications an operator must look at, per episode in the notification window and per 10 minutes. Also the share of 10-minute periods in flood (more than 10), and chattering, defined for 3-minute samples. Always report these next to detection rate and delay. Definitions (decision 60):
+  - **Notification:** for the alarm rows, each alarm point (a tag's high, a tag's low, a valve-at-limit) turning on after its own on-delay and off-delay G; for App 3, its one plant stream turning on.
+  - **Notification window:** samples onset + 1 … onset + 40 (2 h), on fault runs.
+  - **10-minute periods:** the window is split into twelve periods by sample time after onset (3, 6 … 120 min), period j holding times in (10j, 10j + 10] minutes, so 3 or 4 samples each. Per 10 minutes is the mean count per period; flood is a period with more than 10 notifications.
+  - **Chattering:** an alarm point (or App 3's stream) that turns on 3 or more times within 10 consecutive samples (30 min) inside the window. Reported as chattering points per run and the share of the window's notifications that came from them.
+- **Lead time** is measured against the realistic list's grouped row: per fault, the median of (baseline delay − App 3 delay) over runs where both detected, positive when App 3 is earlier, with a run-number bootstrap interval over those runs, and the counts of runs where both, only App 3, only the baseline, or neither detected. Delay pairs with ∞ are never subtracted (decision 58).
 
 ## Loops
 The masked-fault list (measurement held at setpoint while a valve absorbs the fault) is decided from dev runs and written here before test. Detection and diagnosis are reported separately for masked and unmasked faults.

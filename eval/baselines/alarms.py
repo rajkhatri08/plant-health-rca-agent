@@ -164,3 +164,11 @@ def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
         held |= alerting.persist(p[:, j], n)  # each point's own on-delay, then OR them
     return alerting.group(held, gap, warmup).astype(int)
 
+def point_tracks(points, n_per_point, gap, warmup) -> np.ndarray:
+    """Each alarm point's own track as 0/1 integers (samples x points), for counting what
+    an operator sees (decision 60): per point, alerting.persist(point, n), then
+    alerting.group(held, gap, warmup). The OR across points equals plant_track(...),
+    because the off-delay is a running max and commutes with the OR.
+
+    Raises ValueError on the same inputs as plant_track."""
+    raise NotImplementedError

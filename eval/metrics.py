@@ -199,6 +199,60 @@ def before_divergence_share(detections: Sequence[Detection],
     return before, detected
 
 
+NOTIFY_SAMPLES = 40           # notification window: 2 h after onset (alarm comparison)
+PERIOD_MIN = 10               # counting period for "per 10 minutes" and flood (decision 60)
+FLOOD_ABOVE = 10              # a period with more than this many notifications is a flood
+CHATTER_TIMES = 3             # chattering: this many turn-ons ...
+CHATTER_SPAN = 10             # ... within this many consecutive samples (30 min)
+
+
+class LeadTime(NamedTuple):
+    median_min: float | None  # median of (baseline delay - App 3 delay) over both-detected runs
+    both: int
+    only_app: int
+    only_base: int
+    neither: int
+
+
+def period_counts(notification_samples, onset, window=NOTIFY_SAMPLES, period_min=PERIOD_MIN,
+                  sample_min=SAMPLE_MIN) -> list[int]:
+    """Notifications per period in the notification window (decision 60).
+
+    The window is samples onset + 1 .. onset + window. A sample s is (s - onset) *
+    sample_min minutes after onset, and period j holds the minutes in
+    (j * period_min, (j + 1) * period_min]. There are ceil(window * sample_min /
+    period_min) periods (12 for the defaults), and every one is returned, zeros included.
+    Samples outside the window are ignored.
+
+    Raises ValueError if window < 1, period_min <= 0 or sample_min <= 0."""
+    raise NotImplementedError
+
+
+def is_chattering(notification_samples, first, last, times=CHATTER_TIMES,
+                  span=CHATTER_SPAN) -> bool:
+    """True if at least `times` of the notification samples that lie in first..last fall
+    within `span` consecutive samples, i.e. some `times` of them have
+    last - first <= span - 1 (decision 60).
+
+    notification_samples are 1-based and ascending (as notifications() returns them).
+
+    Raises ValueError if they aren't strictly ascending, first > last, times < 1 or
+    span < 1."""
+    raise NotImplementedError
+
+
+def lead_time(app: Sequence[Detection], base: Sequence[Detection]) -> LeadTime:
+    """Lead time of App 3 over the baseline on one fault's runs (decisions 58, 60).
+
+    app[i] and base[i] are the two detectors' detections on the same run. The median is
+    of base.delay_min - app.delay_min over runs where both detected (positive when App 3
+    is earlier), interpolating linearly; None if no run has both. Pairs with a miss are
+    never subtracted: they are only counted (only_app, only_base, neither).
+
+    Raises ValueError if the sequences differ in length."""
+    raise NotImplementedError
+
+
 def _by_run_number(runs):
     """Group runs by run number: {number: [every run with that number]}."""
     groups = {}
