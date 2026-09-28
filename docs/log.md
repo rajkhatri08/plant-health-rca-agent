@@ -674,3 +674,32 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   4. **Compressor power** (signal type `power`, CP-JI-502) has no agreed deadband. I propose 0.5σ, like flow. `DEADBAND_SIGMA` leaves it out until decided, so the session 4 driver would refuse it.
   5. **The every-tag list:** I propose high and low alarms on all 52 tags, including the 11 valves (deadband 0.5σ for valves?), and no valve-at-limit alarms, which belong to the realistic list only. Valves then need a deadband too.
   6. **The valve-at-limit alarm has no deadband.** It clears as soon as the position leaves the ≤ 2 or ≥ 98 zone.
+
+### 2026-09-28: week 3 session 3 (continued), alarm baseline implemented and reviewed
+- **Changed:**
+  - **`eval/baselines/alarms.py` and the `track` argument on `eval/calibrate.py:lowest_stable_q`:** implemented by Raj, with guidance from the Claude.ai chat, against the session 3 tests (committed as e29abbc). Claude reviewed them and didn't change them.
+  - **Raj confirmed three of the session 3 proposals:**
+    - alarms turn on at strict edges (x > hi, x < lo) and clear at inclusive ones (x ≤ hi − band, x ≥ lo + band), starting off at sample 1
+    - σ is the pooled ddof-0 standard deviation of the calibration pool's scored samples
+    - the analyzer on-delay is the first reading past the limit (1 sample of the held series)
+  - **Review:** correct against decision 58 and the confirmed details.
+    - Raj's vectorised latch (the latest on/off event wins) and `plant_track` matched a plain-loop reference on 3,000 random cases each, with integer values so the edges are hit exactly. There were 0 mismatches.
+    - `lowest_stable_q` behaves as before without `track`. With it, only the builder is used, and it gets (value, n, gap, warmup, lags).
+    - The findings, for Raj to act on or not:
+      1. **Speed, which matters for session 4.** At calibration scale (150 runs × 500 samples × 41 alarmed tags plus 11 valves), one grid step costs about 0.47 s: 118 ms for `tag_limits`, 104 ms for `hysteresis` and 247 ms for `plant_track`. Called naively through `lowest_stable_q`, each (n, G) setting that scans to the grid floor redoes all of it for up to 500 q values. With the 210 settings of decision 54 that's many hours per tag list.
+         - The limits, the latched points and the per-point on-delays don't depend on G. Only `group` does.
+         - So the session 4 driver should build the points once per q, and the OR of on-delayed points once per (q, n), leaving only `group` per G. That's about 500 × 10 `plant_track`-sized steps per list, roughly 20 minutes, not hours.
+         - This is a driver design point for session 4. It needs no change to Raj's functions, but the track builder will need a cache keyed on (q, n).
+      2. **`plant_track` with no alarm points returns an always-off stream.** A driver bug that produced an empty tag list would look like a perfectly quiet baseline. Refusing zero points would catch it.
+      3. **`plant_track` casts each on-delay with `int()`,** so 2.7 silently becomes 2 and `True` becomes 1. That's the same class as week 2's finding 3 for `persist` and `group`.
+      4. **Cosmetic:** the first paragraph of the `lowest_stable_q` docstring still says each value is turned into a track with `alert_track`. The new paragraph on `track` covers it, so this only affects how it reads.
+    - None of these affects results today.
+- **Tests:** `pytest -q` gives 681 passed, 1 deselected.
+- **Unsure about:** the three confirmed details aren't in `docs/decisions.md` yet. Decision 58 still lists only the answers from the plan. Adding them is a small edit for the next session, with Raj's OK.
+- **Decisions needed:**
+  - **Still open from session 3:**
+    - the compressor power deadband (proposed 0.5σ, like flow)
+    - the every-tag list (proposed: high and low alarms on all 52 tags, including the valves, which then need a deadband; valve-at-limit alarms in the realistic list only)
+    - whether the valve-at-limit alarm has no deadband (proposed: none)
+  - **Findings 2 and 3 above:** change or leave.
+  - Still open: how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later). The Yin component count, agreement band and theoretical 99% limits are decided together before the published-number check runs.
