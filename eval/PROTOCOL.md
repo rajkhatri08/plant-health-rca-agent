@@ -72,7 +72,7 @@ Last row: normal operation, showing false alerts per 24 h with a 95% interval an
 - **Lead time** is measured against the realistic list's grouped row: per fault, the median of (baseline delay − App 3 delay) over runs where both detected, positive when App 3 is earlier, with a run-number bootstrap interval over those runs, and the counts of runs where both, only App 3, only the baseline, or neither detected. Delay pairs with ∞ are never subtracted (decision 58).
 
 ## Loops
-The masked-fault list (measurement held at setpoint while a valve absorbs the fault) is decided from dev runs and written here before test. Detection and diagnosis are reported separately for masked and unmasked faults.
+The loop map is `library/loops.yaml`, taken from the control code that generated the data (decision 61). The masked-fault list (measurement held at setpoint while a valve absorbs the fault) is decided from dev runs and written here before test. Detection and diagnosis are reported separately for masked and unmasked faults.
 
 ## Diagnosis (RCA)
 

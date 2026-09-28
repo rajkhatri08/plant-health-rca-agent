@@ -8,7 +8,9 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 
 # Whole words only: "downs" is not listed ("shutdowns", "ups and downs"); "vogel" covers the paper.
-WORDS = ["tennessee", "eastman", "vogel", "rieth", "ricker", "braatz", "dataverse", "tep", "kscmh"]
+WORDS = ["tennessee", "eastman", "vogel", "rieth", "ricker", "braatz", "dataverse", "tep", "kscmh",
+         # authors of the control-strategy sources (decision 61)
+         "chiang", "lyman", "georgakis", "larsson", "skogestad", "bathelt", "jelali"]
 # `_` is a word character, so a plain \bxmeas\b would miss xmeas_1.
 RAW_NAMES = r"\b(?:xmeas|xmv|idv)(?:_?\d+)?\b"
 PATTERNS = [

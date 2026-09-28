@@ -171,6 +171,7 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
         - Lines 3215–3269 contain the same logic.
         - Its change log (version 1.1.0) adds a random-seed parameter.
     - **Which version made the data:** the Dataverse description doesn't name the simulator, and the dataset paper is paywalled. A secondary source says the data came from the revised model. The seed parameter in version 1.1.0 fits a dataset of 500 seeded runs per fault. Either way, the analyzer logic is identical in both versions, so the conclusion doesn't depend on which one was used.
+    - **Also identical in the plant model of the code decision 61 found generated the data (checked 28 September 2026):** the Russell–Chiang–Braatz `teprob.f` (same mirror as decision 61, sha256 `409975e070780a3b…28a56a1f238d45e3`) has the header comments at lines 134–166 and the update code at lines 735–761, each word for word the same as `tecode.zip`'s lines 132–164 and 730–756. `TGAS` and `TPROD` are set nowhere else in either file.
     - **Consequence for decision 11:** the historian timestamps a value at the update time. The evidence layer treats it as describing the process one interval earlier, and holds it until the next update.
 
     *Why:* diagnosis evidence and the analyzer delay floor per fault in the protocol both depend on how late an analyzer value is.
@@ -292,3 +293,54 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Lead time** is against the realistic list's grouped row only. The every-tag list is reported with its own detection, delay and counts.
 
     *Why:* 10 minutes isn't a whole number of 3-minute samples, so periods follow time. A chattering alarm needs at least 5 samples to turn on 3 times, and 30 minutes also catches slower flapping. High and low alarms annunciate separately on a real console.
+
+61. **The loop map comes from the closed-loop code the data was generated with (sourced by Claude, for Raj's review).**
+    - **Source:** the closed-loop plant-wide control scheme in the modified simulator code by Russell, Chiang and Braatz: `temain_mod.f`, "Copyright 1998-2002 … University of Illinois".
+      - It's cited by the code itself as Russell, Chiang and Braatz, *Data-driven Techniques for Fault Detection and Diagnosis in Chemical Processes* (Springer, 2000).
+      - Retrieved 28 September 2026 from a public mirror of the group's code, https://github.com/camaramm/tennessee-eastman-profBraatz (`temain_mod.f`, sha256 `31b83c17…350bf635c8b6`). The original host in the file header no longer resolves.
+      - Line numbers:
+        - setpoints and gains, lines 239–314
+        - execution schedule, lines 363–394: inner loops every 3 s, analyzer loops every 360 s, the product-composition loop every 900 s
+        - the controllers `CONTRL1`–`CONTRL20`, lines 477–1294
+        - the purge override inside `CONTRL6`, lines 687–759
+      - `CONTRL12` doesn't exist. `CONTRL22` is defined (line 1295) but never called, so it's left out. The agitator isn't in the data.
+    - **Why this code and not another:** the Dataverse description names neither the simulator nor the control strategy, and no primary statement was found. Four checks on the open data point to this code:
+      1. **Every valve moves.** All 11 valves vary in the fit pool (σ 0.47 to 3.04 % open). Ricker's Mode-1 decentralized model can't produce that: in `temexd_mod.zip` (sha256 `e43227aaded739cf…669b906c4b16b0d`, the archive decision 50 cites; re-downloaded 28 September 2026), `MultiLoop_mode1.mdl` feeds the compressor recycle valve and the stripper steam valve as fixed "Recycle Valve Position" and "Steam Valve Position" inputs. In this code, every valve is a controller output.
+      2. **The PI loops sit at this code's setpoints.** Fit-pool means of the nine fixed-setpoint PI loops, against the code's setpoints (fit pool, after warm-up, 122,750 samples; all within 0.002 units, which is at most 0.003 sd):
+         - recycle flow 26.9013 against 26.902
+         - reactor level 74.9993 against 75.0
+         - reactor temperature 120.4000 against 120.40
+         - stripper underflow 22.9472 against 22.949
+         - reactor-feed reactant-1 32.1879 against 32.188
+         - reactor-feed reactant-3 6.8821 against 6.8820
+         - reactor-feed reactant-4 18.7756 against 18.776
+         - purge inert 13.8229 against 13.823
+         - product reactant-4 0.8358 against 0.83570
+      3. **The valve means are this code's initial positions,** for example 63.05, 53.98, 24.65 and 61.30 % open.
+      4. **The layout matches this group's published data:** 3-minute samples, onset at 1 h in training runs, and 960-sample test runs with onset at 8 h.
+      - Only the Mode-1 decentralized model was checked in detail. The self-optimizing structure in the same archive wasn't, because check 2 is specific to this code.
+      - `tests/test_loops.py` repeats check 2 on the open data, opt-in: `pytest -q -m opendata`.
+    - **The map:** `library/loops.yaml`, agent-visible, with plant tags only. It has 19 loops, 11 on valves and 8 cascade masters.
+
+      | Loop | Code | Loop | Code |
+      |---|---|---|---|
+      | FD-FIC-102 | CONTRL1 | RX-AIC-211 | CONTRL13 |
+      | FD-FIC-103 | CONTRL2 | RX-AIC-214 | CONTRL14 |
+      | FD-FIC-101 | CONTRL3 | RX-AIC-215 | CONTRL15 |
+      | FD-FIC-104 | CONTRL4 | ST-TIC-604 | CONTRL16 |
+      | CP-FIC-501 | CONTRL5 | RX-LIC-203 | CONTRL17 |
+      | SP-FIC-406 | CONTRL6 | RX-TIC-204 | CONTRL18 |
+      | SP-LIC-402 | CONTRL7 | SP-AIC-412 | CONTRL19 |
+      | ST-LIC-601 | CONTRL8 | ST-AIC-612 | CONTRL20 |
+      | ST-FIC-605 | CONTRL9 | RX-TIC-205 | CONTRL10 |
+      | ST-FIC-603 | CONTRL11 | | |
+
+      - **Modes are read from each controller's update line.** Integral action means a `TAUI` term. Proportional-only loops are CONTRL1–4 and 6–9: the four feed flows, the purge flow, both levels and the steam flow. The rest are PI.
+      - **Loop ids** follow the controlled tag (FD-FI-101 → FD-FIC-101). Tag names are unchanged (decision 44); only the loop map names loops.
+    - **Things the map makes visible:**
+      - **Proportional-only loops can settle off setpoint under a sustained disturbance.** So for those loops, "held at setpoint" means "inside its normal band", not "at the setpoint".
+      - **Production rate** (stripper underflow) is held by the condenser cooling water valve. So that valve carries production corrections, not only condenser duty.
+      - **The purge valve has a pressure override:** fully open at separator pressure ≥ 2950 kPa, fully shut at ≤ 2300, released at 2633.7. It never acts in the fit pool, where pressure stays between 2599 and 2670.
+    - **Leak scan:** `tests/test_leak_scan.py` now also rejects these sources' author names in agent-visible text.
+
+    *Why:* the masked-fault rules and valve headroom (session 6), and later the diagnosis evidence, need to know which valve holds which measurement. A map guessed from tag names, or taken from a different control strategy, would point the agent at the wrong valve.

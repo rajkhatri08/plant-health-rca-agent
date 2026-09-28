@@ -1,0 +1,49 @@
+# Control loop map (agent-visible). Plant tags only; no source names here (provenance is
+# builder-side, in docs/decisions.md, decision 61).
+#
+# Each loop holds one measurement at a setpoint by moving one output:
+#   output.valve        - the loop moves this valve directly (an inner loop)
+#   output.setpoint_of  - the loop moves the setpoint of another loop (a cascade master)
+# A loop whose setpoint another loop moves has setpoint: cascaded; otherwise the setpoint
+# is fixed at setpoint_value, in the controlled tag's units (library/tags.yaml).
+# mode: P (proportional only: the measurement can settle away from its setpoint) or PI
+# (integral action: it returns to the setpoint whenever the loop has room to act).
+# period_s: how often the controller acts, in seconds. Loops on an analyzer act once per
+# analyzer update.
+# When a loop holds its measurement, a disturbance shows up in the output (the valve, or
+# the inner loop's setpoint) instead. A valve near 0% or 100% open can't absorb any more.
+loops:
+  # Feed
+  - {id: FD-FIC-101, controlled: FD-FI-101, output: {valve: FD-FV-105}, mode: P, setpoint: cascaded, period_s: 3}
+  - {id: FD-FIC-102, controlled: FD-FI-102, output: {valve: FD-FV-106}, mode: P, setpoint: cascaded, period_s: 3}
+  - {id: FD-FIC-103, controlled: FD-FI-103, output: {valve: FD-FV-107}, mode: P, setpoint: cascaded, period_s: 3}
+  - {id: FD-FIC-104, controlled: FD-FI-104, output: {valve: FD-FV-108}, mode: P, setpoint: cascaded, period_s: 3}
+  # Reactor
+  - {id: RX-AIC-211, controlled: RX-AI-211, output: {setpoint_of: FD-FIC-101}, mode: PI, setpoint: fixed, setpoint_value: 32.188, period_s: 360}
+  - {id: RX-AIC-214, controlled: RX-AI-214, output: {setpoint_of: FD-FIC-102}, mode: PI, setpoint: fixed, setpoint_value: 6.882, period_s: 360}
+  - {id: RX-AIC-215, controlled: RX-AI-215, output: {setpoint_of: FD-FIC-103}, mode: PI, setpoint: fixed, setpoint_value: 18.776, period_s: 360}
+  - {id: RX-LIC-203, controlled: RX-LI-203, output: {setpoint_of: FD-FIC-104}, mode: PI, setpoint: fixed, setpoint_value: 75.0, period_s: 3}
+  - {id: RX-TIC-204, controlled: RX-TI-204, output: {setpoint_of: RX-TIC-205}, mode: PI, setpoint: fixed, setpoint_value: 120.40, period_s: 3}
+  - {id: RX-TIC-205, controlled: RX-TI-205, output: {valve: RX-FV-206}, mode: PI, setpoint: cascaded, period_s: 3}
+  # Separator and purge
+  - {id: SP-LIC-402, controlled: SP-LI-402, output: {valve: SP-FV-405}, mode: P, setpoint: fixed, setpoint_value: 50.0, period_s: 3}
+  - {id: SP-AIC-412, controlled: SP-AI-412, output: {setpoint_of: SP-FIC-406}, mode: PI, setpoint: fixed, setpoint_value: 13.823, period_s: 360}
+  - id: SP-FIC-406
+    controlled: SP-FI-406
+    output: {valve: SP-FV-407}
+    mode: P
+    setpoint: cascaded
+    period_s: 3
+    # Pressure override: the purge valve is forced fully open at high separator pressure
+    # and fully shut at low pressure, until the pressure comes back to the release value;
+    # then normal control resumes. It doesn't act in normal operation.
+    override: {tag: SP-PI-403, open_at_or_above: 2950.0, shut_at_or_below: 2300.0, release_at: 2633.7}
+  # Compressor
+  - {id: CP-FIC-501, controlled: CP-FI-501, output: {valve: CP-FV-503}, mode: PI, setpoint: fixed, setpoint_value: 26.902, period_s: 3}
+  # Stripper
+  - {id: ST-LIC-601, controlled: ST-LI-601, output: {valve: ST-FV-606}, mode: P, setpoint: fixed, setpoint_value: 50.0, period_s: 3}
+  - {id: ST-AIC-612, controlled: ST-AI-612, output: {setpoint_of: ST-TIC-604}, mode: PI, setpoint: fixed, setpoint_value: 0.8357, period_s: 900}
+  - {id: ST-TIC-604, controlled: ST-TI-604, output: {setpoint_of: ST-FIC-605}, mode: PI, setpoint: cascaded, period_s: 3}
+  - {id: ST-FIC-605, controlled: ST-FI-605, output: {valve: ST-FV-607}, mode: P, setpoint: cascaded, period_s: 3}
+  # Production rate: the stripper underflow is held by the condenser cooling water valve.
+  - {id: ST-FIC-603, controlled: ST-FI-603, output: {valve: CD-FV-302}, mode: PI, setpoint: fixed, setpoint_value: 22.949, period_s: 3}

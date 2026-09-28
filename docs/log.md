@@ -910,3 +910,44 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The comparison isn't at equal false-alert rates on dev,** even though both were calibrated to one budget. Decision 54's rule was applied as written; the alarm baseline overshoots on new runs. How the README states this is Raj's call. The AMOC curve (delay against false alerts per 24 h) in PROTOCOL is the tool that would put both on one axis.
   - **The persistence floor** (finding 1) is a property of the selection (n = 3 won on detection rate, which delay doesn't enter). It isn't a reason to change anything on dev.
 - **Decisions needed:** none new from these runs; no retuning on dev. Still open: findings 2 and 3 on `plant_track`; how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
+
+### 2026-09-28: week 3 session 5, loop map (decision 61)
+- **Changed:**
+  - **Sourcing (Claude; web and code in the session scratchpad only):**
+    - The Dataverse record names neither the simulator nor the control strategy, and no primary statement was found in secondary sources.
+    - Two candidate control codes were read:
+      - Ricker's `temexd_mod.zip` (`MultiLoop_mode1.mdl`, the Mode-1 decentralized strategy)
+      - the Russell, Chiang and Braatz closed-loop code `temain_mod.f`, from a public mirror, sha256 in decision 61
+    - The open data rules out the first: in it the recycle and steam valves are fixed inputs, but all 11 valves vary in the fit pool.
+    - The data matches the second: the fit-pool means of all nine fixed-setpoint PI loops equal its setpoints within 0.002 units (at most 0.003 sd), and the valve means equal its initial valve positions.
+    - Read-only; nothing recorded.
+  - **`library/loops.yaml` (agent-visible):** 19 loops, with plant tags only.
+    - Each loop has an id following its controlled tag (FD-FI-101 → FD-FIC-101), the controlled tag, the output (a valve or another loop's setpoint), the mode (P or PI), the setpoint (fixed with a value in register units, or cascaded) and the period in seconds.
+    - The purge loop also carries its pressure override.
+    - No source, author or raw names; provenance is builder-side.
+  - **`docs/decisions.md`, decision 61:** the source, file hash, line ranges and retrieval date, the four checks, the loop ↔ controller table, modes, and what the map makes visible.
+    - **Proportional-only loops:** the four feed flows, the purge flow, both levels and the steam flow. They can settle off setpoint.
+    - **Production rate** is held by the condenser cooling water valve.
+    - **The purge override** never acts in normal operation.
+  - **`eval/PROTOCOL.md`, Loops:** points at `library/loops.yaml` and decision 61. The masked-list sentence ("decided from dev runs") is left for session 6, which changes it to the selection runs per Raj's answer.
+  - **`tests/test_loops.py`:** 10 tests. They cover:
+    - ids unique and derived from the controlled tag
+    - controlled tags are measurements or analyzers, each used once
+    - each of the 11 valves is moved by exactly one loop
+    - outputs are a valve or another loop
+    - "cascaded" exactly when a master moves the setpoint, with one master each
+    - cascades acyclic and ending in a valve
+    - modes and periods, with an analyzer loop's period equal to its update interval
+    - the override's ordering
+    - the file passes the leak scan, with no raw or controller names
+    - opt-in (`-m opendata`): every fixed-setpoint PI loop's fit-pool mean is within 0.02 sd of its setpoint. It passes on the real data.
+  - **`tests/test_leak_scan.py`:** `WORDS` gains the control-strategy sources' author names (chiang, lyman, georgakis, larsson, skogestad, bathelt, jelali). Agent-visible text still passes.
+- **Tests:** `pytest -q` gives 761 passed, 2 deselected. `pytest -q -m opendata tests/test_loops.py` passes.
+- **Unsure about:**
+  - **The strategy is identified from the data, not from a statement by the dataset's authors.** The setpoint match is exact to the code's printed precision on nine independent loops, so I'm confident. Still, decision 61 says it plainly, as decision 50 did for the simulator version.
+  - **Decision 50's shortened hashes have their suffixes swapped.** Today's downloads give `tecode.zip` = `2536e8a8…7a8db724` and `temexd_mod.zip` = `e43227aa…c4b16b0d`; decision 50 reads `2536e8a8…4b16b0d` and `e43227aa…a8db724`. The prefixes are right, the endings swapped. Decision 61 uses the correct value. Decision 50 is Raj's record, so it isn't edited without his OK.
+  - **The P-only loops matter for session 6.** A proportional-only loop doesn't return its measurement exactly to setpoint, so the masked rule's "measurement inside its normal band" is the right test (decision 58 wording), not "at setpoint".
+  - **`CD-FV-302` (the condenser cooling water valve) is the production-rate valve.** The condenser group in the tag register (decision 48) is correct physically: the valve sits on the condenser's utility line. But a shift in that valve can mean a production-rate correction rather than a condenser problem, which matters for diagnosis entries later.
+- **Decisions needed:**
+  - Correct decision 50's two shortened hashes (above)?
+  - Still open: findings 2 and 3 on `plant_track`; how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
