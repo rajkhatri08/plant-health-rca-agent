@@ -1,7 +1,6 @@
 """The conventional-alarm baseline (decision 58; PROTOCOL, Alarm comparison).
 
-Eval only: a comparator, never imported by app/. Stubs for Raj; the constants are fixed
-by decision 58.
+Eval only: a comparator, never imported by app/. The constants are fixed by decision 58.
 
 Conventions (the same as app/detector/alerting.py):
 - Arrays cover one whole run, index 0 = sample 1, warm-up samples included. Values are
@@ -23,6 +22,8 @@ Pipeline for one run at limit percentile q:
 
 import numpy as np
 
+from app.detector import alerting
+
 # Deadband as a multiple of the tag's calibration-pool spread, by signal type
 # (decision 58). A type missing here has no agreed deadband yet.
 DEADBAND_SIGMA = {"temperature": 0.25, "pressure": 0.25, "flow": 0.5, "level": 0.5,
@@ -30,6 +31,23 @@ DEADBAND_SIGMA = {"temperature": 0.25, "pressure": 0.25, "flow": 0.5, "level": 0
 VALVE_LOW = 2.0                      # % open: at or below is "at limit"
 VALVE_HIGH = 98.0                    # % open: at or above is "at limit"
 ANALYZER_ON_DELAY = 1                # samples of the held series: the first reading past the limit
+
+
+def _scored_pool(runs, warmup) -> np.ndarray:
+    """Every run's scored samples (after the warm-up) stacked into one samples x columns
+    array, float64. Shared checks for tag_limits and tag_spread."""
+    if len(runs) == 0:
+        raise ValueError("no runs to pool")
+    arrays = [np.asarray(r, dtype=np.float64) for r in runs]
+    if any(a.ndim != 2 for a in arrays):
+        raise ValueError("every run must be a 2-D array (samples x columns)")
+    if len({a.shape[1] for a in arrays}) != 1:
+        raise ValueError("every run must have the same columns")
+    if any(not 0 <= warmup < len(a) for a in arrays):
+        raise ValueError(f"the warm-up ({warmup}) doesn't end inside every run")
+    if not all(np.isfinite(a).all() for a in arrays):
+        raise ValueError("the runs hold NaN or inf")
+    return np.concatenate([a[warmup:] for a in arrays])     # scored samples only
 
 
 def tag_limits(runs, q, warmup) -> tuple[np.ndarray, np.ndarray]:
@@ -41,7 +59,12 @@ def tag_limits(runs, q, warmup) -> tuple[np.ndarray, np.ndarray]:
 
     Raises ValueError if runs is empty, the column counts differ, a run isn't 2-D, the
     warm-up doesn't end inside every run, q isn't in (0, 100), or a value is NaN or inf."""
-    raise NotImplementedError
+    if not 0 < q < 100:
+        raise ValueError(f"q must be in (0, 100), got {q}")
+    pool = _scored_pool(runs, warmup)
+    lo = np.percentile(pool, (100 - q) / 2, axis=0)          # e.g. q = 99: the 0.5th percentile
+    hi = np.percentile(pool, (100 + q) / 2, axis=0)          #          and the 99.5th
+    return lo, hi
 
 
 def tag_spread(runs, warmup) -> np.ndarray:
@@ -49,7 +72,18 @@ def tag_spread(runs, warmup) -> np.ndarray:
     every run. The deadband is DEADBAND_SIGMA[type] times this.
 
     Raises ValueError on the same inputs as tag_limits (except q)."""
-    raise NotImplementedError
+    return _scored_pool(runs, warmup).std(axis=0)
+
+
+def _latch(turn_on, turn_off) -> np.ndarray:
+    """A latched condition, per column: on from a sample where turn_on holds, off from a
+    sample where turn_off holds, and otherwise whatever it was (off before any event).
+    The two never hold at the same sample. In other words, the latest event wins."""
+    event = np.where(turn_on, 1, np.where(turn_off, -1, 0))            # +1 on, -1 off, 0 keep
+    t = np.arange(len(event))[:, None]
+    latest = np.maximum.accumulate(np.where(event != 0, t, -1), axis=0)  # latest event so far
+    state = np.take_along_axis(event, np.maximum(latest, 0), axis=0) == 1
+    return state & (latest >= 0)                                       # no event yet: off
 
 
 def hysteresis(x, lo, hi, band) -> tuple[np.ndarray, np.ndarray]:
@@ -64,7 +98,21 @@ def hysteresis(x, lo, hi, band) -> tuple[np.ndarray, np.ndarray]:
 
     Raises ValueError if x isn't 2-D, the lengths of lo, hi or band don't match x's
     columns, any lo > hi, any band < 0, or anything holds NaN or inf."""
-    raise NotImplementedError
+    x = np.asarray(x, dtype=np.float64)
+    if x.ndim != 2:
+        raise ValueError("x must be a 2-D array (samples x columns)")
+    lo, hi, band = (np.asarray(v, dtype=np.float64).ravel() for v in (lo, hi, band))
+    if not len(lo) == len(hi) == len(band) == x.shape[1]:
+        raise ValueError("lo, hi and band need one value per column")
+    if not all(np.isfinite(v).all() for v in (x, lo, hi, band)):
+        raise ValueError("x, a limit or a band holds NaN or inf")
+    if (lo > hi).any():
+        raise ValueError("a low limit is above its high limit")
+    if (band < 0).any():
+        raise ValueError("a deadband can't be negative")
+    high = _latch(x > hi, x <= hi - band)     # above the limit: on; back inside the band: off
+    low = _latch(x < lo, x >= lo + band)
+    return high, low
 
 
 def at_limit(valves, low=VALVE_LOW, high=VALVE_HIGH) -> np.ndarray:
@@ -72,7 +120,14 @@ def at_limit(valves, low=VALVE_LOW, high=VALVE_HIGH) -> np.ndarray:
     the position is <= low or >= high. No deadband.
 
     Raises ValueError if valves isn't 2-D, low >= high, or it holds NaN or inf."""
-    raise NotImplementedError
+    v = np.asarray(valves, dtype=np.float64)
+    if v.ndim != 2:
+        raise ValueError("valves must be a 2-D array (samples x valves)")
+    if not low < high:
+        raise ValueError(f"the low position ({low}) must be below the high one ({high})")
+    if not np.isfinite(v).all():
+        raise ValueError("the valve positions hold NaN or inf")
+    return (v <= low) | (v >= high)           # nearly shut or nearly wide open
 
 
 def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
@@ -89,4 +144,22 @@ def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
     Raises ValueError if points isn't 2-D or holds anything but 0/1, n_per_point doesn't
     match its columns, any n < 1, any n - 1 > warmup (the memory bound, decision 52),
     gap < 0 or warmup < 0."""
-    raise NotImplementedError
+    p = np.asarray(points)
+    if p.ndim != 2:
+        raise ValueError("points must be a 2-D array (samples x alarm points)")
+    if not np.isin(p, (0, 1)).all():
+        raise ValueError("points must hold only 0/1 values")
+    ns = [int(n) for n in n_per_point]
+    if len(ns) != p.shape[1]:
+        raise ValueError("n_per_point needs one on-delay per alarm point")
+    if gap < 0 or warmup < 0:
+        raise ValueError(f"gap and warm-up can't be negative, got gap {gap}, warm-up {warmup}")
+    if any(n < 1 for n in ns):
+        raise ValueError("every on-delay must be at least 1")
+    if any(n - 1 > warmup for n in ns):
+        raise ValueError(f"memory bound broken: an on-delay n - 1 is more than the warm-up "
+                         f"{warmup} (decision 52)")
+    held = np.zeros(len(p), dtype=bool)
+    for j, n in enumerate(ns):
+        held |= alerting.persist(p[:, j], n)  # each point's own on-delay, then OR them
+    return alerting.group(held, gap, warmup).astype(int)

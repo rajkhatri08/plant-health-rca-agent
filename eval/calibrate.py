@@ -61,7 +61,7 @@ def limits_at(t2_runs, spe_runs, q, warmup) -> tuple[float, float]:
 
 
 def lowest_stable_q(ratio_runs_at: Callable[[float], Mapping[int, np.ndarray]], n, gap,
-                    warmup, lags=0, q_grid=Q_GRID) -> float | None:
+                    warmup, lags=0, q_grid=Q_GRID, track=None) -> float | None:
     """The lowest q in q_grid such that it and every higher grid value meet the budget
     on the calibration runs; None if the highest grid value already fails.
 
@@ -75,13 +75,18 @@ def lowest_stable_q(ratio_runs_at: Callable[[float], Mapping[int, np.ndarray]], 
     don't always fall as q rises, so a lower q that happens to pass below a failure
     doesn't count.
 
+    track, if given, replaces alerting.alert_track as the way each run's value from
+    ratio_runs_at(q) becomes an alert track: track(value, n, gap, warmup, lags) -> 0/1
+    array. The alarm baseline uses it for its per-tag on-delays (decision 58).
+
     Raises ValueError if q_grid is empty or not strictly increasing."""
+    build = alerting.alert_track if track is None else track
     grid = list(q_grid)
     if not grid or any(b <= a for a, b in zip(grid, grid[1:])):
         raise ValueError("q_grid must be non-empty and strictly increasing")
     lowest = None
     for q in reversed(grid):                    # from the strictest limit down
-        runs = [metrics.ScoredRun(0, k, alerting.alert_track(r, n, gap, warmup, lags))
+        runs = [metrics.ScoredRun(0, k, build(r, n, gap, warmup, lags))
                 for k, r in ratio_runs_at(q).items()]
         _, _, per_24h = metrics.false_alerts_per_24h(runs, warmup)
         if per_24h > BUDGET_PER_24H:
