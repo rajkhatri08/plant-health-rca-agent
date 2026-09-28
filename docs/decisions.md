@@ -249,3 +249,22 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Where:** computed on dev. On test it's reported only if the test twins turn out to share streams. That's checked once, at the frozen test run, and logged. Otherwise the column reads "not reported".
 
     *Why:* the fault's effect can reach the tags some samples after the documented onset. Up to the divergence sample, the detector's inputs equal the twin's, so a causal detector's track is identical too: a detection there is a false alert that happened to land after onset. Rescoring from divergence would move the pre-registered definition, so the share is shown instead of being used.
+
+58. **The conventional-alarm baseline (Raj's decision).**
+    - **Per-tag limits:** each alarmed tag has a high and a low limit at the same per-sample percentile of the calibration pool, (100 − q)/2 in each tail. So every alarmed tag gets the same false rate (PROTOCOL, Alarm comparison), and q is the one number the search moves.
+    - **Deadbands** (hysteresis on clearing), as a multiple of the tag's calibration-pool spread σ:
+      - temperature and pressure: 0.25σ
+      - flow and level: 0.5σ
+      - analyzers: 0.5σ
+    - **Valve-at-limit alarms:** on at ≤ 2% or ≥ 98% open, held for n samples. These are fixed positions, not calibrated.
+    - **Tag lists:** realistic (measurements, analyzers and valve-at-limit alarms) and every tag. Both are reported. Analyzers get a one-update on-delay.
+    - **On-delay per tag, before the OR:** each alarm point needs n consecutive samples on. The plant stream is the OR over alarm points.
+    - **Rows:** the ungrouped row uses G = 0 and searches only n and q. The grouped row searches (n, G) like decision 54.
+    - **Calibration:** the same budget, q grid, stable-lowest-q rule, (n, G) ranges, selection runs and tie rule as decision 54. Raj adds an optional track-builder argument to `lowest_stable_q` (default: today's `alert_track`), so the per-tag pipeline reuses the same search.
+    - **Lead time vs grouped alarms:**
+      - the median over runs where both detected, with a run-number bootstrap interval over those runs
+      - the counts of runs where both, only App 3, only the alarms, or neither detected
+      - delay pairs with ∞ are never subtracted
+    - The baseline lives in `eval/baselines/`. It's a comparator, not runtime code.
+
+    *Why:* a strawman baseline makes any lead time meaningless (decision 6). Deadbands and per-tag on-delays are what real alarm systems use (ISA-18.2) to cut chattering, and holding every tag to one false rate and the plant stream to the same budget makes the comparison fair.

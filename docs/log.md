@@ -623,3 +623,54 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Fault 5's low share still flagged** fits controller compensation: the alert clears as the loop absorbs the disturbance. It's a candidate only; the masked rule is decided on the selection runs in session 6, not on this dev result.
   - The delay-median intervals carry float interpolation tails (for example 119.9625…). They're correct values, and the table prints them as they are.
 - **Decisions needed:** none new.
+
+### 2026-09-28: week 3 session 3, alarm baseline: decision 58, stubs, tests
+- **Changed:**
+  - **`docs/decisions.md`, decision 58 (Raj's answers from the week 3 plan):**
+    - per-tag high and low limits at the same calibration percentile, (100 − q)/2 in each tail
+    - deadbands of 0.25σ for temperature and pressure, and 0.5σ for flow, level and analyzers
+    - valve-at-limit alarms at ≤ 2% or ≥ 98% open, held for n samples
+    - realistic and every-tag lists; analyzers get a one-update on-delay
+    - on-delay per tag, before the OR
+    - an ungrouped row with G = 0
+    - calibration by decision 54's search, through a track-builder argument on `lowest_stable_q`
+    - lead time as agreed
+  - **`eval/baselines/__init__.py` and `eval/baselines/alarms.py`:**
+    - **Constants (Claude, from decision 58):** `DEADBAND_SIGMA`, `VALVE_LOW` 2.0, `VALVE_HIGH` 98.0, `ANALYZER_ON_DELAY` 1.
+    - **Stubs for Raj:**
+      - `tag_limits(runs, q, warmup)`: pooled scored-sample percentiles at (100 − q)/2 and (100 + q)/2, per column
+      - `tag_spread(runs, warmup)`: pooled ddof-0 σ per column
+      - `hysteresis(x, lo, hi, band)`: latched high and low conditions
+      - `at_limit(valves)`
+      - `plant_track(points, n_per_point, gap, warmup)`: each point's on-delay via `alerting.persist`, then OR, then `alerting.group`, with decision 52's memory bound checked per point
+  - **`tests/test_alarms.py`:** 50 hand-built cases with worked comments. They cover:
+    - two-sided limits, and warm-up exclusion
+    - σ
+    - latching and clearing at the band edge, a limit value that isn't an alarm, band 0 as a plain comparison, starting off at sample 1, and independent columns
+    - no look-ahead (by truncating the input, and by changing the future)
+    - inclusive valve limits
+    - the key case: two points taking turns give an unbroken OR, but no alarm with a per-point on-delay of 2
+    - mixed on-delays, the off-delay, and the warm-up used by the on-delay but not scored
+    - equality with persist, OR and group on random points
+    - the memory-bound edge, and refusals
+  - **`tests/test_calibrate.py`:** 3 tests for Raj's new `track` argument on `lowest_stable_q`:
+    - a custom builder replaces `alert_track`, gets (x, n, gap, warmup, lags), and drives the budget, scanning down as before
+    - the budget is pooled over runs
+    - passing `alert_track` explicitly gives the same answer as the default
+- **Tests:** `pytest -q` gives 52 failed, 628 passed, 1 deselected.
+  - 49 failures are `NotImplementedError` from the stubs.
+  - 3 are `TypeError` (no `track` argument yet).
+  - Against a throwaway reference implementation in the session scratchpad, outside the repo, all 681 pass. That counts the constants test, which already passes.
+- **Unsure about:**
+  - **The hysteresis latch has unbounded memory.** Once on, a tag stays on until it clears the band, however long ago it latched. It still starts off at sample 1 and uses only samples from the same run, so decision 52's rule (no state from before the run) holds. The memory bound L + n − 1 ≤ 9 is about windows, and the latch isn't a window. As I read decision 52 this is fine, but it's worth saying in the write-up.
+  - **Analyzer values are already held in the data** (the last value until the next update), so the stubs need no update-timing logic. The planned "hold-last-value" test became the one-update on-delay (below).
+- **Decisions needed** (proposals built into the stubs and tests; easy to change before Raj implements):
+  1. **Hysteresis edges:**
+     - high turns on at x > hi (strict, like r > 1) and clears at x ≤ hi − band
+     - low turns on at x < lo and clears at x ≥ lo + band
+     - the state starts off at sample 1
+  2. **σ:** the pooled ddof-0 standard deviation of the calibration pool's scored samples, fixed once, not per q.
+  3. **The analyzer on-delay of one update:** the alarm fires on the first reading past the limit (on-delay 1 sample of the held series), and it isn't searched with n. That reads PROTOCOL's "at least one sample (one update for analyzers)" as the same minimum in each unit. The other reading is two consecutive readings.
+  4. **Compressor power** (signal type `power`, CP-JI-502) has no agreed deadband. I propose 0.5σ, like flow. `DEADBAND_SIGMA` leaves it out until decided, so the session 4 driver would refuse it.
+  5. **The every-tag list:** I propose high and low alarms on all 52 tags, including the 11 valves (deadband 0.5σ for valves?), and no valve-at-limit alarms, which belong to the realistic list only. Valves then need a deadband too.
+  6. **The valve-at-limit alarm has no deadband.** It clears as soon as the position leaves the ≤ 2 or ≥ 98 zone.

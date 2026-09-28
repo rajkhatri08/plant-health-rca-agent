@@ -232,3 +232,52 @@ def test_choose_a_real_difference_is_not_a_tie():
 def test_choose_refuses_no_eligible_setting(c):
     with pytest.raises(ValueError):
         cal.choose(c)
+
+
+# ---------- lowest_stable_q with a track builder (decision 58) ----------
+# Raj adds an optional `track` argument: track(x, n, gap, warmup, lags) -> 0/1 alert
+# array, called on each run's value from ratio_runs_at(q). The default is
+# alerting.alert_track, so every case above is unchanged. These fail with TypeError
+# until the argument exists.
+
+def alert_with(on_samples, length=DAY):
+    """0/1 track with single-sample notifications at the given 1-based samples."""
+    a = np.zeros(length, dtype=int)
+    for s in on_samples:
+        a[s - 1] = 1
+    return a
+
+
+def test_track_builder_is_used_instead_of_alert_track(monkeypatch):
+    # ratio_runs_at returns labels, not ratios; the builder turns each label into a track.
+    # q = 1: 2 notifications in 24 h (fails); q = 2: 1 (passes). Stable lowest: 2.
+    from app.detector import alerting
+    monkeypatch.setattr(alerting, "alert_track",
+                        lambda *a, **k: pytest.fail("alert_track used despite a track builder"))
+    tracks = {"two": alert_with([100, 200]), "one": alert_with([100])}
+    calls = []
+
+    def track(x, n, gap, warmup, lags):
+        calls.append((x, n, gap, warmup, lags))
+        return tracks[x]
+
+    f, asked = table({1: {1: "two"}, 2: {1: "one"}})
+    assert cal.lowest_stable_q(f, 3, 4, 0, lags=0, q_grid=(1, 2), track=track) == 2
+    assert asked == [2, 1]
+    assert calls == [("one", 3, 4, 0, 0), ("two", 3, 4, 0, 0)]   # n, gap, warm-up, lags passed on
+
+
+def test_track_builder_budget_is_pooled_over_runs():
+    # Two 24-h runs: 1 + 1 notifications in 48 h passes (1.0 per 24 h); 2 + 1 fails.
+    tracks = {"a": alert_with([100]), "b": alert_with([100, 300])}
+    f, _ = table({1: {1: "b", 2: "a"}, 2: {1: "a", 2: "a"}})
+    assert cal.lowest_stable_q(f, 1, 0, 0, q_grid=(1, 2),
+                               track=lambda x, n, gap, warmup, lags: tracks[x]) == 2
+
+
+def test_default_track_is_alert_track():
+    # Passing alert_track explicitly gives the same answer as leaving it out.
+    from app.detector import alerting
+    f, _ = table({1: TWO, 2: ONE, 3: TWO, 4: ZERO})
+    assert (cal.lowest_stable_q(f, 1, 0, 0, q_grid=(1, 2, 3, 4), track=alerting.alert_track)
+            == cal.lowest_stable_q(f, 1, 0, 0, q_grid=(1, 2, 3, 4)) == 4)
