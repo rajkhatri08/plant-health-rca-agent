@@ -19,7 +19,7 @@ import numpy as np
 from app.detector import alerting
 from eval import metrics
 
-Q_GRID = tuple(np.round(np.arange(9500, 10000) / 100, 2).tolist())   # 95.00, 95.01 ... 99.99
+Q_GRID = tuple(np.round(np.arange(9500, 10000) / 100, 2).tolist() + np.round(np.arange(99991, 100000) / 1000, 3).tolist())   # 95.00 ... 99.99, then 99.991 ... 99.999 (decision 59)
 GAP_RANGE = range(0, 21)                    # off-delay G, samples
 SELECTION_FAULTS = tuple(f for f in range(1, 16) if f not in (3, 9, 15))
 BUDGET_PER_24H = 1.0

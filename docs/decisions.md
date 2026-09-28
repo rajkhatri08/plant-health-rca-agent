@@ -277,3 +277,10 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
       - **Valve-at-limit alarms have no deadband:** they clear as soon as the valve leaves the ≤ 2% or ≥ 98% zone.
 
     *Why:* a strawman baseline makes any lead time meaningless (decision 6). Deadbands and per-tag on-delays are what real alarm systems use (ISA-18.2) to cut chattering, and holding every tag to one false rate and the plant stream to the same budget makes the comparison fair.
+
+59. **A finer top to the q grid, for every detector (Raj's decision).**
+    - **Rule:** after 95.00, 95.01 … 99.99 (0.01 steps), the grid adds 99.991, 99.992 … 99.999 (0.001 steps), 509 points in all. Everything else in decisions 54 and 55 stands: the stable-lowest-q rule, the floor at 95.00, (n, G) ranges, selection and ties.
+    - **Evidence, kept and superseded:** `eval/runs/20260928T103138Z_calibrate_alarms_realistic.json` and `eval/runs/20260928T103200Z_calibrate_alarms_every.json`. Both lists chose q = 99.98 (grouped) and 99.99 (ungrouped), and all 21 n = 1 settings were ineligible in both. Both calibrations are re-run on the new grid.
+    - **Static PCA isn't re-calibrated:** `eval/check_grid_refinement.py` checks on the calibration pool that every static-PCA (n, G) setting meets the budget at all nine new points. If so, the top-down scan passes through them to the same stable q as before, and the chosen setting (n = 3, G = 15, q = 95.57) is unchanged.
+
+    *Why:* at the top of the grid, one 0.01 step halves or doubles each alarm point's per-sample false rate (0.02% → 0.01%). So the coarse grid could force the alarm baseline stricter than the budget needs, which would flatter App 3's lead time.

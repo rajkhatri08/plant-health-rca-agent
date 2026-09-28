@@ -163,3 +163,4 @@ def plant_track(points, n_per_point, gap, warmup) -> np.ndarray:
     for j, n in enumerate(ns):
         held |= alerting.persist(p[:, j], n)  # each point's own on-delay, then OR them
     return alerting.group(held, gap, warmup).astype(int)
+

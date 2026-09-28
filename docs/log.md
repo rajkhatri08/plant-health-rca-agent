@@ -748,3 +748,37 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
     - how chattering is defined for 3-minute samples (proposed: an alarm point that turns on 3 or more times in 10 samples, which is 30 minutes)
   - Still open: how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
 - **Next (Raj):** commit, then run `python -m eval.calibrate_alarms --list realistic` and `--list every` on a clean tree.
+
+### 2026-09-28: week 3 session 4a (continued), alarm calibrations and decision 59 (finer q grid)
+- **Changed:**
+  - **Alarm calibrations (Raj, 239b816):**
+    - Records `eval/runs/20260928T103138Z_calibrate_alarms_realistic.json` and `eval/runs/20260928T103200Z_calibrate_alarms_every.json`.
+    - Both lists chose q = 99.98 (grouped) and 99.99 (ungrouped). All 21 n = 1 settings were ineligible in both.
+    - They're kept as the evidence for decision 59, and superseded.
+  - **`docs/decisions.md`, decision 59 (Raj's):**
+    - After 95.00 … 99.99 in 0.01 steps, the grid adds 99.991 … 99.999 in 0.001 steps: 509 points, for every detector.
+    - Everything else in decisions 54 and 55 stands.
+    - *Why:* at the top of the grid, one 0.01 step halves or doubles each alarm point's false rate, so the coarse grid could force the baseline stricter than the budget needs, which would flatter App 3.
+  - **`eval/PROTOCOL.md`, Detection → Limits:** the grid sentence now gives both parts (509 points) and points to decision 59.
+  - **`eval/calibrate.py`:** the `Q_GRID` line only (Claude, as Raj asked).
+  - **`tests/test_calibrate.py`:** the grid test now checks 509 points, the first 500 unchanged, and the nine new ones exactly.
+  - **`eval/check_grid_refinement.py` (Claude):** `python -m eval.check_grid_refinement`.
+    - **Inputs:** the static-PCA limits file and model. It checks them against the single `calibrate_pca` record (reusing `check_dev`'s provenance check) and loads only the calibration pool.
+    - **The rule:** `lowest_stable_q` scans from the top and stops at the first failure. So each setting's new answer follows from `lowest_stable_q` over the nine new points alone plus the old recorded q:
+      - if all nine pass, the old q stands (or 99.991, if the old top had failed)
+      - otherwise, the scan stops inside the new points
+    - **Output:** a `check_grid_refinement` record with, for every (n, G), the old and new q and where the new points became stable, plus the verdict and the chosen setting. It prints the verdict and exits 1 if anything changed.
+    - It doesn't re-run the calibration.
+  - **`tests/test_check_grid_refinement.py`:** 13 tests. They cover:
+    - the shortcut rule's five cases
+    - the nine new points
+    - on a driver calibration, the shortcut equals a direct `lowest_stable_q` scan of the old grid plus the new points, both as-is and with limits loosened at the top so some scans stop inside the new points (so both branches are tested)
+    - the record and verdict, and exit 1 on a change
+    - only the calibration pool is loaded
+    - refusals before loading
+- **Tests:** `pytest -q` gives 708 passed, 1 deselected.
+- **Unsure about:**
+  - **At 99.999 the alarm limits sit at the extremes of the calibration pool.** Each tail is (100 − q)/2 = 0.0005%, and a tag has 150 × 491 = 73,650 scored samples. So the 0.0005th percentile falls between the lowest and second-lowest values (position 0.37). The limit then rests on one or two samples per tag. That's within decision 59; noting it for when the alarm results come back.
+  - **The PCA check should pass.** All 210 static-PCA settings were eligible, so 99.99 already passed for all of them. At a stricter q the limits only rise, which usually lowers notifications, but the grid search itself assumes that isn't guaranteed. That's why it's checked rather than assumed.
+  - `eval/baselines/alarms.py` shows only a trailing-newline change that Claude didn't make (probably the IDE).
+- **Decisions needed:** unchanged from session 4a (findings 2 and 3; the session 4b count and chattering definitions).

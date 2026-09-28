@@ -39,8 +39,11 @@ TWO = {1: ratio_with([100, 200], DAY)}
 # ---------- constants ----------
 
 def test_grid_and_ranges():
-    assert len(cal.Q_GRID) == 500
-    assert cal.Q_GRID[0] == 95.0 and cal.Q_GRID[-1] == 99.99 and 99.0 in cal.Q_GRID
+    # Decision 59: 95.00 .. 99.99 in 0.01 steps (500), then 99.991 .. 99.999 in 0.001 steps (9).
+    assert len(cal.Q_GRID) == 509
+    assert cal.Q_GRID[0] == 95.0 and cal.Q_GRID[499] == 99.99 and 99.0 in cal.Q_GRID
+    assert cal.Q_GRID[500:] == (99.991, 99.992, 99.993, 99.994, 99.995, 99.996, 99.997, 99.998, 99.999)
+    assert cal.Q_GRID[:500] == tuple(round(95 + i / 100, 2) for i in range(500))
     assert all(a < b for a, b in zip(cal.Q_GRID, cal.Q_GRID[1:]))
     assert list(cal.GAP_RANGE) == list(range(0, 21))
     assert cal.SELECTION_FAULTS == (1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14)
