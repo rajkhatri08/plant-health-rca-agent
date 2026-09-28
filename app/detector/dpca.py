@@ -83,6 +83,18 @@ def stack_lagged(runs, lags, warmup) -> np.ndarray:
     return np.vstack(blocks)
 
 
+def scores(model, X, lags) -> tuple[np.ndarray, np.ndarray]:
+    """(T², SPE) for one whole run, each shape (T,), float64, index 0 = sample 1 (the
+    convention of alerting.py and eval/metrics.py). X is samples x m, the model's base tags
+    in order; the model was fitted on lagged_tags(base, lags), so it has m(lags+1) tags.
+    Entries lags.. are pca.scores(model, lagged(X, lags)); the first `lags` entries have no
+    complete row and are 0.0. They're never read: lags <= warm-up, calibration reads only
+    samples after the warm-up, and decision 52 (lags + n - 1 <= warm-up) keeps every
+    persistence window after them. lags = 0 is exactly pca.scores(model, X).
+    Raises ValueError if len(model.tags) != m(lags+1), plus everything lagged raises."""
+    raise NotImplementedError("Raj: week 3 session 8")
+
+
 def relation_count(runs, tags, lags, warmup, rng, n_shuffles=20, percentile=95) -> tuple[int, int]:
     """(k, r) at this lag count: k = pca.parallel_analysis on stack_lagged(runs, lags,
     warmup) with lagged_tags, rng, n_shuffles and percentile; r = m(lags+1) - k."""

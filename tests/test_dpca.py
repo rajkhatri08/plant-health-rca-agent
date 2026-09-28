@@ -280,3 +280,122 @@ def test_lagged_plant_end_to_end():
     # Lag 1 brings one new relation (tags 2-3 at t against tags 0-1 at t-1); lag 2 nothing.
     choice = dpca.choose_lags(counter(plant(lagged_pair=True)))
     assert choice == LagChoice(lags=1, k=(2, 3, 4), r=(2, 5, 8), r_new=(2, 1, 0), capped=False)
+
+# --- scores: one whole run (week 3 session 8) ----------------------------------------
+
+from app.detector import alerting                                   # noqa: E402
+from app.detector.pca import PCAModel                               # noqa: E402
+from eval import calibrate as cal                                   # noqa: E402
+
+WARMUP = 9
+
+
+def dpca_model(lags, runs=None):
+    """PCA fitted on the lagged synthetic plant. At L lags it holds f_t .. f_{t-L-1}, so
+    k = L + 2 (the end-to-end test above checks this for L = 0..2)."""
+    runs = plant(lagged_pair=True) if runs is None else runs
+    X = dpca.stack_lagged(runs, lags, WARMUP)
+    return pca.fit(X, dpca.lagged_tags(tags(4), lags), lags + 2)
+
+
+def test_scores_without_lags_are_static_pca():
+    model = dpca_model(0)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0]
+    t2, spe = dpca.scores(model, X, 0)
+    s_t2, s_spe = pca.scores(model, X)
+    assert np.array_equal(t2, s_t2) and np.array_equal(spe, s_spe)
+
+
+def test_scores_known_model_by_hand():
+    # One base tag, one lag. Kept direction e1 (the current sample) with λ = 2.
+    # X = 1, 2, 3 gives lagged rows (2, 1) and (3, 2) for samples 2 and 3.
+    # T² = t²/2 with t = the current value: 4/2 = 2, 9/2 = 4.5. SPE = the lag value²: 1, 4.
+    # Sample 1 has no complete row: 0.0.
+    model = PCAModel(tags=("A", "A@t-1"), mean=np.zeros(2), scale=np.ones(2),
+                     loadings=np.array([[1.0], [0.0]]), eigenvalues=np.array([2.0]),
+                     all_eigenvalues=np.array([2.0, 0.5]))
+    t2, spe = dpca.scores(model, np.array([[1.0], [2.0], [3.0]]), 1)
+    assert t2 == pytest.approx([0.0, 2.0, 4.5]) and spe == pytest.approx([0.0, 1.0, 4.0])
+
+
+def test_scores_place_lagged_rows_at_their_samples():
+    model = dpca_model(2)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0]
+    t2, spe = dpca.scores(model, X, 2)
+    e_t2, e_spe = pca.scores(model, dpca.lagged(X, 2))
+    assert len(t2) == len(spe) == len(X)                          # whole run, index 0 = sample 1
+    assert t2.dtype == np.float64 and spe.dtype == np.float64
+    assert np.array_equal(t2[2:], e_t2) and np.array_equal(spe[2:], e_spe)
+    assert np.array_equal(t2[:2], [0.0, 0.0]) and np.array_equal(spe[:2], [0.0, 0.0])
+
+
+def test_scores_accept_float32_and_compute_in_float64():
+    model = dpca_model(1)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0]
+    t2, _ = dpca.scores(model, X.astype(np.float32), 1)
+    assert t2.dtype == np.float64
+    assert t2 == pytest.approx(dpca.scores(model, X, 1)[0], rel=1e-4)
+
+
+@pytest.mark.parametrize("t", [3, 10, 500])
+def test_scores_are_causal(t):
+    # Cutting the run at sample t never changes a score up to t (no look-ahead). Equal to
+    # rounding, not bit for bit: BLAS sums a matrix product in an order that depends on the
+    # row count, as in test_pca.test_scoring_is_row_by_row.
+    model = dpca_model(2)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0]
+    full_t2, full_spe = dpca.scores(model, X, 2)
+    cut_t2, cut_spe = dpca.scores(model, X[:t], 2)
+    assert cut_t2 == pytest.approx(full_t2[:t], rel=1e-12, abs=1e-12)
+    assert cut_spe == pytest.approx(full_spe[:t], rel=1e-12, abs=1e-12)
+
+
+def test_the_pad_is_never_read():
+    # With warm-up 9 and L = 4, decision 52 allows n <= 6. Setting the 4 pad entries to 1e9
+    # changes neither the limits (which read samples 10 onwards) nor any alert track.
+    model = dpca_model(4)
+    runs = plant(lagged_pair=True, runs=6, T=300, seed=8)
+    for r in runs[3:]:
+        r[30:, 0] += 3.0                                            # a step, so some tracks alert
+    scored = [dpca.scores(model, r, 4) for r in runs]
+    padded = []
+    for t2, spe in scored:
+        t2, spe = t2.copy(), spe.copy()
+        t2[:4], spe[:4] = 1e9, 1e9
+        padded.append((t2, spe))
+    limits = cal.limits_at([s[0] for s in scored], [s[1] for s in scored], 99.0, WARMUP)
+    assert cal.limits_at([p[0] for p in padded], [p[1] for p in padded], 99.0, WARMUP) == limits
+    alerted = 0
+    for (t2, spe), (p_t2, p_spe) in zip(scored, padded):
+        for n, gap in ((1, 0), (6, 0), (6, 5), (3, 20)):
+            a = alerting.alert_track(alerting.plant_ratio(t2, spe, *limits), n, gap, WARMUP, 4)
+            b = alerting.alert_track(alerting.plant_ratio(p_t2, p_spe, *limits), n, gap, WARMUP, 4)
+            assert np.array_equal(a, b)
+            alerted += int(a.any())
+    assert alerted > 0                                              # the check isn't vacuous
+
+
+def test_scores_refuse_a_model_fitted_with_other_lags():
+    model = dpca_model(2)                                           # 12 tags = 4 x (2 + 1)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0]
+    with pytest.raises(ValueError):
+        dpca.scores(model, X, 1)                                    # 4 x 2 = 8 != 12
+    with pytest.raises(ValueError):
+        dpca.scores(model, X[:, :3], 2)                             # 3 x 3 = 9 != 12
+
+
+@pytest.mark.parametrize("lags, n", [(-1, 50), (2, 2)])            # negative; no complete row
+def test_scores_refusals(lags, n):
+    model = dpca_model(2)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0][:n]
+    with pytest.raises(ValueError):
+        dpca.scores(model, X, lags)
+
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf])
+def test_scores_refuse_non_finite(bad):
+    model = dpca_model(2)
+    X = plant(lagged_pair=True, runs=1, seed=5)[0].copy()
+    X[7, 1] = bad
+    with pytest.raises(ValueError):
+        dpca.scores(model, X, 2)

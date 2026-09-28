@@ -1112,3 +1112,53 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Record the stop and cap readings above as a decision in `docs/decisions.md` and PROTOCOL → Detection when Raj confirms after review.
   - Decision 50's swapped hash suffixes (still open).
 - **Next (Raj):** review, then implement the six stubs until `tests/test_dpca.py` passes. Session 8: fit driver, calibration and table rows.
+
+### 2026-09-28: week 3 session 7 (close), lag rule implemented (Raj, acf1ed6)
+- **Changed:** `app/detector/dpca.py`, all six functions implemented by Raj (with guidance from the Claude.ai chat). Tests unchanged since 3fba58b.
+- **Tests:** `pytest -q` gives 876 passed (835 + the 41 in `tests/test_dpca.py`), as Raj reports.
+- **Claude's review (no changes made):** matches every docstring contract, with no correctness problems.
+  - `lagged` builds each block as a slice of X, so no row can read a later sample. `np.hstack` always returns a new array, so the caller's X is never aliased.
+  - `stack_lagged` keeps rows from `warmup − lags` onwards, which is exactly samples warmup+1..T. It checks each run's length before lagging.
+  - `choose_lags` calls `count` lazily, converts numpy ints to int, and returns the r_new it stopped on.
+  - Small points, none blocking:
+    1. `lags` isn't checked to be an integer. 1.5 fails later with a TypeError and `True` counts as 1. That's the same as `alerting.alert_track`.
+    2. `stack_lagged([])` raises numpy's "need at least one array" ValueError. It's a ValueError, but the message is unclear.
+    3. `new_relations` uses `int(r_l)`, which would silently truncate a non-integer count. Counts are always ints, so this is harmless.
+    4. **Memory on the real fit pool at l = 4:** about 122,750 rows × 165 columns ≈ 160 MB per copy, and `parallel_analysis` holds three copies (X, Z and one shuffle), so the peak is about 0.5–0.7 GB. That's fine locally, and the fit never runs on Render.
+- **Unsure about:** carried from the stubs entry. Parallel analysis's λ ≈ 1.03 edge can push r_new negative by one at l = 1 and stop at L = 0. The session 8 record keeps k, r and r_new at every l so this is visible.
+- **Decisions needed:**
+  - The stop reading (L = l* − 1, and r_new(0) isn't a stop) and the cap (L = 4, flagged) aren't in `docs/decisions.md` or PROTOCOL yet. They should be recorded before the lag rule runs on the fit pool (session 8).
+  - The lagged name format `TAG@t-j`.
+  - Decision 50's swapped hash suffixes (still open).
+
+### 2026-09-28: week 3 session 8, stage 1: DPCA whole-run scoring stub and tests
+- **Plan approved (two stages):**
+  - **Stage 1 (this entry):** Raj's one core piece, as a stub with tests.
+  - **Stage 2 (Claude, after Raj implements it):**
+    1. Decision 63, drafted by Claude and confirmed by Raj before any run.
+    2. `eval/fit_dpca.py`: the lag rule on the fit pool, a fresh `default_rng(PA_SEED)` per l, and `pca.fit` on `stack_lagged` with k = `choice.k[L]`. The `fit_dpca` record holds the full evidence.
+    3. `calibrate_driver`, generalised: lags and detector come from the fit record, `n_range(L, warmup)`, and all scoring goes through `dpca.scores`. Static behaviour is unchanged.
+    4. `check_dev` and `dev_table` take lags (the header shows L, with a note when L = 0).
+    5. Synthetic tests for all of it.
+
+    Then Raj runs the four commands.
+- **Changed:**
+  - **`app/detector/dpca.py`:** a new stub `scores(model, X, lags)` (Raj). It returns whole-run (T², SPE), index 0 = sample 1, with entries lags.. equal to `pca.scores` on `lagged` rows. The first `lags` entries are 0.0 and never read: L ≤ warm-up, `limits_at` reads only after the warm-up, `group` ignores warm-up samples, and decision 52 keeps every persistence window after sample L. So `alerting`, `calibrate` and `metrics` stay unchanged, and there's one scoring engine.
+  - **`tests/test_dpca.py`:** 13 new tests:
+    - lags = 0 is exactly `pca.scores`
+    - a hand example (X = 1, 2, 3, one lag: T² = 0, 2, 4.5 and SPE = 0, 1, 4)
+    - placement, length and dtype
+    - float32 input
+    - causal at t = 3, 10 and 500
+    - the pad is never read: pads set to 1e9 give the same limits and the same alert tracks at L = 4 for (n, G) = (1, 0), (6, 0), (6, 5) and (3, 20), with a check that some tracks do alert
+    - refusals: a model fitted with other lags, negative lags, no complete row, NaN/inf
+  - **Checking the tests:** Claude ran them against a throwaway reference `scores` patched in from the scratchpad (not in the repo): 54 passed. That run showed the causal test needs a tolerance, because BLAS sums in an order that depends on the row count (as in `test_pca.test_scoring_is_row_by_row`). The test uses rel 1e-12.
+- **Tests:** `tests/test_dpca.py` gives 13 failed (NotImplementedError, as intended) and 41 passed. The rest gives 835 passed, 2 deselected. Nothing else was run: no drivers, no data.
+- **Not Claude's:** `eval/baselines/alarms.py` has two trailing blank lines added, probably by the IDE. Left alone.
+- **Unsure about:** L = 4 (capped) leaves n ≤ 6, against static PCA's chosen n = 3. The persistence search space shrinks as L grows, which matters only if the best static setting needs n > 10 − L.
+- **Decisions needed:**
+  - **Decision 63 before stage 2 runs:** the lag rule's stop and cap readings, and the pad convention.
+  - **A written selection rule for PCA vs DPCA.** PROTOCOL → Detection says "the production detector is chosen on dev by the selection rule", but no rule is written. It's needed before the week-close table. The ∞ − ∞ item for paired delay comparisons belongs with it.
+  - **If DPCA is selected,** `build_bundle` and `replay` must score with `dpca.scores`. Today they would refuse a DPCA model with a column-count ValueError, not score it wrongly.
+  - The lagged name format `TAG@t-j`; decision 50's swapped hash suffixes (still open).
+- **Next (Raj):** review and implement `dpca.scores` until `tests/test_dpca.py` passes, then confirm decision 63's readings. Claude then does stage 2.
