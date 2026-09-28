@@ -373,3 +373,20 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **It's a label, not a detector,** so it may look ahead within the window. It never reaches `app/` or `library/`.
 
     *Why:* masked faults are the ones a measurement-based view misses. Fault 4's realistic alarms cleared (share still flagged 0.01) while the every-tag list, which alarms on the valves, held on (1.00). Reporting them separately (PROTOCOL) needs a rule fixed before test that doesn't use dev.
+
+63. **DPCA: lag rule readings, the pad, lagged names and the PCA vs DPCA selection rule (Raj's decisions, 28 September 2026, before any DPCA result).**
+    - **Lag rule (the new-relations rule of Ku, Storer and Georgakis 1995; k from parallel analysis; L_max = 4):**
+      - At each l = 0, 1, …, k(l) is the parallel-analysis count on the l-lagged fit matrix. The relation count is r(l) = m(l+1) − k(l), and r_new(l) = r(l) − Σ_{i<l} (l − i + 1)·r_new(i).
+      - **Stop:** at the first l* ≥ 1 with r_new(l*) ≤ 0, L = l* − 1. r_new(0) is never a stop.
+      - **Cap:** no stop by L_max = 4 gives L = 4, flagged as capped in the fit record.
+      - Whatever L the rule gives stands, including L = 0 (DPCA then equals static PCA, and the table says so).
+      - Each l's parallel analysis uses a fresh generator with seed 20260927, on the same rows (samples warm-up + 1 … T of every fit run; lag columns may read warm-up samples).
+    - **The pad:** `dpca.scores` returns whole-run arrays, index 0 = sample 1. The first L entries are 0.0 and never read: L ≤ warm-up, calibration reads only samples after the warm-up, and decision 52 (L + n − 1 ≤ 9) keeps every persistence window after sample L. A test sets them to 1e9 and gets the same limits and tracks.
+    - **Lagged column names:** `TAG@t-j` for lag j, with the lag-0 block keeping the plain names.
+    - **Selection between static PCA and DPCA:**
+      - It's decided on the 100 selection runs (`dataset/selection.yaml`), not on dev.
+      - DPCA replaces static PCA only if its selection score is more than 3 points higher, that is more than 0.03 on the 0–1 scale. The score is the mean detection rate over the 12 selection faults (open faults except 3, 9 and 15), at each detector's own calibrated (n, G, q), as recorded in its `calibrate_pca` record under `metrics.chosen.score`. Otherwise the simpler static PCA stays.
+      - Both detectors are reported on dev either way.
+      - Paired delay comparisons between them use the lead-time convention (decision 58 answers): both-detected runs only, with the four counts (both, only one, only the other, neither), and delay pairs with ∞ are never subtracted.
+
+    *Why:* the stop reading keeps the smallest lag count that captures the relations found. The pad keeps one scoring engine, with no change to alerting, calibration or metrics. Choosing on the selection runs keeps dev an independent check, as for the masked rule (decision 62). The 3-point margin means DPCA's extra columns and shorter persistence range must pay for themselves, not win on noise.

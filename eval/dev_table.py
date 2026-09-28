@@ -77,20 +77,20 @@ class DevTableError(RuntimeError):
 # ---------- detectors ----------
 
 class PCADetector:
-    """App 3's static PCA: one plant stream."""
+    """App 3's PCA, static (L = 0) or dynamic (decision 63): one plant stream."""
 
     def __init__(self, lim, model):
-        if lim["lags"] != 0:
-            raise DevTableError(f"lagged scoring (lags = {lim['lags']}) isn't built yet (week 3 session 8)")
         self.name, self.warmup, self.lim, self.model = lim["detector"], lim["warmup"], lim, model
-        self.input_tags = tuple(model.tags)
+        self.lags = lim["lags"]
+        self.input_tags = drv.input_tags(model, self.lags)   # plant tags, the lag-0 block
         self.config = {"n": lim["n"], "gap": lim["gap"], "q": lim["q"], "lags": lim["lags"],
                        "model_sha256": lim["model_sha256"]}
 
     def score(self, runs):
         """{run number: (alert track, [notification samples per point])}; one point."""
-        tracks = drv.tracks(drv.score_runs(self.model, runs), (self.lim["t2_lim"], self.lim["spe_lim"]),
-                            self.lim["n"], self.lim["gap"], self.warmup)
+        tracks = drv.tracks(drv.score_runs(self.model, runs, lags=self.lags),
+                            (self.lim["t2_lim"], self.lim["spe_lim"]),
+                            self.lim["n"], self.lim["gap"], self.warmup, self.lags)
         return {k: (t, [metrics.notifications(t, self.warmup)]) for k, t in tracks.items()}
 
 
@@ -343,6 +343,14 @@ def _masked(m):
     return f"yes ({m['valves']})" if m["masked"] else "no"
 
 
+def _lags_note(cfg):
+    """The header's lag note for a dynamic detector (empty for others). L = 0 means the
+    lag rule found no lag worth adding, so DPCA equals static PCA (decision 63)."""
+    if not cfg["detector"].endswith("_dynamic"):
+        return ""
+    return f", L = {cfg['lags']} lags" + (" (L = 0: DPCA equals static PCA)" if cfg["lags"] == 0 else "")
+
+
 def render(record, record_path):
     """The Markdown tables, built only from a run record (as saved) and its repo path."""
     cfg, m = record["config"], record["metrics"]
@@ -354,7 +362,8 @@ def render(record, record_path):
         "",
         f"Run record `{record_path}`, commit {record['commit'][:12]}"
         f"{' (dirty)' if record['dirty'] else ''}. Dev pool, {nrm['runs']} run numbers; "
-        f"n = {cfg['n']}, G = {cfg['gap']}, q = {cfg['q']}, warm-up {cfg['warmup']}. "
+        f"n = {cfg['n']}, G = {cfg['gap']}, q = {cfg['q']}, warm-up {cfg['warmup']}"
+        f"{_lags_note(cfg)}. "
         f"Intervals: 95% run-number bootstrap, B = {cfg['bootstrap']['resamples']}, "
         f"seed {record['seeds']['bootstrap']}."
         + (f" Lead time (minutes, positive when App 3 is earlier) is against {lead_vs['detector']}."

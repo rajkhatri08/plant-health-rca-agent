@@ -1,18 +1,20 @@
-"""eval/calibrate_driver.py on synthetic runs (never data/), with a small grid for speed."""
+"""eval/calibrate_driver.py on synthetic runs (never data/), with a small grid for speed.
+Static PCA first, then DPCA with its lag count from the fit record (decision 63)."""
 
 import hashlib
 import json
 
+import numpy as np
 import pytest
 
 import dataset.loader as loader_mod
-from app.detector import pca
+from app.detector import dpca, pca
 from dataset import selection
 from dataset.convert import VARIABLES
 from dataset.loader import Runs
 from eval import calibrate as cal
 from eval import calibrate_driver as drv
-from eval import fit_pca, run_record
+from eval import fit_dpca, fit_pca, run_record
 from ingest import tags as tagmap
 from tests.test_fit_pca import FAST, two_factor_runs
 
@@ -170,3 +172,73 @@ def test_main_reports_errors(setup, capsys):
     setup["out"].write_text("old")
     assert drv.main(["--model", str(setup["model_path"]), "--out", str(setup["out"])]) == 1
     assert "already exists" in capsys.readouterr().err
+
+# --- DPCA: lags from the fit record (decision 63) ------------------------------------
+
+LAGS = 2                                                    # with warm-up 3, n in 1..2
+
+
+@pytest.fixture
+def dpca_setup(setup, tmp_path):
+    """A DPCA model fitted with 2 lags on the same fit runs, and its fit_dpca record, next
+    to the static setup (same patched loaders)."""
+    runs = fit_dpca.run_matrices(two_factor_runs(samples=120), WARMUP, FAST)
+    model = pca.fit(dpca.stack_lagged(runs, LAGS, WARMUP), dpca.lagged_tags(FAST, LAGS), 6)
+    model_path = tmp_path / "dpca.npz"
+    pca.save(model, model_path)
+    fit_rec = {"config": {"detector": "pca_dynamic", "warmup": WARMUP, "lags": LAGS},
+               "outputs": {"model": {"sha256": run_record.sha256(model_path)}}}
+    (setup["repo"] / "eval" / "runs" / "20260928T000000Z_fit_dpca.json").write_text(json.dumps(fit_rec))
+    return {**setup, "model_path": model_path, "model": model,
+            "out": tmp_path / "models" / "dpca_limits.json"}
+
+
+def test_dpca_limits_file_and_record(dpca_setup):
+    doc = run(dpca_setup)
+    assert doc["detector"] == "pca_dynamic" and doc["lags"] == LAGS and doc["warmup"] == WARMUP
+    assert LAGS + doc["n"] - 1 <= WARMUP                    # decision 52
+    rec = the_record(dpca_setup)
+    assert rec["config"]["detector"] == "pca_dynamic" and rec["config"]["lags"] == LAGS
+    assert rec["config"]["n_range"] == [1, 2]              # 1 .. warm-up - L + 1
+    assert rec["config"]["fit_record"] == "eval/runs/20260928T000000Z_fit_dpca.json"
+    assert len(rec["metrics"]["settings"]) == 2 * 3
+
+
+def test_dpca_limits_are_percentiles_of_the_lagged_scores(dpca_setup):
+    doc = run(dpca_setup)
+    model, calib = dpca_setup["model"], dpca_setup["calib"]
+    cols = tagmap.column_indices(calib.columns, FAST)
+    scored = [dpca.scores(model, calib.runs[k][:, cols], LAGS) for k in sorted(calib.runs)]
+    expected = cal.limits_at([s[0] for s in scored], [s[1] for s in scored], doc["q"], WARMUP)
+    assert (doc["t2_lim"], doc["spe_lim"]) == pytest.approx(expected)
+
+
+def test_static_scoring_is_unchanged(setup):
+    # score_runs now goes through dpca.scores; with no lags that is pca.scores exactly.
+    model, calib = setup["model"], setup["calib"]
+    cols = tagmap.column_indices(calib.columns, model.tags)
+    got = drv.score_runs(model, calib)
+    for k in sorted(calib.runs):
+        t2, spe = pca.scores(model, calib.runs[k][:, cols])
+        assert np.array_equal(got[k][0], t2) and np.array_equal(got[k][1], spe)
+
+
+def test_input_tags():
+    static = pca.PCAModel(tags=tuple(FAST), mean=None, scale=None, loadings=np.zeros((33, 1)),
+                          eigenvalues=None, all_eigenvalues=None)
+    lagged = static.__class__(**{**static.__dict__, "tags": dpca.lagged_tags(FAST, 2)})
+    assert drv.input_tags(static) == tuple(FAST)
+    assert drv.input_tags(lagged, 2) == tuple(FAST)
+    for model, lags in ((lagged, 1), (lagged, 0), (static, 2)):
+        with pytest.raises(drv.CalibrationError):
+            drv.input_tags(model, lags)
+
+
+def test_refuses_a_fit_record_with_other_lags_before_loading(dpca_setup):
+    (path,) = (dpca_setup["repo"] / "eval" / "runs").glob("*_fit_dpca.json")
+    rec = json.loads(path.read_text())
+    rec["config"]["lags"] = 1                               # the model was fitted with 2
+    path.write_text(json.dumps(rec))
+    with pytest.raises(drv.CalibrationError):
+        run(dpca_setup)
+    assert dpca_setup["calls"] == []

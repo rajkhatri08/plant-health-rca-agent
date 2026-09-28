@@ -52,7 +52,7 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, allow_dirt
     warmup, lags = lim["warmup"], lim["lags"]
     model = pca.load(model_path)
 
-    scored = drv.score_runs(model, loader.load_normal("calibration"))
+    scored = drv.score_runs(model, loader.load_normal("calibration"), lags=lags)
     numbers = sorted(scored)
     t2_runs = [scored[k][0] for k in numbers]
     spe_runs = [scored[k][1] for k in numbers]

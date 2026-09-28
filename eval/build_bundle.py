@@ -33,6 +33,9 @@ def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, out=bundle_mo
     fit_path, _ = drv.fit_record_for(model_path, repo_root)
     cal_path = check_dev.calibration_record_for(limits_path, repo_root)
     limits = json.loads(Path(limits_path).read_text())
+    if limits["lags"] != 0:                     # the replay scores unlagged samples (decision 63)
+        raise drv.CalibrationError(f"the demo bundle is static PCA only; these limits have "
+                                   f"{limits['lags']} lags")
     if limits["model_sha256"] != run_record.sha256(model_path):
         raise drv.CalibrationError(f"{model_path} isn't the model these limits were calibrated for")
     limits = {**limits, "fit_record_sha256": run_record.sha256(fit_path),

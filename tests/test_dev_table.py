@@ -15,7 +15,7 @@ from eval import calibrate_driver as drv
 from eval import dev_table as dt
 from eval import metrics, run_record
 from ingest import tags as tagmap
-from tests.test_calibrate_driver import GAPS, GRID, setup  # noqa: F401 (fixture)
+from tests.test_calibrate_driver import GAPS, GRID, LAGS, dpca_setup, setup  # noqa: F401 (fixtures)
 from tests.test_fit_pca import FAST, two_factor_runs
 
 DEV = range(101, 111)
@@ -37,6 +37,16 @@ def faulty_dev(normal, fault, first_changed=21):
 
 @pytest.fixture
 def calibrated(setup, monkeypatch, tmp_path):
+    return calibrate_and_patch(setup, monkeypatch, tmp_path)
+
+
+@pytest.fixture
+def calibrated_dpca(dpca_setup, monkeypatch, tmp_path):
+    return calibrate_and_patch(dpca_setup, monkeypatch, tmp_path)
+
+
+def calibrate_and_patch(setup, monkeypatch, tmp_path):
+    """Calibrate the setup's model, then patch the loaders to serve only dev."""
     drv.run(setup["model_path"], setup["out"], repo_root=setup["repo"], q_grid=GRID, gap_range=GAPS)
     normal = two_factor_runs(numbers=DEV, samples=SAMPLES, seed=11)
     calls = []
@@ -65,8 +75,9 @@ def build(c, **kw):
 
 def direct_tracks(c, runs):
     lim = json.loads(c["out"].read_text())
-    scored = drv.score_runs(c["model"], runs)
-    return drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), lim["n"], lim["gap"], lim["warmup"]), lim
+    scored = drv.score_runs(c["model"], runs, lags=lim["lags"])
+    return drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), lim["n"], lim["gap"], lim["warmup"],
+                      lim["lags"]), lim
 
 
 def the_record(c):
@@ -463,3 +474,44 @@ def test_masked_record_refusals_before_loading(calibrated, kw):
     with pytest.raises(dt.DevTableError):
         build(calibrated, masked=path)
     assert calibrated["calls"] == []
+
+
+# --- DPCA row (decision 63) ----------------------------------------------------------
+
+def test_dpca_rows_match_direct_scoring(calibrated_dpca):
+    c = calibrated_dpca
+    results = build(c)
+    for f in (5, 9):
+        tracks, lim = direct_tracks(c, faulty_dev(c["normal"], f))
+        assert lim["lags"] == LAGS
+        dets = [metrics.detection(tracks[k], dt.ONSET, warmup=lim["warmup"]) for k in sorted(tracks)]
+        row = results["faults"][f"fault_{f:02d}"]
+        assert row["detected"] == sum(d.detected for d in dets)
+        median, q1, q3 = metrics.delay_summary([d.delay_min for d in dets])
+        assert (row["delay_median_min"], row["delay_q1_min"], row["delay_q3_min"]) == (median, q1, q3)
+        # Divergence is on the plant tags the model reads (the lag-0 block): fault 5's runs
+        # diverge at sample 21, fault 9's never do.
+        before_expected = sum(d.detected and (f == 9 or d.sample < 21) for d in dets)
+        assert (row["before_divergence"], row["before_divergence_of"]) == (before_expected, row["detected"])
+    tracks, lim = direct_tracks(c, c["normal"])
+    runs = [metrics.ScoredRun(0, k, a) for k, a in tracks.items()]
+    assert results["normal"]["per_24h"] == pytest.approx(metrics.false_alerts_per_24h(runs, lim["warmup"])[2])
+
+
+def test_dpca_record_and_table_name_the_lags(calibrated_dpca):
+    build(calibrated_dpca)
+    _, rec = the_record(calibrated_dpca)
+    assert rec["config"]["detector"] == "pca_dynamic" and rec["config"]["lags"] == LAGS
+    (table,) = calibrated_dpca["tables"].glob("*_dev_table_pca_dynamic.md")
+    assert f"L = {LAGS} lags" in table.read_text()
+    assert "equals static PCA" not in table.read_text()
+
+
+@pytest.mark.parametrize("detector, lags, note", [
+    ("pca_static", 0, ""),
+    ("alarms_realistic_grouped", 0, ""),
+    ("pca_dynamic", 3, ", L = 3 lags"),
+    ("pca_dynamic", 0, ", L = 0 lags (L = 0: DPCA equals static PCA)"),
+])
+def test_lags_note(detector, lags, note):
+    assert dt._lags_note({"detector": detector, "lags": lags}) == note

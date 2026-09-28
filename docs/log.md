@@ -1162,3 +1162,54 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **If DPCA is selected,** `build_bundle` and `replay` must score with `dpca.scores`. Today they would refuse a DPCA model with a column-count ValueError, not score it wrongly.
   - The lagged name format `TAG@t-j`; decision 50's swapped hash suffixes (still open).
 - **Next (Raj):** review and implement `dpca.scores` until `tests/test_dpca.py` passes, then confirm decision 63's readings. Claude then does stage 2.
+
+### 2026-09-28: week 3 session 8, stage 2: decision 63, DPCA fit, calibration and dev table (code only, nothing run)
+- **Raj (950eb57):** implemented `dpca.scores` (with guidance from the Claude.ai chat). 889 tests passed. Claude read it: it matches the contract.
+- **Changed:**
+  - **`docs/decisions.md`, decision 63 (Raj's, confirmed before any DPCA result):**
+    - the lag rule's stop and cap readings
+    - the fresh generator per l on the same rows
+    - the 0.0 pad
+    - `TAG@t-j` names
+    - **the selection rule:** decided on the 100 selection runs, not dev. DPCA replaces static PCA only if its selection score (`metrics.chosen.score` in its `calibrate_pca` record) is more than 3 points higher, read as more than 0.03 on the 0–1 scale. Both detectors are reported on dev. Paired delays use the lead-time convention.
+  - **`eval/PROTOCOL.md`, Detection:** the Detector line now states the lag rule, the names and the pad. "Chosen on dev by the selection rule" is replaced by decision 63's rule.
+  - **`eval/fit_dpca.py` (new, Claude):**
+    - Before loading anything, it refuses an existing output, a warm-up outside 0..9 and L_max > warm-up (decision 52), then a dirty tree.
+    - It runs the lag rule on the fit pool (fast tags, whole runs, a fresh `default_rng(20260927)` per l), fits `pca.fit` on the L-lagged matrix with k = k(L) (no second parallel analysis), and saves the `.npz`.
+    - **The `fit_dpca` record:**
+      - config: detector `pca_dynamic`, base tags, warmup, lags, l_max and the PA settings
+      - metrics: L, capped, `static_equivalent`, `lag_rule` {k, r, r_new}, k, cumulative explained, and `eigenvalues_near_k` (5 on each side of the cut)
+    - **Why not the full eigenvalue list:** records cap lists at 64 numbers, and m(L+1) is 66–165. The full list is in the saved model, which the record pins by SHA-256. The tests caught this: the first version would have saved the model and then failed to write the record, orphaning the model. The metrics are now validated before saving.
+  - **`eval/calibrate_driver.py`:**
+    - The detector and L come from the fit record, `fit_pca` or `fit_dpca`, with static defaults. It searches `n_range(L, warmup)`.
+    - A new `input_tags(model, lags)` refuses a model whose columns aren't the base tags lagged L times, including a lagged model read with lags = 0. It runs before any loading.
+    - `score_runs` and `tracks` take `lags` (default 0), and all scoring goes through `dpca.scores`. The static numbers are unchanged, and a test checks they're bit-identical.
+  - **`eval/check_dev.py`:** scores with the limits' lags and records them.
+  - **`eval/check_grid_refinement.py`:** scores with the limits' lags. It already read them but scored unlagged, which on a DPCA limits file would have raised.
+  - **`eval/dev_table.py`:**
+    - `PCADetector` takes lags.
+    - Its input tags (for decision 57's divergence) are the base tags.
+    - The header adds ", L = … lags", plus "(L = 0: DPCA equals static PCA)" when that holds.
+  - **`eval/build_bundle.py`:** refuses limits with lags ≠ 0. The replay scores unlagged samples, so the demo bundle stays static until a DPCA replay is built.
+- **Tests (23 new):**
+  - `tests/test_fit_dpca.py` (11): a lag-1 plant on the 33 fast tags gives L = 1 with k = (2, 3, 4), r = (31, 63, 95) and r_new = (31, 1, 0). The record holds the evidence, which equals `choose_lags` on the same data. A static plant gives L = 0 and a model identical, array for array, to `fit_pca`'s. Refusals come before loading, and `main`'s exit code is checked.
+  - `test_calibrate_driver.py` (+5): the DPCA limits and record (n in 1..2 at warm-up 3, L = 2), limits equal to percentiles of `dpca.scores`, static scoring bit-identical, `input_tags`, and a fit record with the wrong lags refused before loading.
+  - `test_dev_table.py` (+6): DPCA rows equal direct scoring (divergence on base tags), the record and table name L, and the lag note.
+  - `test_build_bundle.py` (+1): a DPCA model is refused.
+  - `pytest -q` gives 912 passed, 2 deselected.
+- **Not run:** no driver and no data, as asked.
+- **Next (Raj runs, in order, on a clean tree):**
+  1. `python -m eval.fit_dpca --warmup 9`, then read L and the evidence. k(0) should equal the static k = 12: same rows, same seed.
+  2. `python -m eval.calibrate_driver --model data/models/pca_dynamic.npz --out data/models/pca_dynamic_limits.json`
+  3. `python -m eval.check_dev --limits data/models/pca_dynamic_limits.json --model data/models/pca_dynamic.npz`
+  4. `python -m eval.dev_table --limits data/models/pca_dynamic_limits.json --model data/models/pca_dynamic.npz --masked eval/runs/20260928T155738Z_masked_faults.json`
+  5. **Selection (decision 63):** compare `metrics.chosen.score` in the two `calibrate_pca` records. Nothing computes this yet. A small script that reads both records and writes a `select_detector` record would keep the rule's result in a run record (CLAUDE.md: every reported number comes from a run record). Proposed for week close.
+- **Unsure about:**
+  - **Step 1's memory:** about 0.5–0.7 GB at l = 4. The rows run over 250 runs × 491 samples.
+  - **If the rule gives L = 0,** steps 2–4 still run and reproduce static PCA's numbers under the name `pca_dynamic`. The table says so.
+  - **"3 points" is read as 0.03 on the 0–1 score.** Raj to confirm.
+- **Not Claude's:** `eval/baselines/alarms.py` now has three trailing blank lines added outside this session (the IDE). Left alone.
+- **Decisions needed:**
+  - Confirm the 0.03 reading.
+  - The `select_detector` record for step 5.
+  - Decision 50's swapped hash suffixes (still open).

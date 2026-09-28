@@ -6,7 +6,7 @@ import pytest
 
 from app.detector import bundle as bm
 from eval import build_bundle, calibrate_driver as drv, run_record
-from tests.test_calibrate_driver import GAPS, GRID, setup  # noqa: F401 (fixture)
+from tests.test_calibrate_driver import GAPS, GRID, dpca_setup, setup  # noqa: F401 (fixtures)
 
 
 @pytest.fixture
@@ -58,3 +58,13 @@ def test_failed_self_test_leaves_nothing_behind(calibrated, tmp_path):
                          repo_root=calibrated["repo"], register=reg)
     assert not calibrated["bundle"].exists()
     assert list(calibrated["bundle"].parent.iterdir()) == []      # no temp folder left
+
+
+def test_refuses_a_dpca_model(dpca_setup):
+    # The replay scores unlagged samples, so the demo bundle stays static (decision 63).
+    drv.run(dpca_setup["model_path"], dpca_setup["out"], repo_root=dpca_setup["repo"],
+            q_grid=GRID, gap_range=GAPS)
+    c = {**dpca_setup, "bundle": dpca_setup["repo"] / "app" / "bundles" / "pca_v1"}
+    with pytest.raises(drv.CalibrationError, match="static PCA only"):
+        build(c)
+    assert not c["bundle"].exists()

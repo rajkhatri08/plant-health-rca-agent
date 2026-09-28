@@ -50,8 +50,9 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, allow_dirt
     model = pca.load(model_path)
     warmup = lim["warmup"]
 
-    scored = drv.score_runs(model, loader.load_normal("dev"))
-    alert = drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), lim["n"], lim["gap"], warmup)
+    scored = drv.score_runs(model, loader.load_normal("dev"), lags=lim["lags"])
+    alert = drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), lim["n"], lim["gap"], warmup,
+                       lim["lags"])
     runs = [metrics.ScoredRun(0, k, a) for k, a in alert.items()]
     count, hours, per_24h = metrics.false_alerts_per_24h(runs, warmup)
     low, high = metrics.bootstrap_ci(runs, lambda rs: metrics.false_alerts_per_24h(rs, warmup)[2],
@@ -59,7 +60,7 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, allow_dirt
     record = run_record.write(
         "dev_false_alerts",
         config={"detector": lim["detector"], "pool": "dev", "warmup": warmup,
-                "n": lim["n"], "gap": lim["gap"], "q": lim["q"],
+                "lags": lim["lags"], "n": lim["n"], "gap": lim["gap"], "q": lim["q"],
                 "calibration_record": cal_record.relative_to(repo_root).as_posix(),
                 "limits_sha256": run_record.sha256(limits_path),
                 "bootstrap": {"resamples": n_boot, "level": 0.95, "method": "percentile"}},
