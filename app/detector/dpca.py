@@ -92,7 +92,19 @@ def scores(model, X, lags) -> tuple[np.ndarray, np.ndarray]:
     samples after the warm-up, and decision 52 (lags + n - 1 <= warm-up) keeps every
     persistence window after them. lags = 0 is exactly pca.scores(model, X).
     Raises ValueError if len(model.tags) != m(lags+1), plus everything lagged raises."""
-    raise NotImplementedError("Raj: week 3 session 8")
+    if lags < 0:
+        raise ValueError(f"lags can't be negative, got {lags}")
+    X = np.asarray(X, dtype=np.float64)
+    if X.ndim != 2:
+        raise ValueError("X must be a 2-D array (samples x tags)")
+    m = X.shape[1]
+    if len(model.tags) != m * (lags + 1):
+        raise ValueError(f"the model has {len(model.tags)} tags, but {m} tags with {lags} lags "
+                         f"make {m * (lags + 1)}: was it fitted with other lags?")
+    t2_rows, spe_rows = pca.scores(model, lagged(X, lags))   # one score per complete row
+    t2, spe = np.zeros(len(X)), np.zeros(len(X))             # samples 1..lags: no row, 0.0
+    t2[lags:], spe[lags:] = t2_rows, spe_rows                # row i is sample i + lags
+    return t2, spe
 
 
 def relation_count(runs, tags, lags, warmup, rng, n_shuffles=20, percentile=95) -> tuple[int, int]:
