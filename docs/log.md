@@ -597,3 +597,29 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The summary rows use a joint bootstrap** (one draw of run numbers brings every fault's run along), per rule 3. Per-fault intervals resample that fault's runs by the same draws.
 - **Decisions needed:** none new.
 - **Next (Raj):** implement the two stubs, then `pytest -q`. After committing, run `python -m eval.dev_table` on a clean tree.
+
+### 2026-09-28: week 3 session 2 (continued), divergence functions and first dev table
+- **Changed:**
+  - **`eval/metrics.py`:** Raj implemented `first_divergence` and `before_divergence_share` against the session 2 tests (committed as 28dd675). Claude didn't review the implementation in this session; the tests pass.
+  - **Dev table (Raj, 28dd675, clean tree):** `python -m eval.dev_table`.
+    - Record `eval/runs/20260928T064324Z_dev_table_pca_static.json`; table `data/tables/20260928T064324Z_dev_table_pca_static.md` (gitignored, its SHA-256 in the record).
+    - The record isn't committed yet.
+  - **Results (static PCA, n = 3, G = 15, q = 95.57; 50 dev run numbers):**
+    - **Mean detection over the 12 faults:** 0.982 (95% interval 0.972 to 0.990). The selection score on forest-ceiling runs was 0.975.
+    - **Faults 3, 9, 15:** 0.06, 0.08 and 0.12 (mean 0.087, interval 0.02 to 0.16), against a chance rate of 0.06 (0.00 to 0.14). That's at chance, as expected.
+    - **Before divergence:** 0 detections in every fault, including the 13 detections in faults 3, 9 and 15. So no reported detection was luck by construction.
+    - **Detected in every run (1.00):** faults 1, 2, 4–8, 11, 12 and 14.
+      - Median delay of 9 min: faults 4, 5, 6, 7 and 14.
+      - Longer: fault 1 at 15 min, 12 at 24, 11 at 27, 2 at 45 and 8 at 52.5.
+    - **Fault 13:** 0.98 (0.94 to 1.00), with a median delay of 124.5 min (IQR 96–170.25).
+    - **Fault 10:** 0.80 (0.68 to 0.90), with a median delay of 139.5 min (IQR 97.5–224.25).
+    - **Share still flagged:** 1.00 or close for most faults. Fault 5 is at 0.52, fault 10 at 0.765 and fault 11 at 0.993. Fault 5 is a masked-fault candidate for session 6 (Raj).
+    - **Normal dev:** 47 notifications in 1,227.5 h, 0.919 per 24 h (0.645 to 1.212).
+- **Tests:** `pytest -q` gives 628 passed, 1 deselected.
+- **Unsure about:**
+  - **9 min is the floor, not a measured speed.** With n = 3 and the onset after sample 20, the earliest possible notification is sample 23, which is (23 − 20) × 3 = 9 min. So faults 4, 5, 6, 7 and 14 are detected as fast as the persistence setting allows, and their delay can't separate detectors that are both at that floor. DPCA can't beat it either, unless its search picks n < 3.
+  - **"Step faults at 9 min" isn't quite the grouping.** The 9 min group is 4, 5, 6, 7 and 14. Faults 1 and 2 are also steps but take 15 and 45 min, and 14 isn't a step. Worth wording carefully in the write-up. (Raj's summary, not the record.)
+  - **Two dev false-alert intervals exist.** `check_dev` gave 0.665 to 1.173 (seed 20260930); the dev table gives 0.645 to 1.212 (seed 20261001). The count, hours and rate are identical. Only the bootstrap seed differs, which shows how much a 2,000-resample percentile interval moves with the seed. The table's interval is the one to report with the table. It isn't a new decision; noting it so the two records don't look contradictory.
+  - **Fault 5's low share still flagged** fits controller compensation: the alert clears as the loop absorbs the disturbance. It's a candidate only; the masked rule is decided on the selection runs in session 6, not on this dev result.
+  - The delay-median intervals carry float interpolation tails (for example 119.9625…). They're correct values, and the table prints them as they are.
+- **Decisions needed:** none new.
