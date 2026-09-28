@@ -365,6 +365,10 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
       - **The plant-level rule asks the question the report needs:** does the plant look normal while only valves show the fault?
       - **The amendment is fair** because the rule is decided on the selection runs, not dev. The first record is kept as the evidence, and is superseded.
       - The dev table refuses a record without `rule: plant`.
+    - **Records:**
+      - **Superseded:** `eval/runs/20260928T154511Z_masked_faults.json` (per-loop label, any loop). 10 of 15 faults masked; normal calibration runs 0.02.
+      - **In force:** `eval/runs/20260928T155738Z_masked_faults.json` (plant-level label, commit 64404fc). Only fault 4 is masked: 58 of 100 selection runs, absorbed by RX-FV-206 (out in every masked run), with the reactor temperature loops RX-TIC-204 and RX-TIC-205 as the absorbing loops. Normal calibration runs: 0.007 (1 of 150).
+      - The masked list is written into PROTOCOL → Loops.
     - **Valve headroom:** min(position, 100 − position) in % open, the distance to the physical limits, as of the latest sample. It's evidence for diagnosis, with no alarm threshold (`app/detector/loops.py`).
     - **It's a label, not a detector,** so it may look ahead within the window. It never reaches `app/` or `library/`.
 

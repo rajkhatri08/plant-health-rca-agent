@@ -78,7 +78,7 @@ The loop map is `library/loops.yaml`, taken from the control code that generated
 - **Label (plant level):** a run is masked when no measurement or analyzer is out while at least one valve is; a fault is masked when at least 50% of its selection runs are. The table names the absorbing valves: those out in at least 50% of the masked runs, or the most frequent.
 - **Per-loop evidence (diagnosis, not the label):** a loop absorbs the fault when its controlled measurement isn't out and its end valve (for a cascade master, the valve at the bottom of its cascade) is out, on at least 50% of the runs. For a proportional-only loop, held means inside the band, not at the setpoint.
 - **Valve headroom** is the distance to the physical limits, min(position, 100 − position) in % open (`app/detector/loops.py`).
-- **Masked list:** not yet decided.
+- **Masked list (fixed before test, 28 September 2026; `eval/runs/20260928T155738Z_masked_faults.json`):** fault 4, absorbed by RX-FV-206 (58 of 100 selection runs masked). Faults 1–3 and 5–15 are unmasked. Faults 16–20 are sealed and have no label.
 
 ## Diagnosis (RCA)
 

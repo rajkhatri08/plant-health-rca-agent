@@ -1058,3 +1058,21 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Confirm the absorbing-valve rule (above).
   - Decision 50's swapped hash suffixes (still open).
 - **Next (Raj):** commit, including the superseded record; then `python -m eval.masked`.
+
+### 2026-09-28: week 3 session 6 (close), masked list fixed
+- **Changed:**
+  - **Plant-level run (Raj, 64404fc, clean tree):** `eval/runs/20260928T155738Z_masked_faults.json`.
+    - **Masked:** fault 4 only. 58 of 100 selection runs are masked, and in every one of them RX-FV-206 (the reactor cooling water valve) is out. The absorbing loops are RX-TIC-204 and RX-TIC-205.
+    - **Every other fault is unmasked.** Fault 3's masked share is 0.01; all the others are 0.00.
+    - **Per-loop evidence, kept for diagnosis:** CP-FIC-501 absorbs faults 1, 2, 5, 6, 7, 8, 12 and 13; RX-TIC-204 absorbs 1, 4, 6 and 7; RX-TIC-205 absorbs 4 and 11. No loop absorbs 3, 9, 10, 14 or 15.
+    - **Normal calibration runs:** 0.007 (1 of 150) masked at plant level. That's in-sample for the bands.
+    - The record isn't committed yet.
+  - **`eval/PROTOCOL.md`, Loops:** the masked list is fixed before test. Fault 4 is masked, absorbed by RX-FV-206; faults 1–3 and 5–15 are unmasked; faults 16–20 are sealed and have no label.
+  - **`docs/decisions.md`, decision 62:** both records, the superseded one (per-loop, 10 of 15) and the one in force (plant level, fault 4), with their figures.
+- **Tests:** no code change. `pytest -q` is 835 passed, 2 deselected, as last run.
+- **Unsure about:**
+  - **Fault 4 is close to the threshold:** 58 of 100 runs against 50%. A different subsample could land either side. The rule and threshold were fixed before this run, so the label stands, but the README should give the 58%.
+  - **Fault 5 isn't masked at plant level (0.00),** though its disturbance is the kind a loop compensates. The recycle loop absorbs it, but some measurement or analyzer stays out in the settled half on every run. This is a finding, not a problem with the rule.
+  - **Masked and unmasked results will be reported separately (PROTOCOL).** With one masked fault, the masked group is fault 4 alone, which should be said wherever the split is shown.
+- **Decisions needed:** decision 50's swapped hash suffixes (still open). The absorbing-valve rule is moot for now: fault 4 has one valve, out in every masked run.
+- **Next:** commit the record and these docs. The dev tables can be re-run with `--masked eval/runs/20260928T155738Z_masked_faults.json` when useful; that's optional, and can wait for the week-close table (session 10).
