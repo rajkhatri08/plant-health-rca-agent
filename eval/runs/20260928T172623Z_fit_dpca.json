@@ -1,0 +1,108 @@
+{
+  "name": "fit_dpca",
+  "time": "2026-09-28T17:26:23+00:00",
+  "commit": "48a26687b214b1a3911df0078b596ac9a1a4634a",
+  "dirty": false,
+  "config": {
+    "detector": "pca_dynamic",
+    "pool": "fit",
+    "warmup": 9,
+    "lags": 1,
+    "tags": [
+      "FD-FI-101",
+      "FD-FI-102",
+      "FD-FI-103",
+      "FD-FI-104",
+      "FD-FV-105",
+      "FD-FV-106",
+      "FD-FV-107",
+      "FD-FV-108",
+      "RX-FI-201",
+      "RX-PI-202",
+      "RX-LI-203",
+      "RX-TI-204",
+      "RX-TI-205",
+      "RX-FV-206",
+      "CD-TI-301",
+      "CD-FV-302",
+      "SP-TI-401",
+      "SP-LI-402",
+      "SP-PI-403",
+      "SP-FI-404",
+      "SP-FV-405",
+      "SP-FI-406",
+      "SP-FV-407",
+      "CP-FI-501",
+      "CP-JI-502",
+      "CP-FV-503",
+      "ST-LI-601",
+      "ST-PI-602",
+      "ST-FI-603",
+      "ST-TI-604",
+      "ST-FI-605",
+      "ST-FV-606",
+      "ST-FV-607"
+    ],
+    "l_max": 4,
+    "pa_shuffles": 20,
+    "pa_percentile": 95
+  },
+  "seeds": {
+    "parallel_analysis": 20260927
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {
+    "model": {
+      "path": "data/models/pca_dynamic.npz",
+      "sha256": "33433c410af134bbf31f8a30d75457fea34da3f4e55f9df486f4b49e4fce201f"
+    }
+  },
+  "metrics": {
+    "runs": 250,
+    "samples": 122750,
+    "lags": 1,
+    "capped": false,
+    "static_equivalent": false,
+    "lag_rule": {
+      "k": [
+        12,
+        20,
+        28
+      ],
+      "r": [
+        21,
+        46,
+        71
+      ],
+      "r_new": [
+        21,
+        4,
+        0
+      ]
+    },
+    "k": 20,
+    "cumulative_explained": 0.7903680223243125,
+    "eigenvalues_near_k": {
+      "first_rank": 16,
+      "values": [
+        1.1730342602444872,
+        1.1296124040994082,
+        1.0479994705826046,
+        1.0367777519342747,
+        1.0277821503662028,
+        0.9840591539627275,
+        0.9557972043354108,
+        0.9130669830919069,
+        0.8488757574946598,
+        0.8434801490913495
+      ]
+    }
+  }
+}
