@@ -1076,3 +1076,39 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Masked and unmasked results will be reported separately (PROTOCOL).** With one masked fault, the masked group is fault 4 alone, which should be said wherever the split is shown.
 - **Decisions needed:** decision 50's swapped hash suffixes (still open). The absorbing-valve rule is moot for now: fault 4 has one valve, out in every masked run.
 - **Next:** commit the record and these docs. The dev tables can be re-run with `--masked eval/runs/20260928T155738Z_masked_faults.json` when useful; that's optional, and can wait for the week-close table (session 10).
+
+### 2026-09-28: week 3 session 7, DPCA lag rule stubs and tests
+- **Changed:**
+  - **Raj's answers (to record as a decision when the rule is implemented):**
+    - **Stop:** the search runs l = 0, 1, …. At the first l* ≥ 1 with r_new(l*) ≤ 0, lag l* adds nothing, so L = l* − 1. r_new(0) = 0 isn't a stop.
+    - **Cap:** if no stop comes by L_max = 4, L = 4 and the result is marked capped. With warm-up 9 that allows n ≤ 6 (decision 52).
+  - **`app/detector/dpca.py` (new; stubs for Raj, each raises NotImplementedError):**
+    - `lagged(X, lags)`: one run, rows [x_t | x_{t-1} | … | x_{t-L}], past samples only
+    - `lagged_tags(tags, lags)`: plain names for lag 0, then `TAG@t-j`
+    - `stack_lagged(runs, lags, warmup)`: rows for samples warmup+1..T of each run. Lag columns may read warm-up samples, and rows never mix runs, so every l is compared on the same samples.
+    - `relation_count(...)`: returns (k, r), with k from `pca.parallel_analysis` on the stacked matrix and r = m(L+1) − k
+    - `new_relations(r)`
+    - `choose_lags(count, l_max=4)`: returns `LagChoice(lags, k, r, r_new, capped)`, which is the evidence for the fit record. `count(l)` is called lazily, never past the stop.
+    - The paper is cited in the tests, not in `app/`: "georgakis" is on the leak-scan word list.
+  - **`tests/test_dpca.py` (new, 41 tests, worked comments):**
+    - `lagged`, `lagged_tags` and `stack_lagged`: hand examples, no look-ahead, no run mixing, warm-up reads, refusals
+    - `new_relations`: five hand cases, including an off-by-one count giving r_new = −1
+    - `choose_lags` on fake counts:
+      - static → L = 0
+      - lag-1 → L = 1
+      - negative r_new stops
+      - a stop at l = 4 gives L = 3, not capped
+      - no stop → L = 4, capped
+      - lazy calls
+      - refusals
+      - the rule's known blind spot: a relation first seen at lag 3 with nothing new at lag 1 gives L = 0
+    - **Two end-to-end synthetic plants through parallel analysis:** static gives k = (2, 4) and L = 0; one lag-1 pair gives k = (2, 3, 4), r = (2, 5, 8), r_new = (2, 1, 0) and L = 1. Before writing these, Claude checked the k values with a scratch script that built the lagged matrices inline (not committed). The kept eigenvalues are ≥ 1.8 and the next is ≈ 0.08, so the result doesn't sit near the edge.
+- **Tests:** `tests/test_dpca.py` gives 40 failed (NotImplementedError from the stubs, as intended) and 1 passed (`L_MAX == 4`). Everything else is unchanged: 835 passed, 2 deselected.
+- **Unsure about:**
+  - **The rule stops at the first lag with nothing new**, so relations that skip lags are missed (pinned by a test). On the plant, the parallel-analysis edge (λ ≈ 1.03) can also make r_new go negative by one and stop early. `LagChoice` keeps k, r and r_new at every l, so the fit record shows this.
+  - **Each l should get a fresh `default_rng(PA_SEED)`** in the session 8 driver (the tests do this), so a result doesn't depend on how many l's ran before it.
+- **Decisions needed:**
+  - The lagged column-name format `TAG@t-j` (used in error messages now, and by RBC's "lags combined per tag" in week 4).
+  - Record the stop and cap readings above as a decision in `docs/decisions.md` and PROTOCOL → Detection when Raj confirms after review.
+  - Decision 50's swapped hash suffixes (still open).
+- **Next (Raj):** review, then implement the six stubs until `tests/test_dpca.py` passes. Session 8: fit driver, calibration and table rows.
