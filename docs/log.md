@@ -951,3 +951,71 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:**
   - Correct decision 50's two shortened hashes (above)?
   - Still open: findings 2 and 3 on `plant_track`; how the replay resumes after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
+
+### 2026-09-28: week 3 session 6, masked-fault rule and valve headroom (decision 62)
+- **Changed** (Claude writes, Raj reviews, per Raj):
+  - **Raj's answers to three design questions (all as recommended):**
+    - **"Leaves" and "stays inside"** are judged as 3 consecutive samples outside the band.
+    - **A cascade master's valve** is the end valve of its cascade.
+    - **Fault level:** a fault is masked by a loop at ≥ 50% of its selection runs, and masked if any loop masks it.
+    - **Why the question was asked:** judged per sample, 91% of normal calibration runs came out "masked" by some loop; with 3 consecutive samples, 3% do. This was measured read-only on the calibration pool, which the bands come from. Nothing was recorded.
+  - **`docs/decisions.md`, decision 62:** the rule, the band, where it's decided, the fault level, and headroom.
+  - **`eval/PROTOCOL.md`, Loops:** "decided from dev runs" becomes "decided on the 100 selection runs (never on dev)". The rule, band, fault level and headroom are listed, and the masked list itself reads "not yet decided".
+  - **`app/detector/loops.py` (runtime, no eval/ingest/dataset imports):**
+    - `load()`: reads `library/loops.yaml` against the register, and refuses duplicates, a valve on two loops, cycles, and non-valve outputs.
+    - `end_valve()`
+    - `headroom()`: min(position, 100 − position); refuses NaN, inf, or a position outside 0–100.
+    - `valve_headroom()`: every looped valve's position, headroom and loop, as of one sample.
+    - It isn't wired into the API or page yet.
+  - **`eval/masked.py`:** `python -m eval.masked`.
+    - **Functions:** `normal_bands`, `outside_for`, `run_masked`, `loop_columns`, `shares` and `verdict`.
+    - **Driver:** bands from the calibration pool; each open fault 1–15 on the selection runs.
+    - **Output:** a `masked_faults` record. Per fault it has every loop's share, the masking loops and the verdict. As a sanity figure it has the share of normal calibration runs the rule would call masked (in-sample). The config holds the loop map's SHA-256.
+    - It never loads dev.
+  - **`eval/dev_table.py`:** `--masked <masked_faults record>` fills the Masked column ("yes (loops)" or "no").
+    - It refuses a file that isn't a `masked_faults` record, or one made with a different loop map (by SHA-256), before loading.
+    - The config names the record.
+  - **Tests:** 54 new.
+    - **`tests/test_app_loops.py` (22):** loading, end valves through one and two cascade levels, headroom values and refusals, `valve_headroom` coverage, and five kinds of inconsistent map refused.
+    - **`tests/test_masked.py` (29):**
+      - pooled percentile bands, with worked values
+      - 3-consecutive edge cases: a band edge counts as inside; alternating below and above counts as outside
+      - `run_masked`: window edges (samples 21 and 100), a 2-sample blip still held, an excursion that starts before the window
+      - shares at exactly 50%
+      - the driver on synthetic runs: a pushed condenser valve is masked by ST-FIC-603 in every run, and a fault that also moves the measurements isn't masked
+      - only calibration and forest-ceiling are loaded; refusals
+    - **`tests/test_dev_table.py` (3):** the Masked column from a record, and refusals for a different loop map or a non-masked record.
+- **Tests:** `pytest -q` gives 815 passed, 2 deselected.
+- **Not run:** nothing was run on selection or dev in this session.
+- **Unsure about:**
+  - **The rule can flag a loop whose valve moves for a reason unrelated to the fault's cause.** For example, a cascaded inner loop whose setpoint legitimately moves while its measurement follows the setpoint. "Masked by L" says where the fault shows, not where it starts. The table names the loop, so this is visible.
+  - **"Held" judges only the loop's own measurement,** so a fault can be masked by one loop while other measurements move. That matches "a loop absorbs it", not "the fault is invisible", and PROTOCOL's wording now says "measurement held while a valve absorbs the fault".
+  - **The normal-run sanity figure is in-sample** (the calibration pool set the bands). It checks the rule, not a held-out rate.
+- **Decisions needed:** decision 50's swapped hash suffixes (from session 5) are still open.
+- **Next (Raj):** review; commit; then `python -m eval.masked` on a clean tree. After that:
+  - write the masked list into PROTOCOL → Loops
+  - optionally re-run `python -m eval.dev_table --masked <record>` so App 3's table shows the column
+
+### 2026-09-28: week 3 session 6 (continued), masked rule judged on the settled half (Raj's review)
+- **Changed:**
+  - **Raj's review:** the code, headroom and dev-table column are approved. One change before anything runs: both "held" and "absorbed" are judged on the settled half of the window, samples onset + 41 … onset + 80 (2 to 4 h after onset). PERSIST = 3, the bands and the 50% share stay.
+  - **`eval/masked.py`:**
+    - a new `SETTLE = WINDOW // 2` (40)
+    - `run_masked(…, settle=SETTLE)` judges samples onset + settle + 1 … onset + window, and refuses a settle outside 0 … window − 1
+    - a run of consecutive samples outside the band counts only from onset + 41
+    - the record's config gains `judged_samples` [61, 100]
+    - the docstring and printout say so
+    - the normal-calibration sanity figure goes through `run_masked`, so it uses the same half-window
+  - **`docs/decisions.md`, decision 62:** the rule now says the settled half. A new "why the settled half" bullet cites fault 4's alarms firing at 3 min and clearing within a few samples. It also notes that the 91% and 3% normal figures were measured over the whole 4 h, and that the run records the figure for the settled half.
+  - **`eval/PROTOCOL.md`, Loops:** the rule line says the settled half, samples onset + 41 … onset + 80.
+  - **`tests/test_masked.py`:** the window-edge cases are moved to 61…100. New cases:
+    - an onset transient in the measurement (samples 21–25) doesn't disqualify
+    - a valve excursion only in the first 2 h isn't absorption
+    - 58–60 is just outside; 59–61 gives only one judged sample; 61–63 counts
+    - `settle = 0` restores the whole window and then the transient disqualifies
+    - settle refusals
+    - the constants and the record's `judged_samples`
+- **Tests:** `pytest -q` gives 823 passed, 2 deselected.
+- **Not run:** nothing on selection or dev.
+- **Unsure about:** the settled half has 40 samples instead of 80, so a chance 3-sample excursion is less likely there. The normal sanity figure will likely fall below the 3% measured over 4 h. The run records it.
+- **Decisions needed:** decision 50's swapped hash suffixes are still open.

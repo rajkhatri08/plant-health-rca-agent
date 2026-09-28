@@ -4,6 +4,7 @@ decisions 49, 57, 58, 60).
     python -m eval.dev_table [--limits data/models/pca_static_limits.json]
                              [--model data/models/pca_static.npz]
                              [--lead-vs data/models/alarms_realistic_limits.json | --no-lead]
+                             [--masked eval/runs/<stamp>_masked_faults.json]
     python -m eval.dev_table --limits data/models/alarms_<list>_limits.json
                              --row grouped|ungrouped
     (either form: [--allow-dirty])
@@ -25,7 +26,9 @@ runs (fake onset at sample 20). Each rate, median delay and median lead time get
 run-number bootstrap interval (B = 2000, percentile). Every interval uses the same seed,
 so every statistic sees the same run-number draws (rule 3). Summary: the mean rate over
 faults 1-15 except 3, 9 and 15, and the mean over those three separately, each fault
-weighted equally. Right place and Masked read "—" until their sessions build them.
+weighted equally. Masked comes from a masked_faults run record (eval/masked.py, decided on
+the selection runs, decision 62) when --masked names one. Right place reads "—" until
+its session builds it.
 
 Writes a dev_table_<detector> run record holding every number, and a Markdown rendering
 of that record to data/tables/ (gitignored). Prints only the paths and one summary line.
@@ -40,6 +43,7 @@ from pathlib import Path
 
 import numpy as np
 
+from app.detector import loops as loop_map
 from app.detector import pca
 from dataset import loader
 from eval import calibrate_driver as drv
@@ -134,6 +138,22 @@ def _record_for(limits_path, repo_root, pattern):
     if len(matches) != 1:
         raise DevTableError(f"expected one {pattern} record for {limits_path}, found {len(matches)}")
     return matches[0]
+
+
+def load_masked(record_path, repo_root):
+    """(relative path, {fault key: {"masked", "by"}}) from a masked_faults run record."""
+    path = Path(record_path)
+    if not path.name.endswith("_masked_faults.json"):
+        raise DevTableError(f"{path} isn't a masked_faults run record")
+    rec = json.loads(path.read_text())
+    if rec["config"].get("loop_map_sha256") != run_record.sha256(loop_map.LOOPS_FILE):
+        raise DevTableError(f"{path} was made with a different loop map than library/loops.yaml")
+    faults = rec["metrics"]["faults"]
+    missing = [f"fault_{f:02d}" for f in FAULTS if f"fault_{f:02d}" not in faults]
+    if missing:
+        raise DevTableError(f"{path} has no verdict for {missing[:3]}")
+    rel = path.resolve().relative_to(Path(repo_root).resolve()).as_posix()
+    return rel, {k: {"masked": v["masked"], "by": v["by"]} for k, v in faults.items()}
 
 
 def load_detector(limits_path, model_path, row, repo_root):
@@ -313,6 +333,12 @@ def _lead(lead):
             f"{lead['only_app']}, only alarms {lead['only_base']}, neither {lead['neither']}")
 
 
+def _masked(m):
+    if not m:
+        return PENDING
+    return f"yes ({m['by']})" if m["masked"] else "no"
+
+
 def render(record, record_path):
     """The Markdown tables, built only from a run record (as saved) and its repo path."""
     cfg, m = record["config"], record["metrics"]
@@ -328,7 +354,9 @@ def render(record, record_path):
         f"Intervals: 95% run-number bootstrap, B = {cfg['bootstrap']['resamples']}, "
         f"seed {record['seeds']['bootstrap']}."
         + (f" Lead time (minutes, positive when App 3 is earlier) is against {lead_vs['detector']}."
-           if lead_vs else ""),
+           if lead_vs else "")
+        + (f" Masked (decided on the selection runs): `{cfg['masked_record']}`."
+           if cfg.get("masked_record") else ""),
         "",
         "| Fault | Family | Masked | Detected (any / right place) | Chance rate | "
         "Detected before divergence | Median delay, min (IQR) | Share still flagged | "
@@ -340,7 +368,7 @@ def render(record, record_path):
         lo, hi = r["rate_ci95"]
         dlo, dhi = r["delay_median_ci95"]
         lines.append(
-            f"| {f}{' (excluded)' if f in EXCLUDED else ''} | {r['family']} | {PENDING} | "
+            f"| {f}{' (excluded)' if f in EXCLUDED else ''} | {r['family']} | {_masked(r.get('masked'))} | "
             f"{_num(r['rate'])} ({_num(lo)}–{_num(hi)}) / {PENDING} | {chance} | "
             f"{r['before_divergence']} of {r['before_divergence_of']} | "
             f"{_minutes(r['delay_median_min'])} ({_minutes(r['delay_q1_min'])}–{_minutes(r['delay_q3_min'])}); "
@@ -382,7 +410,7 @@ def render(record, record_path):
 # ---------- the run ----------
 
 def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, lead_vs=None,
-        allow_dirty=False, repo_root=None, tables_dir=None, n_boot=metrics.BOOTSTRAP_N):
+        masked=None, allow_dirty=False, repo_root=None, tables_dir=None, n_boot=metrics.BOOTSTRAP_N):
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     tables_dir = Path(tables_dir or DEFAULT_TABLES)
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)    # before any loading
@@ -396,6 +424,7 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
             raise DevTableError(f"lead time is against the {LEAD_LIST} list, not {base.list} (decision 60)")
         if base.warmup != det.warmup:
             raise DevTableError(f"warm-ups differ: {det.warmup} and {base.warmup}")
+    masked_rel, masked_by = load_masked(masked, repo_root) if masked is not None else (None, None)
     warmup = det.warmup
     now = datetime.now(timezone.utc)
     table_path = tables_dir / f"{now.strftime('%Y%m%dT%H%M%SZ')}_dev_table_{det.name}.md"
@@ -420,6 +449,8 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
             base_dets = {k: metrics.detection(t, ONSET, warmup=warmup)
                          for k, (t, _) in base.score(faulty).items()}
             row_["lead"] = lead_row(f, dets, base_dets, n_boot)
+        if masked_by is not None:
+            row_["masked"] = masked_by[f"fault_{f:02d}"]
         rows[f"fault_{f:02d}"] = row_
         hit.update({(f, k): d.detected for k, d in dets.items()})
 
@@ -434,6 +465,8 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
               "calibration_record": cal_record.relative_to(repo_root).as_posix(),
               "limits_sha256": limits_sha,
               "bootstrap": {"resamples": n_boot, "level": 0.95, "method": "percentile"}}
+    if masked_rel is not None:
+        config["masked_record"] = masked_rel
     if base is not None:
         config["lead_vs"] = {"detector": base.name,
                              "calibration_record": base_record.relative_to(repo_root).as_posix(),
@@ -472,13 +505,16 @@ def main(argv=None):
     lead.add_argument("--lead-vs", type=Path, default=None,
                       help=f"alarm limits for App 3's lead time (default {DEFAULT_LEAD.name} for PCA)")
     lead.add_argument("--no-lead", action="store_true", help="leave the lead-time column empty")
+    parser.add_argument("--masked", type=Path, default=None,
+                        help="a masked_faults run record (eval/masked.py) for the Masked column")
     parser.add_argument("--allow-dirty", action="store_true",
                         help="run on a dirty tree; the record says dirty: true")
     args = parser.parse_args(argv)
     is_alarm = args.row is not None
     lead_vs = None if (args.no_lead or is_alarm) else (args.lead_vs or DEFAULT_LEAD)
     try:
-        run(args.limits, args.model, row=args.row, lead_vs=lead_vs, allow_dirty=args.allow_dirty)
+        run(args.limits, args.model, row=args.row, lead_vs=lead_vs, masked=args.masked,
+            allow_dirty=args.allow_dirty)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError,
             run_record.RunRecordError, drv.CalibrationError, DevTableError) as e:
         print(f"error: {e}", file=sys.stderr)
