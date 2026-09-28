@@ -489,3 +489,19 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The dependency closure test evaluates markers on macOS.** The only platform-marked dependencies in this set are Windows-only, so Linux on Render installs the same list.
   - **`app/detector/alerting.py`** again shows a trailing-newline change I didn't make.
 - **Decisions needed:** none new. Still open: the Yin 2012 component count and the agreement band; the theoretical 99% limits in PROTOCOL; how the replay resumes after a data gap; `httpx2`; the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; Neon (later).
+
+### 2026-09-28: week 2 session 7 (continued), deployed
+- **Changed:**
+  - **Committed by Raj:** 4e95144 (the session 7 page and deploy config) and 9f2c203. The second commit set `RENDER_API_URL` in `web/index.html` to the Render URL, and updated `tests/test_web.py` to allow that URL in place of the placeholder.
+  - **Deployed by Raj (by hand, following the session 7 steps):**
+    - **API:** https://plant-health-api.onrender.com (Render blueprint from `render.yaml`, Singapore, free plan).
+    - **Page:** https://plant-health-rca-agent.vercel.app (Vercel, root directory `web/`, static).
+    - `ALLOWED_ORIGIN` on Render is set to the Vercel URL in the dashboard. Raj checked CORS and `/health` with curl.
+  - **CLAUDE.md:** a new "Deployment" section with both URLs, where `ALLOWED_ORIGIN` lives, the cold-start note, and that Vercel preview URLs aren't allowed.
+- **Tests:** `tests/test_web.py` passes with the real URL. No new tests.
+- **Unsure about:**
+  - Whether Render took `PYTHON_VERSION` "3.13" as written or needed the patch version. The deploy works either way. If the dashboard shows a different value from `render.yaml`, align them.
+  - Nothing checks the deployed site automatically. A stale bundle or a CORS change would only show up by hand. A scheduled health check is a later item, not in scope.
+- **Decisions needed:**
+  - Week 2's "done when" is "an alert shows in the UI, and the referrer gets the link". The alert shows. Sending the link is Raj's step and isn't recorded here yet.
+  - Still open: the Yin 2012 component count and the agreement band; the theoretical 99% limits in PROTOCOL; how the replay resumes after a data gap; `httpx2`; the onset-to-divergence window; McNemar against a paired bootstrap; how to report a paired delay comparison when resamples hit ∞ − ∞; Neon (later).

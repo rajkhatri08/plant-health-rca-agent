@@ -70,5 +70,10 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 - CI: `.github/workflows/ci.yml` runs `pytest -q` on every push, with no data and no secrets.
 - Add the lint command here when it's created.
 
+## Deployment
+- API: https://plant-health-api.onrender.com (Render, Singapore, free plan; sleeps when idle, so the first request takes about a minute). Configured by `render.yaml`; installs `requirements-app.txt`.
+- Page: https://plant-health-rca-agent.vercel.app (Vercel, root directory `web/`). Its API base is `RENDER_API_URL` in `web/index.html`.
+- `ALLOWED_ORIGIN` on Render is the Vercel URL, set in the Render dashboard, never in the repo. Vercel preview URLs aren't allowed.
+
 ## Git
 - Work on main. Don't create branches, commit or push unless Raj asks.
