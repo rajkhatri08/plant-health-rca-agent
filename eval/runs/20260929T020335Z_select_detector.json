@@ -1,0 +1,48 @@
+{
+  "name": "select_detector",
+  "time": "2026-09-29T02:03:35+00:00",
+  "commit": "58d6733c897bc512b99a4442e9ad18171523090b",
+  "dirty": false,
+  "config": {
+    "rule": "decision 63",
+    "margin": 0.03,
+    "tolerance": 1e-09,
+    "static_calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "dynamic_calibration_record": "eval/runs/20260928T175708Z_calibrate_pca.json",
+    "static_limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "dynamic_limits_sha256": "e8b8c436336776105491212e95ef694d3845b36d29fc077f5d54321d26fa558c",
+    "grid_check_record": "eval/runs/20260928T104704Z_check_grid_refinement.json",
+    "selection_faults": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "selection_runs": 100
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "static_score": 0.975,
+    "dynamic_score": 0.9791666666666666,
+    "difference": 0.004166666666666652,
+    "dynamic_lags": 1,
+    "verdict": "pca_static"
+  }
+}

@@ -1,0 +1,529 @@
+{
+  "name": "check_missed_pca_dynamic",
+  "time": "2026-09-29T02:05:15+00:00",
+  "commit": "58d6733c897bc512b99a4442e9ad18171523090b",
+  "dirty": false,
+  "config": {
+    "detector": "pca_dynamic",
+    "pool": "dev",
+    "warmup": 9,
+    "n": 3,
+    "gap": 13,
+    "q": 97.07,
+    "lags": 1,
+    "model_sha256": "33433c410af134bbf31f8a30d75457fea34da3f4e55f9df486f4b49e4fce201f",
+    "onset": 20,
+    "window": 80,
+    "faults": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "summary_faults": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "calibration_record": "eval/runs/20260928T175708Z_calibrate_pca.json",
+    "limits_sha256": "e8b8c436336776105491212e95ef694d3845b36d29fc077f5d54321d26fa558c",
+    "alarms": {
+      "detector": "alarms_realistic_grouped",
+      "calibration_record": "eval/runs/20260928T105104Z_calibrate_alarms_realistic.json",
+      "limits_sha256": "3562506e93fbf1fe5a17f00dc4f8ce6fd30abdd0ebb81f5e92ff78f4864c8f20"
+    }
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "faults": {
+      "fault_01": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": null,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_02": {
+        "runs": 50,
+        "missed": [],
+        "only_alarms": [],
+        "missed_runs": {}
+      },
+      "fault_03": {
+        "runs": 50,
+        "missed": [
+          29,
+          32,
+          63,
+          77,
+          105,
+          113,
+          120,
+          131,
+          132,
+          135,
+          196,
+          215,
+          221,
+          230,
+          237,
+          260,
+          264,
+          280,
+          283,
+          290,
+          297,
+          331,
+          368,
+          372,
+          376,
+          381,
+          383,
+          389,
+          393,
+          394,
+          400,
+          406,
+          412,
+          417,
+          430,
+          442,
+          453,
+          455,
+          462,
+          472,
+          477,
+          482,
+          486,
+          499
+        ],
+        "only_alarms": [
+          120,
+          135,
+          368,
+          376,
+          417,
+          442,
+          482
+        ]
+      },
+      "fault_04": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": null,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_05": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": 245,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_06": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": null,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_07": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": null,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_08": {
+        "runs": 50,
+        "missed": [],
+        "only_alarms": [],
+        "missed_runs": {}
+      },
+      "fault_09": {
+        "runs": 50,
+        "missed": [
+          29,
+          32,
+          63,
+          77,
+          105,
+          113,
+          120,
+          131,
+          132,
+          135,
+          196,
+          215,
+          221,
+          230,
+          237,
+          260,
+          264,
+          280,
+          283,
+          290,
+          297,
+          331,
+          368,
+          372,
+          376,
+          381,
+          383,
+          389,
+          393,
+          394,
+          400,
+          406,
+          412,
+          417,
+          430,
+          442,
+          453,
+          455,
+          462,
+          472,
+          477,
+          482,
+          499
+        ],
+        "only_alarms": [
+          120,
+          135,
+          368,
+          376,
+          417,
+          442,
+          482
+        ]
+      },
+      "fault_10": {
+        "runs": 50,
+        "missed": [
+          29,
+          32,
+          230,
+          297,
+          393,
+          406,
+          412,
+          417
+        ],
+        "only_alarms": [
+          417
+        ],
+        "missed_runs": {
+          "run_29": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 143,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_32": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 115,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_230": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 103,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_297": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 117,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_393": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 115,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_406": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 139,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_412": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 134,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          },
+          "run_417": {
+            "cause": "no alert in window",
+            "on_at_onset": false,
+            "last_notification_before_onset": null,
+            "on_through_window": false,
+            "first_notification_after_onset": 109,
+            "twin_notifications_pre_onset": [],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_11": {
+        "runs": 50,
+        "missed": [],
+        "only_alarms": [],
+        "missed_runs": {}
+      },
+      "fault_12": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": null,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_13": {
+        "runs": 50,
+        "missed": [],
+        "only_alarms": [],
+        "missed_runs": {}
+      },
+      "fault_14": {
+        "runs": 50,
+        "missed": [
+          368
+        ],
+        "only_alarms": [
+          368
+        ],
+        "missed_runs": {
+          "run_368": {
+            "cause": "on at onset",
+            "on_at_onset": true,
+            "last_notification_before_onset": 15,
+            "on_through_window": true,
+            "first_notification_after_onset": null,
+            "twin_notifications_pre_onset": [
+              15
+            ],
+            "twin_track_equal_to_onset": true
+          }
+        }
+      },
+      "fault_15": {
+        "runs": 50,
+        "missed": [
+          29,
+          32,
+          63,
+          77,
+          105,
+          113,
+          120,
+          131,
+          132,
+          135,
+          196,
+          215,
+          221,
+          230,
+          260,
+          264,
+          280,
+          283,
+          290,
+          297,
+          331,
+          344,
+          368,
+          372,
+          376,
+          381,
+          383,
+          389,
+          393,
+          394,
+          400,
+          406,
+          412,
+          417,
+          430,
+          442,
+          453,
+          455,
+          462,
+          472,
+          477,
+          482,
+          499
+        ],
+        "only_alarms": [
+          120,
+          135,
+          368,
+          376,
+          417,
+          482
+        ]
+      }
+    },
+    "summary": {
+      "only_alarms_runs": 8,
+      "only_alarms_faults": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        10,
+        12,
+        14
+      ],
+      "only_alarms_run_numbers": [
+        368,
+        417
+      ],
+      "same_run_everywhere": false,
+      "all_on_at_onset": false,
+      "hypothesis_holds": false
+    }
+  }
+}
