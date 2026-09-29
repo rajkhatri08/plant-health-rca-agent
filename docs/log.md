@@ -1213,3 +1213,66 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Confirm the 0.03 reading.
   - The `select_detector` record for step 5.
   - Decision 50's swapped hash suffixes (still open).
+
+### 2026-09-28: week 3 session 8 (close), DPCA results (Raj's runs, 952b422 and 395f43b)
+- **Records:** `eval/runs/20260928T172623Z_fit_dpca.json`, `…175708Z_calibrate_pca.json`, `…175722Z_dev_false_alerts.json`, `…175722Z_dev_table_pca_dynamic.json`.
+- **Lag rule:** L = 1.
+- **Calibration:** n = 3, G = 13, q = 97.07. Selection score 0.97917, against static PCA's 0.975 (`eval/runs/20260927T150527Z_calibrate_pca.json`). The difference is 0.0042 ≤ 0.03, so static PCA stays (decision 63). Session 10's `select_detector` records this verdict.
+- **DPCA on dev:**
+  - mean detection 0.975 over the 12 summary faults (static: 0.982)
+  - false alerts 1.075 per 24 h (0.76–1.41; static 0.919)
+  - chance rate 0.12 (static 0.06)
+  - faults 1, 4, 5, 6, 7, 12 and 14 each show "only alarms 1" in the lead-time column
+  - static PCA has "neither 1" on fault 13
+
+### 2026-09-29: week 3 session 10 (week close), stage 1: selection record, missed-run check, decision 50
+- **Plan approved.** Stage 1 is code and docs, with nothing run but `pytest`. Raj then runs the data commands (below). The week 3 summary and the `docs/PLAN.md` update come after, from those records.
+- **Changed:**
+  - **`eval/select_detector.py` (new):** `python -m eval.select_detector`.
+    - It checks for a clean tree before reading anything.
+    - It finds each calibrate record from its limits file (`check_dev.calibration_record_for`), so a superseded record can't be picked.
+    - It refuses a detector mix-up, a dirty calibrate record, and different selection faults, runs, budget, warm-up, manifest or splits.
+    - **Grids:** the static record used the old 500-point grid and DPCA the 509-point one. So it requires the clean `check_grid_refinement` record for the static limits showing `unchanged: true` (`…104704Z`), and names that record in its own record.
+    - **Rule:** DPCA only if `dynamic − static > 0.03`. A 1e-9 tolerance absorbs float rounding (0.53 − 0.5 = 0.030000000000000027), so exactly 3 points keeps static. Scores move in steps of 1/1200, so the tolerance can't change a real verdict.
+    - It writes a `select_detector` record: the scores, the difference, `dynamic_lags` and the verdict.
+  - **`eval/check_missed.py` (new):** `python -m eval.check_missed --limits … --model …`. It checks Raj's hypothesis about the "only alarms 1" runs.
+    - It scores dev through `dev_table`'s detectors, against the realistic grouped alarms, and loads only dev.
+    - **Per fault:** App 3's missed run numbers and the only-alarms ones.
+    - **For each missed run of a summary fault:**
+      - `cause` ("on at onset" or "no alert in window")
+      - `on_at_onset` and `on_through_window`
+      - the last notification before onset and the first after
+      - the twin's notifications up to onset
+      - whether the faulty and twin tracks are equal up to onset
+    - **Summary:** the only-alarms run numbers, `same_run_everywhere`, `all_on_at_onset` and `hypothesis_holds`.
+    - No new metric code: it uses `metrics.detection` and `metrics.notifications` only.
+  - **`docs/decisions.md`, decision 50:** the two shortened hashes are corrected (`tecode.zip` `2536e8a8…7a8db724`, `temexd_mod.zip` `e43227aa…c4b16b0d`), with a line saying so. Nothing else in the decision changed.
+- **Tests:**
+  - **`tests/test_select_detector.py` (23):**
+    - verdicts: session 8's pair, two exact 3-point boundaries, the next 1/1200 step above, and DPCA worse
+    - the record's contents
+    - no grid check needed on equal grids
+    - refusals: four config keys, the data manifest, a dirty calibrate record, swapped limits, limits without a record, a missing, failed, dirty or other-limits grid check, and a dirty tree before reading
+    - `main`'s exit code
+  - **`tests/test_check_missed.py` (14):**
+    - hand tracks: an alert bridging onset (15 → end: missed, on at onset); on at onset then off; no alert in the window; an alert cleared before onset is a detection; a warm-up alert; a twin that differs before onset
+    - the summary: holds, and fails with two run numbers or off at onset
+    - the driver equals direct scoring on `test_dev_table`'s synthetic runs, and loads only dev
+    - refusals: an alarm row as App 3, the every-tag list, and a dirty tree before loading
+  - `pytest -q`: 949 passed, 2 deselected. With addopts cleared, all 951 pass, including the 2 open-data tests.
+- **Not run:** no driver.
+- **Next (Raj, on a clean tree after committing):**
+  1. `python -m eval.select_detector`
+  2. `python -m eval.dev_table --masked eval/runs/20260928T155738Z_masked_faults.json`
+  3. `python -m eval.dev_table --limits data/models/alarms_realistic_limits.json --row grouped --masked eval/runs/20260928T155738Z_masked_faults.json`
+  4. `python -m eval.dev_table --limits data/models/alarms_every_limits.json --row grouped --masked eval/runs/20260928T155738Z_masked_faults.json`
+  5. `python -m eval.check_missed --limits data/models/pca_dynamic_limits.json --model data/models/pca_dynamic.npz`
+  6. `python -m eval.check_missed` (static PCA; covers fault 13's "neither 1")
+
+  Then Claude checks that the three re-run tables equal the old records apart from `masked` (`…112351Z`, `…112413Z`, `…112441Z`, which become superseded). Claude also reads the answer to the hypothesis from the `check_missed` records, and writes the week 3 summary and the PLAN update.
+- **Unsure about:**
+  - **The synthetic driver test only produces "on at onset" misses.** The plant-like dev runs sit outside the two-factor PCA model, so every track is on. The "no alert in window" path is covered by the hand-built tests, not the driver test.
+  - **"The same run number each time" can fail even if the mechanism holds.** Two runs could each bridge onset. The record separates `same_run_everywhere` from `all_on_at_onset`, so it will show which part fails.
+- **Decisions needed:**
+  - **PROTOCOL's key-values table (line 16) still says the detector is chosen "within 3 points of the best dev detection rate".** That contradicts decision 63 and PROTOCOL → Detection. Should it be updated to decision 63's wording?
+  - Carried: the `TAG@t-j` name format; findings 2 and 3 on `plant_track`; replay after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).

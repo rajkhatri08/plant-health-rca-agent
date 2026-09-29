@@ -164,12 +164,13 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
       - Product analyzer (5 tags): update every 0.25 h, dead time 0.25 h (15/15 minutes).
       - The nominal values already in `library/tags.yaml` are confirmed. Only its header comment changed.
     - **Sources:** both retrieved 27 September 2026 from N. L. Ricker's Tennessee Eastman archive, https://depts.washington.edu/control/LARRY/TE/download.html.
-      - **Original code:** `tecode.zip` (sha256 `2536e8a8…4b16b0d`), `teprob.f`, subroutine `TEFUNC`.
+      - **Original code:** `tecode.zip` (sha256 `2536e8a8…7a8db724`), `teprob.f`, subroutine `TEFUNC`.
         - Header comments, lines 132–164: "Sampling Frequency = 0.1 hr / Dead Time = 0.1 hr", and 0.25 / 0.25 for the product analysis.
         - Code, lines 730–756: on the first call (time 0), `XDEL` and `XMEAS` are both set to the current composition, with `TGAS=0.1` and `TPROD=0.25`. At each update, `XMEAS(I)=XDEL(I)` plus noise from `TESUB6`, then `XDEL(I)=XCMP(I)`, then `TGAS=TGAS+0.1` (0.25 for `TPROD`).
-      - **Revised model:** `temexd_mod.zip` (sha256 `e43227aa…a8db724`), `temexd_mod.c` version 1.3.3 (Bathelt, Ricker and Jelali, 2015).
+      - **Revised model:** `temexd_mod.zip` (sha256 `e43227aa…c4b16b0d`), `temexd_mod.c` version 1.3.3 (Bathelt, Ricker and Jelali, 2015).
         - Lines 3215–3269 contain the same logic.
         - Its change log (version 1.1.0) adds a random-seed parameter.
+      - The two shortened hashes above had their endings swapped when first written; corrected 29 September 2026 (found in week 3 session 5, see `docs/log.md`). The `temexd_mod.zip` value matches decision 61's.
     - **Which version made the data:** the Dataverse description doesn't name the simulator, and the dataset paper is paywalled. A secondary source says the data came from the revised model. The seed parameter in version 1.1.0 fits a dataset of 500 seeded runs per fault. Either way, the analyzer logic is identical in both versions, so the conclusion doesn't depend on which one was used.
     - **Also identical in the plant model of the code decision 61 found generated the data (checked 28 September 2026):** the Russell–Chiang–Braatz `teprob.f` (same mirror as decision 61, sha256 `409975e070780a3b…28a56a1f238d45e3`) has the header comments at lines 134–166 and the update code at lines 735–761, each word for word the same as `tecode.zip`'s lines 132–164 and 730–756. `TGAS` and `TPROD` are set nowhere else in either file.
     - **Consequence for decision 11:** the historian timestamps a value at the update time. The evidence layer treats it as describing the process one interval earlier, and holds it until the next update.
