@@ -391,3 +391,67 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
       - Paired delay comparisons between them use the lead-time convention (decision 58 answers): both-detected runs only, with the four counts (both, only one, only the other, neither), and delay pairs with ∞ are never subtracted.
 
     *Why:* the stop reading keeps the smallest lag count that captures the relations found. The pad keeps one scoring engine, with no change to alerting, calibration or metrics. Choosing on the selection runs keeps dev an independent check, as for the masked rule (decision 62). The 3-point margin means DPCA's extra columns and shorter persistence range must pay for themselves, not win on noise.
+
+## Week 4 decisions, 29 September 2026
+
+Decisions 64–66 were fixed before any RBC result existed on real data.
+
+64. **Reconstruction-based contributions on the combined index (Raj's decision).**
+    - **Index:** φ = T²/T²lim + SPE/SPElim, with the calibrated static-PCA limits (decision 53). For a standardised sample z (the fit pool's mean and spread), φ = zᵀMz with:
+      - M = PΛ⁻¹Pᵀ / T²lim + (I − PPᵀ) / SPElim
+      - P the kept loadings and Λ their eigenvalues
+    - **RBC** for a set of tag directions Ξ (columns of the identity) is the drop in φ when those tags are rebuilt from the others: RBC_Ξ = zᵀMΞ (ΞᵀMΞ)⁻¹ ΞᵀMz.
+      - **Tag RBC:** the one-column case, one number per tag.
+      - **Group RBC** (RBC_g): all of a group's fast tags rebuilt jointly (decision 9). The groups are the tag register's equipment groups (decision 48), restricted to the model's 33 fast tags.
+    - **Ranking:** groups are ranked by RBC_g / W_g, the ratio to each group's Watch boundary (decision 66).
+    - **Scoring:** row by row, as-of only, on the same standardised samples as T² and SPE. One scoring engine for evaluation and the demo.
+    - **Not built:** RBC for DPCA ("lags combined per tag", decision 9). DPCA doesn't ship (decision 63).
+
+    *Why:*
+    - φ uses the same two limits as the plant ratio.
+    - M is positive definite, so ΞᵀMΞ is invertible for every tag and group. That wouldn't hold for SPE alone.
+    - φ gives one RBC per tag, not two rankings to reconcile.
+    - The plant ratio r = max(T²/T²lim, SPE/SPElim) isn't a quadratic form, so it has no closed-form reconstruction.
+    - Ranking by the ratio to each group's own boundary makes groups of 2 and 8 fast tags comparable. It is also the number the Watch band shows.
+
+65. **Right place: when attribution is read, and the family → equipment map (Raj's decision).**
+    - **Attribution as of the notification:**
+      - At a notification at sample t, with the detector's persistence n, each group's attribution is the mean of RBC_g / W_g over samples t − n + 1 … t, the n samples that triggered it. It uses past samples only.
+      - The top-ranked group is the group with the highest mean.
+    - **Secondary figure:** the same reading 30 minutes (10 samples) later, over samples t + 10 − n + 1 … t + 10. As-of that time.
+    - **Right place:** a detected run's top-ranked group is one of its family's groups:
+
+      | Family | Groups |
+      |---|---|
+      | feed composition | feed |
+      | feed supply | feed |
+      | feed temperature | stripper, feed (the mixed feed of reactants 1 and 2 enters the stripper, so the stripper is where it shows) |
+      | reactor cooling | reactor |
+      | condenser cooling | condenser |
+      | reaction kinetics | reactor |
+
+    - **The map is fixed now, before any RBC result.** A miss is an honest result, not a reason to change the map.
+    - **Where it lives:** the map and the fault → family labels live in `eval/` and PROTOCOL only, never in `app/` or `library/`. Faults 3, 9 and 15 have no family, so they get no right-place figure. Faults 16–20 have no label in the open data.
+    - **Interval:** the same run-number bootstrap as detection (PROTOCOL, Intervals).
+
+    *Why:*
+    - The mean over the triggering window is steadier than a single sample, and it is still what the operator could see at the notification.
+    - The +30 min reading shows whether attribution settles or drifts by the time the diagnosis starts (decision 11).
+    - Fixing the map from the process layout before any result keeps it from being fitted to dev.
+
+66. **The Watch band: RBC_g / W_g, capped at the plant level (Raj's decision).**
+    - **Group ratio:** w_g(t) = RBC_g(t) / W_g. Group g is in Watch at sample t when w_g(t) > 1.
+    - **Boundaries:**
+      - Every group's W_g is the same per-sample percentile p of that group's RBC_g over the calibration pool's scored samples (after warm-up, pooled over runs, numpy's default linear percentile, as in decision 53).
+      - p is the lowest value on the q grid (decision 59) such that it, and every higher grid value, puts at most 2% of the calibration pool's scored samples in Watch for at least one group. That is the stable-lowest rule of decision 54.
+      - If no grid value qualifies, the calibration stops with an error.
+    - **No persistence and no notifications.** Watch is silent and early. It never notifies, so the false-alert budget (decision 40) is untouched.
+    - **Bands:**
+      - **Plant band**, in order of precedence (decision 12): Unknown (warm-up or bad data); Alert (the plant alert track is on); Watch (any group has w_g > 1); otherwise Normal.
+      - **Group view:** each group shows its own w_g and Watch or Normal. During an Alert, the top-ranked group (decision 65) is marked as attributed.
+    - **Reported:** the any-group Watch share on the calibration pool and on normal dev, and each group's own share on both.
+
+    *Why:*
+    - A cap per group would let the plant sit in Watch up to about 12% of normal time with six groups. The cap is on what the operator sees, the plant view.
+    - One shared percentile keeps the groups on one footing. With the same p, the ranking ratio (decision 64) means the same thing for every group.
+    - Persistence would delay an early, silent signal and add nothing to the alert budget.

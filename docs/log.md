@@ -1367,3 +1367,67 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **README wording** for finding 3: the comparison isn't at equal dev false-alert rates. An AMOC curve would put both detectors on one axis.
   - **Decisions:** the `TAG@t-j` name format (needed by RBC's "lags combined per tag"; DPCA isn't shipping, so it's low priority); findings 2 and 3 on `plant_track`; replay after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
 - **Week 4 (19–25 Oct in the plan, starting early):** reconstruction-based contributions and signature features, the library schema, and the first 5 entries.
+
+### 2026-09-29: week 4 kickoff, plan and Raj's answers
+- **Changed:** docs only (this entry). No code, and nothing run.
+- **Week 4 plan approved.** Each session stops for review and commit.
+  1. **S1:** decisions 64–66 (RBC, right place, Watch), in docs and PROTOCOL.
+  2. **S2:** RBC core. Raj writes `app/detector/rbc.py`; Claude writes stubs, tests and the group loader.
+  3. **S3:** Watch calibration. Raj writes `watch_limit`; Claude writes `eval/calibrate_watch.py` and the dev Watch share.
+  4. **S4:** right place and top tags on dev. Raj writes `metrics.right_place`; Claude writes the dev-table columns. This is the week's "done when".
+  5. **S5:** status bands in the runtime. Claude writes `bands.py`, bundle `pca_v2`, the API, the page, and the parity test.
+  6. **S6:** decision 68 (the feature vocabulary, Raj), then decision 67 (library schema) and Claude's schema models and store.
+  7. **S7:** Claude writes `features.py` (Raj reviews it) and `eval/authoring.py` (authoring runs only), which produce the provenance files.
+  8. **S8:** Raj drafts the first 5 entries (faults 1, 4, 5, 6 and 13), Claude reviews them, and the week closes.
+  - If the week runs long, S7 and S8 move to the start of week 5.
+- **Raj's answers, to record as decisions in S1 (and 68 in S6):**
+  - **RBC (64):** on the combined index φ = T²/T²lim + SPE/SPElim. Groups are rebuilt jointly and ranked by RBC_g / W_g.
+  - **Attribution (65):**
+    - Read as of the notification: the mean of RBC_g / W_g over the n samples that triggered it (t − n + 1 … t).
+    - The same reading 30 minutes later is a secondary figure.
+    - Family → groups, fixed before any RBC result:
+      - feed composition → feed
+      - feed supply → feed
+      - feed temperature → stripper and feed (the mixed feed of reactants 1 and 2 enters the stripper)
+      - reactor cooling → reactor
+      - condenser cooling → condenser
+      - reaction kinetics → reactor
+
+      A miss is an honest result, not a reason to change the map.
+  - **Watch (66):**
+    - One shared percentile p for every group's W_g: the lowest stable value on the q grid such that at most 2% of normal calibration samples have any group in Watch.
+    - No persistence, no notifications, and each group's own share is reported.
+  - **Who writes:**
+    - Claude writes `bands.py` to decision 66's rule.
+    - Raj defines the feature vocabulary. Claude writes and tests `features.py`, and Raj reviews it.
+    - Raj drafts the entry text. Claude reviews it for schema, leak scan and consistency with the evidence.
+    - The approver can't be Claude. In S6, Claude proposes how author ≠ approver works honestly in a one-person demo.
+  - **Not this week:**
+    - DPCA RBC (lags combined per tag): not built, because DPCA doesn't ship.
+    - The published-number check stays carried: the paper's values aren't in hand yet.
+- **Tests:** none (docs only). The suite is unchanged: 949 passed, 2 deselected.
+- **Unsure about:**
+  - **Hours.** About 8 sessions will likely exceed 15 h.
+  - **The plant-level Watch cap spreads 2% across six groups,** so each group's W_g sits higher than a per-group cap would put it. That's intended. The per-group shares will show it.
+- **Decisions needed:** none new. Carried items are as in the week 3 summary.
+
+### 2026-09-29: week 4 session 1, decisions 64–66 (RBC, right place, Watch)
+- **Changed:** docs only.
+  - **`docs/decisions.md`:** a new heading, "Week 4 decisions, 29 September 2026", with decisions 64–66 as Raj answered Q1–Q5 and Q9. All are fixed before any RBC result on real data.
+    - **64:** RBC on φ = T²/T²lim + SPE/SPElim (M written out). Tag RBC and joint group RBC over each group's fast tags. Groups ranked by RBC_g / W_g. DPCA RBC noted as not built.
+    - **65:** attribution as the mean of RBC_g / W_g over the n triggering samples (t − n + 1 … t), with the reading 10 samples later as a secondary figure. The family → groups map is fixed, with feed temperature allowing stripper or feed. It stays in `eval/` and PROTOCOL only.
+    - **66:** Watch when RBC_g / W_g > 1. One shared percentile p, the stable-lowest on the q grid, keeps any-group Watch at or below 2% of calibration scored samples. No persistence, no notifications. Plant band precedence Unknown, Alert, Watch, Normal. The attributed group is marked during an Alert. Shares are reported per group and any-group, on calibration and normal dev.
+  - **`eval/PROTOCOL.md`:**
+    - the Watch-band cap row (now plant level)
+    - Detection: new Attribution and Watch band bullets, replacing "each group's Watch boundary is calibrated to the watch-band cap"
+    - Detection metrics: Right place, with the reading window, the +30 min secondary figure and the map
+  - The feed-temperature reason is worded by role ("the mixed feed of reactants 1 and 2"), not component letter (decision 44).
+- **Tests:** `pytest -q` gives 949 passed, 2 deselected (no code change).
+- **Unsure about (Claude's wording, beyond the answers; please confirm):**
+  - **"If no grid value qualifies, the calibration stops with an error"** (decision 66). This mirrors decision 54's "not eligible", but here there's only one setting.
+  - **"Unknown = warm-up or bad data"** is today's replay behaviour, restated in decision 66's precedence.
+  - **The +30 min window** is written as samples t + 10 − n + 1 … t + 10, the same n-sample mean shifted by 10 samples.
+- **Decisions needed (before S4 computes anything):**
+  - **The right-place denominator.** PROTOCOL's column is "Detected (any / right place)". Is right place reported as right-place detections over all runs (the same denominator as "any", so the two rates compare directly), over detected runs, or both? Suggestion: over all runs in the column, with "k of detected" beside it.
+  - **Top tags in S4:** rank tags by raw tag RBC, mean over the same triggering window. Single tags are all one-dimensional in the same φ, so raw values compare fairly, unlike groups. Confirm, or name another reading.
+- **Next:** S2, RBC core (Raj writes `app/detector/rbc.py`; Claude writes the stubs, tests and group loader), after review and commit.
