@@ -7,7 +7,7 @@ writes to plant controls. Responses carry plant tag names at most, never raw ben
 names or labels (eval/LEAKAGE.md).
 
 Environment:
-- BUNDLE_DIR      detector bundle folder (default app/bundles/pca_v1)
+- BUNDLE_DIR      detector bundle folder (default app/bundles/pca_v2; pca_v1 has no Watch)
 - REPLAY_CSV      historian CSV for the replayed stream (default app/replay/run.csv)
 - ALLOWED_ORIGIN  comma-separated browser origins allowed by CORS (default: none)
 

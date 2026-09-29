@@ -1686,3 +1686,30 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   3. Try the page locally against `BUNDLE_DIR=app/bundles/pca_v2`.
 
   Then Claude switches `DEFAULT_BUNDLE` to `pca_v2` (and the `render.yaml` comment), and Raj redeploys (Render, Vercel).
+
+### 2026-09-29: week 4 session 5 (close), pca_v2 is the default bundle
+- **Raj:**
+  - Confirmed the attributed-group rule: fixed at the episode's notification.
+  - Built and committed `app/bundles/pca_v2` (63ffc7e) and checked the page locally.
+- **Changed (Claude):**
+  - **`app/detector/bundle.py`:** `DEFAULT_BUNDLE` is `pca_v2`. The API, the Render deploy and the committed thin-slice tests use it from now on. `pca_v1` is kept, unchanged.
+  - **`app/api.py`:** the `BUNDLE_DIR` docstring default reads `pca_v2`.
+  - **`eval/build_bundle.py`:** explicit `DEFAULT_V1` (without `--watch`) and `DEFAULT_V2` (with it). Without this, switching `DEFAULT_BUNDLE` would have quietly made a plain build target `pca_v2`.
+  - **`render.yaml`:** the comment names `pca_v2` as the committed default, with `pca_v1` kept.
+  - **`tests/test_thin_slice_artifacts.py`:**
+    - the default is `pca_v2` and passes its self-test
+    - `pca_v1` is kept and still passes, with no Watch
+    - `pca_v2`'s `watch_record_sha256` is a committed `calibrate_watch` record
+    - the live API on the committed files reports the six groups and the Watch band, with no leaks
+  - **`tests/test_build_bundle.py`:** `main` defaults to `DEFAULT_V1` without `--watch`.
+- **A bug in S5's real-data parity test (Claude's), found and fixed:**
+  - `tests/conftest.py` points the loader at a folder that doesn't exist (the safety wall). My test caught the loader's error and turned it into a skip. So it had been skipping, not passing: a skip prints `s`, not `F`.
+  - It now follows the other open-data tests: it skips only when `data/faulty_training/` is absent, points the loader's repo root at the real repo (the sealed root stays pointed nowhere), and lets any loader error fail.
+  - It also asserts the dev run alerts, so the attribution check can't be empty.
+  - Run now for real: `pytest -q -m opendata` gives 3 passed (the loop setpoints, the twins, and the parity). The committed replay stream through `pca_v2` equals the evaluation path on the same dev run: every band, the plant ratio and the six group ratios on every scored sample, and the attributed group at every notification.
+  - **Raj's earlier "the open-data parity test passes" was most likely this skip.** The page check stands on its own.
+- **Tests:** `pytest -q` gives 1122 passed, 3 deselected; `pytest -q -m opendata` gives 3 passed.
+- **Not run:** no deploy. Render and Vercel pick up `pca_v2` on Raj's next push and redeploy.
+- **Unsure about:** Render's free instance scores the full 500-sample stream per request, now with group RBC too. That's six small solves per sample, fine locally. It may add latency on the free plan and is worth a look after the deploy.
+- **Decisions needed:** none new.
+- **Next:** Raj pushes and redeploys, then checks the live page. Then S6: decision 68 (the feature vocabulary, Raj), then decision 67 (library schema), with Claude's proposal for an honest author ≠ approver in a one-person demo.

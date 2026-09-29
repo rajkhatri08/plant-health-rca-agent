@@ -23,7 +23,20 @@ pytestmark = pytest.mark.skipif(not SOURCE.exists(), reason="replay stream not e
 
 
 def test_bundle_self_test_passes():
+    assert bm.DEFAULT_BUNDLE.name == "pca_v2"
     assert bm.self_test(bm.load(bm.DEFAULT_BUNDLE))
+
+
+def test_pca_v1_is_kept_and_still_passes():
+    v1 = bm.load(bm.DEFAULT_BUNDLE.parent / "pca_v1")
+    assert v1.watch is None and bm.self_test(v1)
+
+
+def test_watch_record_is_a_committed_run_record():
+    w = json.loads((bm.DEFAULT_BUNDLE / "watch.json").read_text())
+    shas = {hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in (REPO / "eval" / "runs").glob("*_calibrate_watch.json")}
+    assert w["watch_record_sha256"] in shas
 
 
 def test_bundle_records_are_committed_run_records():
@@ -41,6 +54,8 @@ def test_csv_matches_its_source_record():
 def test_live_api_on_the_committed_files_is_clean():
     with TestClient(api.create_app(allowed_origins=[])) as c:
         assert c.get("/health").json()["self_test"] == "pass"
-        end = c.get("/replay/info").json()["end"]
-        body = c.get("/replay/status", params={"upto": end}).text
+        info = c.get("/replay/info").json()
+        body = c.get("/replay/status", params={"upto": info["end"]}).text
+    assert info["groups"] == ["feed", "reactor", "condenser", "separator", "compressor", "stripper"]
+    assert "Watch" in info["bands"] and "note" not in info
     assert find_leaks(body) == []

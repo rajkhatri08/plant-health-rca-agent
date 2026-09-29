@@ -4,7 +4,9 @@ same dev run, loaded from the open data. Decision 19: one scoring engine.
 
 Builder side: the run's fault and number come from eval/replay_source.yaml, never from
 app/. Skipped until app/bundles/pca_v2 is built (Raj runs build_bundle), or when data/
-is absent.
+is absent. Like the other open-data tests, it points the loader at the real repo (the
+conftest points it nowhere by default); the sealed root stays pointed nowhere. A loader
+error fails the test: only a missing data file skips it.
 """
 
 from pathlib import Path
@@ -30,14 +32,15 @@ pytestmark = [pytest.mark.opendata,
               pytest.mark.skipif(not SOURCE.exists(), reason="replay stream not exported")]
 
 
-def test_replay_equals_the_evaluation_path_on_the_dev_run():
+def test_replay_equals_the_evaluation_path_on_the_dev_run(monkeypatch):
+    if not (REPO / "data" / "faulty_training").is_dir():
+        pytest.skip("open data not present")
+    monkeypatch.setattr(loader, "REPO_ROOT", REPO)
     b = bm.load(V2)
     assert bm.self_test(b)
     src = yaml.safe_load(SOURCE.read_text())
-    try:
-        runs = loader.load_faulty(src["fault"], src["pool"])
-    except (loader.LoaderError, FileNotFoundError) as e:
-        pytest.skip(f"open data not available: {e}")
+    runs = loader.load_faulty(src["fault"], src["pool"])
+    assert src["run"] in runs.runs
     one = type(runs)(runs.name, runs.fault, runs.pool, runs.columns, {src["run"]: runs.runs[src["run"]]})
     lim = b.limits
     scored = drv.score_runs(b.model, one)
@@ -60,5 +63,9 @@ def test_replay_equals_the_evaluation_path_on_the_dev_run():
         assert r["band"] == want, f"sample {i + 1}"
         assert r["ratio"] == pytest.approx(ratio[i], rel=RATIO_REL)
         assert [r["groups"][g]["ratio"] for g in names] == pytest.approx(g_ratio[i].tolist(), rel=RATIO_REL)
-    for t in metrics.notifications(track, w):
+    starts = metrics.notifications(track, w)
+    assert starts, "the dev run should alert, or the attribution check is empty"
+    for t in starts:
         assert rows[t - 1]["attributed"] == names[rbc.rank_at(g_ratio, t, lim["n"])[1][0]]
+    bands_seen = {r["band"] for r in rows}
+    assert {"Alert", "Normal"} <= bands_seen

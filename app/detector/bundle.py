@@ -29,7 +29,7 @@ from app.detector import groups as groups_mod
 from app.detector import pca, rbc
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_BUNDLE = REPO_ROOT / "app" / "bundles" / "pca_v1"
+DEFAULT_BUNDLE = REPO_ROOT / "app" / "bundles" / "pca_v2"       # with Watch boundaries (week 4)
 REGISTER = REPO_ROOT / "library" / "tags.yaml"
 FAST_KINDS = ("measurement", "valve")
 LIMIT_KEYS = ("detector", "model_sha256", "warmup", "lags", "n", "gap", "q", "t2_lim", "spe_lim",

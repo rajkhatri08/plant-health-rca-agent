@@ -31,10 +31,11 @@ from eval import calibrate_watch as cw
 from eval import check_dev, run_record
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_V2 = bundle_mod.DEFAULT_BUNDLE.parent / "pca_v2"
+DEFAULT_V1 = bundle_mod.DEFAULT_BUNDLE.parent / "pca_v1"      # without --watch
+DEFAULT_V2 = bundle_mod.DEFAULT_BUNDLE.parent / "pca_v2"      # with --watch
 
 
-def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, out=bundle_mod.DEFAULT_BUNDLE,
+def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, out=DEFAULT_V1,
         *, watch=None, repo_root=None, register=bundle_mod.REGISTER):
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     out = Path(out)
@@ -80,9 +81,9 @@ def main(argv=None):
     parser.add_argument("--watch", type=Path, default=None,
                         help="a watch file (eval/calibrate_watch.py) for Watch boundaries")
     parser.add_argument("--out", type=Path, default=None,
-                        help=f"default {bundle_mod.DEFAULT_BUNDLE.name}, or {DEFAULT_V2.name} with --watch")
+                        help=f"default {DEFAULT_V1.name}, or {DEFAULT_V2.name} with --watch")
     args = parser.parse_args(argv)
-    out = args.out or (DEFAULT_V2 if args.watch else bundle_mod.DEFAULT_BUNDLE)
+    out = args.out or (DEFAULT_V2 if args.watch else DEFAULT_V1)
     try:
         run(args.model, args.limits, out, watch=args.watch)
     except (ValueError, FileExistsError, FileNotFoundError, drv.CalibrationError,

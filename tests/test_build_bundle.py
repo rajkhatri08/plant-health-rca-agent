@@ -129,4 +129,5 @@ def test_main_defaults_to_v2_with_watch(monkeypatch):
     assert build_bundle.main(["--watch", "w.json"]) == 0
     assert seen["out"] == build_bundle.DEFAULT_V2 and str(seen["watch"]) == "w.json"
     assert build_bundle.main([]) == 0
-    assert seen["out"] == bm.DEFAULT_BUNDLE and seen["watch"] is None
+    assert seen["out"] == build_bundle.DEFAULT_V1 and seen["watch"] is None
+    assert build_bundle.DEFAULT_V1.name == "pca_v1" and build_bundle.DEFAULT_V2.name == "pca_v2"
