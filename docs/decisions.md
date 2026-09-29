@@ -433,6 +433,11 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
     - **The map is fixed now, before any RBC result.** A miss is an honest result, not a reason to change the map.
     - **Where it lives:** the map and the fault → family labels live in `eval/` and PROTOCOL only, never in `app/` or `library/`. Faults 3, 9 and 15 have no family, so they get no right-place figure. Faults 16–20 have no label in the open data.
     - **Interval:** the same run-number bootstrap as detection (PROTOCOL, Intervals).
+    - **Reported both ways (Raj, 29 September 2026, before S4):** the column shows the right-place rate over all runs, next to "any" and on the same denominator, with "k of detected" beside it.
+    - **Top tags (Raj, 29 September 2026, before S4):**
+      - Tags are ranked by RBC_i / W_i, averaged over the same triggering window (t − n + 1 … t).
+      - W_i is the same shared percentile p (decision 66) of tag i's RBC over the calibration pool's scored samples. It's computed in the Watch calibration alongside the W_g.
+      - W_i sets no band; it only normalises the ranking.
 
     *Why:*
     - The mean over the triggering window is steadier than a single sample, and it is still what the operator could see at the notification.

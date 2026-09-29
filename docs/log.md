@@ -1431,3 +1431,47 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The right-place denominator.** PROTOCOL's column is "Detected (any / right place)". Is right place reported as right-place detections over all runs (the same denominator as "any", so the two rates compare directly), over detected runs, or both? Suggestion: over all runs in the column, with "k of detected" beside it.
   - **Top tags in S4:** rank tags by raw tag RBC, mean over the same triggering window. Single tags are all one-dimensional in the same φ, so raw values compare fairly, unlike groups. Confirm, or name another reading.
 - **Next:** S2, RBC core (Raj writes `app/detector/rbc.py`; Claude writes the stubs, tests and group loader), after review and commit.
+
+### 2026-09-29: week 4 session 2, RBC stubs, tests and the group loader
+- **Raj's answers from S1, recorded in decision 65:**
+  - Right place is reported over all runs (beside "any"), with "k of detected" beside it.
+  - Top tags are ranked by RBC_i / W_i over the same triggering window. W_i is at the same shared p as the W_g and is computed in S3; it sets no band.
+- **Changed:**
+  - **`app/detector/groups.py` (Claude, complete):** `load(tags)` returns {group: column indices in the given order}.
+    - Groups are in register order; a group with none of the tags is left out.
+    - It refuses a tag not in the register (including `TAG@t-j` names), a repeated tag, or a register row with no group.
+    - On the 33 fast tags: feed 8, reactor 6, condenser 2, separator 7, compressor 3, stripper 7.
+  - **`app/detector/rbc.py` (stubs for Raj, NotImplementedError):**
+    - `index_matrix(model, t2_lim, spe_lim)`
+    - `combined_index(model, M, X)`
+    - `tag_rbc(model, M, X)`
+    - `group_rbc(model, M, X, groups)`: groups as column-index tuples
+    - `rank_at(ratios, t, n)`: decision 65's triggering-window mean and order, one function for groups and tags
+    - The docstrings give the formulas, conventions and refusals.
+  - **`tests/test_groups.py` (9, passing):** order and sizes, the partition, the given order, known members, empty groups dropped, and refusals.
+  - **`tests/test_rbc.py` (40, failing on the stubs as intended):**
+    - hand values: M for the 2-tag model at two sets of limits, and for a 3-tag model built by hand; tag RBC for z = (1, 0) and z = e1
+    - φ equals T²/T²lim + SPE/SPElim, and r ≤ φ ≤ 2r (φ isn't the plant ratio)
+    - RBC equals its definition (φ(z) minus the smallest φ(z − Ξf), found by Cholesky and least squares) for every tag and three groups. So the tests don't trust the closed form.
+    - a single-tag fault is fully removed and ranked first; 0 ≤ RBC ≤ φ; a one-tag group equals tag RBC; a group ≥ each member; the all-tags group equals φ; a fault inside a group is fully removed by it
+    - the smearing case (below)
+    - float32 input computes in float64, and scoring is row by row
+    - refusals: NaN or inf, wrong columns, a wrong M shape, bad groups, bad limits
+    - `rank_at`: a window mean by hand, ties in column order, nothing read after t (NaN at t + 1 is ignored), and window refusals
+- **Checking the tests:** Claude ran them against a throwaway reference `rbc` in the session scratchpad (not in the repo; the temporary copy of the test file was deleted). All 40 pass, plus the 9 group tests.
+- **Tests:** `pytest -q` gives 40 failed (the stubs), 958 passed, 2 deselected.
+- **Finding while writing the smearing test (a scratch search, not a result on data):**
+  - The textbook plain contribution to SPE, ((I − PPᵀ)z)_i², misranked a single-tag fault in 670 cases across 400 random models.
+  - A plain contribution to the combined index (the M^½ decomposition) misranked none in the same search.
+  - So the test shows smearing with the SPE contribution. It uses a 3-tag model where the healthy tag gets 0.2304 against the faulty tag's 0.1296, while RBC ranks the faulty tag first with all of φ.
+  - What this means for decision 64: on the combined index, RBC's advantage for single-tag faults is a guarantee (it is always right), not a gap measured on these models.
+- **The idea (for Raj):**
+  - RBC asks: if I let the model rebuild these tags from the others, how much of the abnormality disappears?
+  - A tag that carries the fault alone disappears completely when rebuilt, so it scores all of φ and ranks first.
+  - A healthy tag only removes whatever part of the fault happens to lie along it.
+  - Plain contributions instead split the index up tag by tag. For SPE, a correlated healthy tag can end up with the biggest share.
+- **Unsure about:**
+  - **The group loader returns index tuples keyed by name, and `group_rbc` takes the tuples.** Drivers pass `tuple(groups.load(model.tags).values())` and keep the names in the same order.
+  - **`group_rbc` inverts each group's ΞᵀMΞ.** M is positive definite, so it's invertible. For the 8-tag feed group, solving is steadier than inverting, but that's Raj's choice.
+- **Decisions needed:** PROTOCOL → Right place doesn't yet mention the two S4 answers (the denominator and top tags by RBC_i / W_i). They're in decision 65 only, as asked. Mirror them in PROTOCOL?
+- **Next (Raj):** implement `app/detector/rbc.py` until `tests/test_rbc.py` passes. Then S3 (Watch calibration, with W_i alongside W_g).
