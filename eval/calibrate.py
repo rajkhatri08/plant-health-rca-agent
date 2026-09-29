@@ -98,6 +98,23 @@ def lowest_stable_q(ratio_runs_at: Callable[[float], Mapping[int, np.ndarray]], 
 WATCH_CAP = 0.02                            # decision 66: any group in Watch at most 2% of normal time
 
 
+def _pooled_scored(rbc_runs, warmup) -> np.ndarray:
+    """Every run's scored samples (index warmup onwards) stacked into one samples x columns
+    array, float64, with the checks watch_limits_at and watch_shares share."""
+    if len(rbc_runs) == 0:
+        raise ValueError("no runs to pool")
+    arrays = [np.asarray(r, dtype=np.float64) for r in rbc_runs]
+    if any(a.ndim != 2 for a in arrays):
+        raise ValueError("every run must be a 2-D array (samples x columns)")
+    if len({a.shape[1] for a in arrays}) != 1:
+        raise ValueError("every run must have the same columns")
+    if any(not 0 <= warmup < len(a) for a in arrays):
+        raise ValueError(f"the warm-up ({warmup}) doesn't end inside every run")
+    if not all(np.isfinite(a).all() for a in arrays):
+        raise ValueError("the runs hold NaN or inf")
+    return np.concatenate([a[warmup:] for a in arrays])
+
+
 def watch_limits_at(rbc_runs, p, warmup) -> np.ndarray:
     """Boundaries at percentile p (decisions 65, 66): per column, the p-th percentile
     (numpy's default linear method) of that column over every run's scored samples
@@ -107,7 +124,9 @@ def watch_limits_at(rbc_runs, p, warmup) -> np.ndarray:
 
     Raises ValueError if p isn't in (0, 100], if there are no runs, if runs have different
     column counts, if the warm-up doesn't end inside every run, or on NaN or inf."""
-    raise NotImplementedError("Raj: week 4 session 3")
+    if not 0 < p <= 100:
+        raise ValueError(f"p must be in (0, 100], got {p}")
+    return np.percentile(_pooled_scored(rbc_runs, warmup), p, axis=0)   # one limit per column
 
 
 def watch_shares(rbc_runs, limits, warmup) -> tuple[float, np.ndarray]:
@@ -116,7 +135,14 @@ def watch_shares(rbc_runs, limits, warmup) -> tuple[float, np.ndarray]:
     any_share is the share of samples with at least one column in Watch; column_shares[j]
     is column j's own share. Same refusals as watch_limits_at, plus limits whose length
     isn't the column count or that aren't finite and > 0."""
-    raise NotImplementedError("Raj: week 4 session 3")
+    pool = _pooled_scored(rbc_runs, warmup)
+    lim = np.asarray(limits, dtype=np.float64)
+    if lim.ndim != 1 or len(lim) != pool.shape[1]:
+        raise ValueError(f"need one limit per column ({pool.shape[1]}), got shape {lim.shape}")
+    if not (np.isfinite(lim).all() and (lim > 0).all()):
+        raise ValueError("every limit must be a finite number > 0")
+    above = pool > lim                                  # strictly above its limit: in Watch
+    return float(above.any(axis=1).mean()), above.mean(axis=0)
 
 
 def watch_limit(rbc_runs, warmup, cap=WATCH_CAP, q_grid=Q_GRID) -> float | None:
@@ -128,7 +154,20 @@ def watch_limit(rbc_runs, warmup, cap=WATCH_CAP, q_grid=Q_GRID) -> float | None:
 
     Raises ValueError if q_grid is empty or not strictly increasing, or cap isn't in
     [0, 1), plus watch_limits_at's refusals."""
-    raise NotImplementedError("Raj: week 4 session 3")
+    grid = list(q_grid)
+    if not grid:
+        raise ValueError("the grid is empty")
+    if any(b <= a for a, b in zip(grid, grid[1:])):
+        raise ValueError("the grid must be strictly increasing")
+    if not 0 <= cap < 1:
+        raise ValueError(f"the cap must be in [0, 1), got {cap}")
+    best = None
+    for p in reversed(grid):                            # strictest boundaries first
+        any_share, _ = watch_shares(rbc_runs, watch_limits_at(rbc_runs, p, warmup), warmup)
+        if any_share > cap:
+            break                                       # first failure: stop, as lowest_stable_q does
+        best = p
+    return best
 
 
 def selection_score(tracks_by_fault: Mapping[int, list], warmup) -> float:
