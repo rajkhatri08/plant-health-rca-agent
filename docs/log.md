@@ -1581,3 +1581,51 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Next (Raj):** implement `metrics.right_place` until `tests/test_right_place.py` and `tests/test_dev_table_attribution.py` pass. After committing, on a clean tree:
   `python -m eval.dev_table --masked eval/runs/20260928T155738Z_masked_faults.json --watch data/models/pca_static_watch.json`
   Then review the attribution section: this week's "done when".
+
+### 2026-09-29: week 4 session 4 (close), right place and top tags on dev (Raj's run and review)
+- **Raj (d2d2547):** implemented `metrics.right_place`; the S4 tests pass.
+- **Run (Raj, d2d2547, clean tree):** `eval/runs/20260929T073949Z_dev_table_pca_static.json`. Static PCA, with the masked column and lead time as before. Attribution uses `…065812Z_calibrate_watch.json` (p = 99.67), window n = 3, and the 30-minute reading 10 samples later.
+- **Right place (mean over the 12 summary faults, over all runs):**
+  - 0.69 (0.67–0.70) at the notification
+  - 0.54 (0.52–0.56) 30 minutes later
+
+  | Fault | Right place (right/detected) | 30 min later | Top group (share) | Top tags (runs ranked first) |
+  |---|---|---|---|---|
+  | 1 | 0.00 (0/50) | 0.00 | compressor (0.80) | ST-PI-602 49, CP-JI-502 1 |
+  | 2 | 0.00 (0/50) | 0.00 | separator (1.00) | SP-FV-407 25, SP-FI-406 19, RX-PI-202 4 |
+  | 4 | 1.00 (50/50) | 1.00 | reactor (1.00) | RX-FV-206 50 |
+  | 5 | 1.00 (50/50) | 0.22 | condenser (1.00) | SP-TI-401 46, CD-TI-301 4 |
+  | 6 | 1.00 (50/50) | 1.00 | feed (1.00) | FD-FV-105 32, FD-FI-101 18 |
+  | 7 | 1.00 (50/50) | 1.00 | feed (1.00) | FD-FI-104 31, ST-PI-602 19 |
+  | 8 | 0.00 (0/50) | 0.18 | compressor (0.90) | ST-PI-602 48, CP-JI-502 2 |
+  | 10 | 0.78 (39/40) | 0.72 | stripper (0.95) | ST-TI-604 39, SP-PI-403 1 |
+  | 11 | 1.00 (50/50) | 0.96 | reactor (1.00) | RX-FV-206 50 |
+  | 12 | 0.90 (45/50) | 0.36 | condenser (0.90) | SP-TI-401 43, CD-TI-301 5, SP-PI-403 1 |
+  | 13 | 0.54 (27/49) | 0.02 | reactor (0.55) | RX-PI-202 40, RX-TI-205 3, SP-PI-403 3 |
+  | 14 | 1.00 (50/50) | 1.00 | reactor (1.00) | RX-TI-205 29, RX-FV-206 20, RX-TI-204 1 |
+
+  Faults 3, 9 and 15 have no family. Their few detections (3, 4 and 6) have scattered top tags.
+- **"Done when" met: Raj's review of the top tags.**
+  - **Every detectable fault's top tags make physical sense:**
+    - 4 and 11 on the reactor cooling water valve RX-FV-206
+    - 14 on RX-TI-205 and RX-FV-206
+    - 6 on FD-FV-105 and FD-FI-101
+    - 7 on FD-FI-104
+    - 10 on ST-TI-604
+    - 5 and 12 on SP-TI-401, then CD-TI-301
+    - 13 on RX-PI-202
+  - **Faults 1, 2 and 8** are composition faults on the mixed feed (reactants 1 and 2). They score 0 because RBC points to where their effect shows, not to the feed: the gas loop (ST-PI-602 and the compressor) for 1 and 8, and the purge (SP-FV-407, SP-FI-406) for 2.
+    - The feed's fast tags are flow-controlled, so they hold.
+    - The analyzers that would show composition aren't in the PCA (decision 11: they're diagnosis evidence only).
+  - **The map stays as pre-registered (decision 65).** It isn't changed after seeing dev.
+  - **Attribution drifts by +30 min** (fault 5: 1.00 → 0.22; fault 13: 0.54 → 0.02). That supports reading it at the notification, as decision 65 does.
+- **Claude's additional observations (record only, no change):**
+  - **Fault 7's second top tag is ST-PI-602** (19 of 50), the same gas-loop tag that leads faults 1 and 8.
+  - **On faults 5 and 12, the top group is the condenser (right place) while the top tag is SP-TI-401,** a separator tag. Groups and tags are each divided by their own W, so the two rankings can disagree. The group's joint RBC carries the right place here, not the single top tag.
+  - **Fault 13's top group is split:** reactor 0.55, the rest spread. RX-PI-202 is the top tag on 40 of 49 runs, but the reactor group leads on only 27.
+- **Leakage (Raj, for S7 and S8):** these dev observations must not shape the library entries (LEAKAGE wall 3). Entries come from the authoring runs only. `eval/authoring.py` (S7) will load only the 5 authoring run numbers and refuse every other pool.
+- **Tests:** unchanged since d2d2547; all pass (as Raj reports).
+- **Decisions needed:**
+  - Carried: mirror decision 65's S4 answers (denominator, top tags by RBC_i / W_i) in PROTOCOL → Right place?
+  - For the README: right place 0.69 comes with the structural reason for 1, 2 and 8 (composition shows only in the analyzers, which the detector doesn't use). How that's worded is Raj's call.
+- **Next:** S5, status bands in the runtime (`bands.py`, bundle `pca_v2` with the Watch file, API, page, parity test).
