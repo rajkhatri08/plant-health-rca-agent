@@ -460,3 +460,63 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
     - A cap per group would let the plant sit in Watch up to about 12% of normal time with six groups. The cap is on what the operator sees, the plant view.
     - One shared percentile keeps the groups on one footing. With the same p, the ranking ratio (decision 64) means the same thing for every group.
     - Persistence would delay an early, silent signal and add nothing to the alert budget.
+
+67. **The library schema, storage and governance (Raj's decisions, 29 September 2026).**
+    - **Event types (decision 23), in decision 7's triage order:** `data_quality`, `instrument`, `planned_activity`, `process`. Only process entries are written now (decision 24).
+    - **Storage:** `library/entries/<entry_id>/r<k>.yaml`, one file per revision, never edited. Revisions run 1, 2, … with no gaps, and each names the one it supersedes.
+      - **Approval is its own file** (Claude's reconciliation, to confirm): `r<k>.approval.yaml`, written only by the gated approval command. That way the revision file is never edited, and a revision is a draft exactly when it has no approval file.
+      - **A reviewer's note** is also its own file: `r<k>.review-<account>.yaml`.
+    - **Fields of a revision:**
+      - **Identity:** `entry_id` (a mechanism slug, never a fault number), `revision`, `event_type`, `family` (the mechanism family names in PROTOCOL), `title`, `description` (own words, short), `withdrawn` (true takes the entry out from its effective time).
+      - **`equipment`:** a register group, an ISO 14224 equipment class, and the tags and loops involved, by ID.
+      - **`iso14224`:** `failure_mode` (`not_applicable` when no plant equipment has failed), `failure_mechanism`, `cause_category`, `detection_method`. Until Raj verifies the standard's category names against a source he can access, every ISO field, including the equipment class, holds `unverified`. No guessed codes: the schema accepts only `unverified`, `not_applicable` (failure mode only), or a value from a verified list, and those lists are empty until then.
+      - **`signature`,** in decision 68's vocabulary: the location at the notification, plus provisional and revised readings. Each listed item is `required` or `supporting`; unlisted means "don't care", and contradictions are counted only on listed items. At least one item must be required.
+      - **`actions`:** `action_id` (unique across the library), `text`, `kind` (`check`, `confirm`, `request_setpoint_change`, `escalate`), at least one safety precondition, and `approval_required: true`. No action writes to controls.
+      - **`links`:** related entries and loops, by ID.
+      - **`sources`:** source-register IDs, stripped at retrieval. The signature's provenance (including run numbers) lives in `eval/provenance/<entry_id>.yaml`, never in `library/`.
+      - **`governance`:** `author`, `created_at`, `effective_from`, `review_due`, `change_note`, `supersedes`. Times are full UTC timestamps.
+    - **In force as of t:** the highest revision whose approval exists at t and whose `effective_from` is on or before t. If that revision is withdrawn, the entry is out. Drafts are never returned. An entry past `review_due` is flagged, not dropped. A diagnosis records `entry_id@r<k>` for every entry it used (decision 16).
+    - **Author ≠ approver in a one-person demo (option 1, with an upgrade path):**
+      - **Accounts** are listed in `library/accounts.yaml`: `raj` (author) and `raj-review` (approver) are the same person; `claude` may only be a reviewer.
+      - **The approval records `independent`.** It must be false when author and approver are the same person, and it's shown as "self-approved (single-person demo)". An entry can be upgraded later to an independent approval (option 2) by a real second approver's account, with `independent: true`.
+      - **Approval happens only through the gated command** (not built yet). It refuses unless:
+        - the schema is valid and the leak scan is clean
+        - the signature agrees with its provenance
+        - every action has preconditions
+        - the entry's tests pass (decision 24)
+        - at least 24 hours have passed since the revision was created
+        - The approval file records these checks, and the store refuses an approval that lacks any of them or comes less than 24 hours after `created_at`.
+    - **Entry tests** live in `eval/`, keyed by `entry_id`, because they carry labels.
+
+    *Why:*
+    - Files that are never edited make "which revision was in force at t" a matter of reading dates, and keep every revision a diagnosis cited.
+    - Holding `unverified` rather than guessed codes keeps ISO 14224 used correctly (decision 23) until the terms are checked.
+    - Two accounts that openly name the same person keep decision 16's separation testable without claiming an independence that doesn't exist.
+
+68. **The signature feature vocabulary, v1 (Raj's decisions, 29 September 2026).**
+    - **Common rules:**
+      - As of the diagnosis time.
+      - Normal statistics from the calibration pool, never from the run.
+      - Every value categorical, over plant tags and loop IDs only.
+      - Readings at the notification (location only), then provisional at notification + 30 min and revised at + 60 min (decision 11).
+    - **Tags (F1-A), all 33 fast tags:**
+      - A tag is `high`, `low`, `both` or `normal`.
+      - It's out when it's outside its central-99% calibration band for at least 3 consecutive samples in the window (decision 62's band and rule).
+      - `both` means excursions on both sides.
+    - **Window (F2-A):** samples t − n + 1 … the diagnosis time (t + 10 or t + 20), where t is the notification and n the persistence.
+    - **Location (F3-A):** the top group and top 3 tags by RBC / W at the notification only, decision 65's primary reading, made before any dev result.
+    - **Loops (F4-A), the 19 loops in `library/loops.yaml`:**
+      - A loop is `held`, `compensating` (its measurement in band, its end valve out; decision 62's per-loop rule), `lost` (its measurement out) or `saturated` (end valve at or below 2%, or at or above 98%, open; decision 58's positions).
+      - `saturated` overrides the others.
+      - Plus a plant-level masked flag: decision 62's plant rule, as of the diagnosis time.
+    - **Analyzers (F5-A), 19 tags:**
+      - An analyzer is `high`, `low`, `normal` or `not_yet_available`, with the same band.
+      - It's out on at least 2 consecutive published values. Values count from when they were published, are held, and are never interpolated (decision 11).
+      - `not_yet_available` means fewer than 2 updates published since the notification.
+    - **Dynamics (F6-A):** none in v1. Adding them later needs a decision whose reason doesn't come from dev results.
+    - **Evidence normals** (the bands for all 52 tags) are planned for S7. The `pca_v3` bundle waits until the agent needs them at runtime.
+
+    *Why:*
+    - One definition of "out" (decision 62) serves the masked label, the loops and the signatures.
+    - Categorical values let the matcher count agreements and contradictions (decision 15).
+    - Every choice follows decisions made before any dev result, so the vocabulary isn't tuned on dev.

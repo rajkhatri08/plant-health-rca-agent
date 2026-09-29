@@ -1,0 +1,9 @@
+# Governance accounts (agent-visible; decisions 16, 67). One person may hold several
+# accounts; an approval between two accounts of the same person is shown as
+# "self-approved (single-person demo)" and can't claim independence. Claude may only
+# review. A real second approver gets an account with another person and the approver
+# role (decision 67's upgrade path).
+accounts:
+- {id: raj, person: raj, roles: [author]}
+- {id: raj-review, person: raj, roles: [approver]}
+- {id: claude, person: claude, roles: [reviewer]}

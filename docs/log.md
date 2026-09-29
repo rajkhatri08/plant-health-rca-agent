@@ -1713,3 +1713,60 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Unsure about:** Render's free instance scores the full 500-sample stream per request, now with group RBC too. That's six small solves per sample, fine locally. It may add latency on the free plan and is worth a look after the deploy.
 - **Decisions needed:** none new.
 - **Next:** Raj pushes and redeploys, then checks the live page. Then S6: decision 68 (the feature vocabulary, Raj), then decision 67 (library schema), with Claude's proposal for an honest author ≠ approver in a one-person demo.
+
+### 2026-09-29: week 4 session 6, decisions 67 and 68, library schema and store
+- **Raj's choices (from `~/Desktop/s6_proposals.md`):**
+  - **Features:** F1-A (high, low, both, normal on all 33 fast tags), F2-A, F3-A (the notification only), F4-A with the plant masked flag, F5-A, F6-A (no dynamics in v1).
+  - **Event types:** decision 7's four.
+  - **Storage:** one file per revision, never edited.
+  - **Author ≠ approver:** option 1, with the 24-hour gap and an upgrade path to option 2.
+  - **Action kinds:** check, confirm, request a setpoint change, escalate.
+  - **ISO 14224 fields hold "unverified"** until Raj checks the category names against a source he can access.
+- **Changed:**
+  - **`docs/decisions.md`:** decision 67 (schema, storage, governance) and decision 68 (feature vocabulary v1), under week 4.
+  - **`app/library/schema.py` (new, Claude):** Pydantic models (extra fields refused, frozen) for:
+    - `Revision`: identity, equipment, `iso14224`, `signature` (location at the notification, then provisional and revised readings of tags, loops, analyzers and the masked flag, each item required or supporting), actions, links, sources, governance
+    - `Approval`: must record all six gates: schema, leak scan, provenance, preconditions, entry tests, 24 h gap
+    - `Review`
+    - **Refused:**
+      - an ID that isn't a slug or looks like a label (fault-N, idv)
+      - any ISO value except `unverified`, or `not_applicable` for the failure mode only (the verified lists are empty)
+      - an action without a non-empty safety precondition, without `approval_required: true`, or of another kind
+      - a signature with nothing required
+      - times without a time zone
+      - effective_from before created_at, and review_due not after it
+      - wrong `supersedes`, a repeated action_id, and self-links
+  - **`app/library/store.py` (new, Claude):**
+    - **`load()`** checks, and refuses the whole library on the first problem:
+      - file names; IDs matching names; revisions 1..K with no gaps
+      - references against `library/tags.yaml` and `library/loops.yaml`: signature tags must be fast tags and analyzers must be analyzers
+      - accounts: roles; the author's account can't approve; Claude only reviews; the same person can't claim independence; approval at least 24 h after created_at
+      - related entries exist; an action_id belongs to one entry
+    - **`Library.in_force(as_of)` and `get()`:** the highest revision approved and effective by as_of; a withdrawn one takes the entry out; drafts are invisible; past review_due is flagged, not dropped; the reference is `entry_id@r<k>`.
+    - **`agent_view()`:** the revision without `sources`, plus the reference, the overdue flag and the approval label ("self-approved (single-person demo)" or "independently approved").
+  - **`library/accounts.yaml` (new):** `raj` (author) and `raj-review` (approver) are the same person; `claude` is reviewer only.
+  - **`library/entries/.gitkeep`:** the empty entries folder.
+- **Claude's reconciliation (to confirm):**
+  - "Never edited" and "a draft until it has an approval block" conflict if the block sits inside the revision.
+  - So an approval is its own file, `r<k>.approval.yaml`, written only by the gated command, and a reviewer's note is `r<k>.review-<account>.yaml`.
+  - Recorded in decision 67 as Claude's detail.
+- **Tests:** `tests/test_library.py` (65).
+  - **Schema:** the example is valid; the vocabulary equals decision 68; 23 kinds of invalid revision refused, each differing from the valid example by one change; an approval missing any one gate refused.
+  - **In force:** empty library; draft invisible; the approval time and a later effective_from; r2 taking over only from its approval; withdrawal; overdue flagged; as_of must be aware; an independent approval by another person; `agent_view` strips sources.
+  - **Governance:** approval by the author's account, by Claude, by an unknown account, a claimed independence by the same person, and under 24 h, all refused; the author role required; a Claude review kept; bad accounts refused (Claude as approver or author, unknown roles, duplicates); the committed accounts are option 1.
+  - **Files and references:** five layout errors, eight reference errors, an action_id reused across entries, and related entries that resolve.
+  - **The committed library:** it loads, holds only process entries, passes the leak scan, and every file under `library/entries/` has at most one commit (skipped without git history).
+  - I also checked by hand that the leak scan catches "fault 4" and "idv4" in entry text.
+  - **`pytest -q`:** 1187 passed, 3 deselected.
+- **Run:** only pytest and an import check that loads the committed (empty) library. No data, no drivers.
+- **Not built (needed before S8 approvals):** the gated approval command that writes `r<k>.approval.yaml` after checking all six gates. The store refuses an approval without them, but nothing writes one yet.
+- **Unsure about:**
+  - **Source IDs aren't checked yet.** `sources` takes any strings: the source register (decision 25) doesn't exist yet.
+  - **The immutability test depends on git history.** CI's shallow checkout sees one commit per file anyway, so the check is only meaningful locally.
+  - **`family` uses PROTOCOL's family names.** They're mechanism families, not fault labels, but they are the same names the right-place map uses.
+- **Decisions needed:**
+  - Confirm the approval-file reconciliation.
+  - Where the gated approval command lives and when it's built: builder side, probably `eval/approve_entry.py`, before S8.
+  - The source register (decision 25), before entries cite sources.
+  - Carried: mirror decision 65's S4 answers in PROTOCOL?
+- **Next:** S7, `app/detector/features.py` (Claude writes, Raj reviews), the evidence normals for all 52 tags, and `eval/authoring.py` (authoring runs only), which writes the provenance files.
