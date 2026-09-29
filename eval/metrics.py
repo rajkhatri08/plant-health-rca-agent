@@ -297,7 +297,21 @@ def right_place(order, names, allowed) -> bool:
     Raises ValueError if order is empty or isn't a permutation of range(len(names)), if
     names repeat, if allowed is empty, or if allowed names a group that isn't in names
     (a typo in the map must not read as a miss)."""
-    raise NotImplementedError("Raj: week 4 session 4")
+    names = list(names)
+    order = [int(i) for i in order]
+    if not order:
+        raise ValueError("the order is empty")
+    if sorted(order) != list(range(len(names))):
+        raise ValueError("the order must list every column exactly once")
+    if len(set(names)) != len(names):
+        raise ValueError("group names repeat")
+    allowed = tuple(allowed)
+    if not allowed:
+        raise ValueError("the family has no groups")
+    unknown = [g for g in allowed if g not in names]
+    if unknown:
+        raise ValueError(f"the map names groups that don't exist: {unknown}")
+    return names[order[0]] in allowed          # is the top-ranked group one of the family's?
 
 
 def _by_run_number(runs):
