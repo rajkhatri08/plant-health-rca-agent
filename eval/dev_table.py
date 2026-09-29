@@ -5,6 +5,7 @@ decisions 49, 57, 58, 60).
                              [--model data/models/pca_static.npz]
                              [--lead-vs data/models/alarms_realistic_limits.json | --no-lead]
                              [--masked eval/runs/<stamp>_masked_faults.json]
+                             [--watch data/models/pca_static_watch.json]
     python -m eval.dev_table --limits data/models/alarms_<list>_limits.json
                              --row grouped|ungrouped
     (either form: [--allow-dirty])
@@ -28,8 +29,17 @@ so every statistic sees the same run-number draws (rule 3). Summary: the mean ra
 faults 1-15 except 3, 9 and 15, and the mean over those three separately, each fault
 weighted equally. Masked comes from a masked_faults run record (eval/masked.py, decided on
 the selection runs, decision 62): the plant-level verdict, naming the absorbing valves
-when masked. Right place reads "—" until
-its session builds it.
+when masked.
+
+With --watch (App 3 only; a watch file from eval/calibrate_watch.py made from these
+limits), attribution is read at each detected run's notification (decisions 64, 65):
+groups ranked by RBC_g / W_g and tags by RBC_i / W_i, each the mean over the n samples
+that triggered it (t - n + 1 .. t). Right place is the top group being one of the fault
+family's groups (FAMILY_GROUPS), reported over all runs next to "any", with "k of
+detected" beside it, and again 10 samples (30 min) later as a secondary figure. Faults
+3, 9 and 15 have no family, so no right place. Per fault it also lists the three tags
+most often ranked first and the most frequent top group. Without --watch, right place
+reads "—".
 
 Writes a dev_table_<detector> run record holding every number, and a Markdown rendering
 of that record to data/tables/ (gitignored). Prints only the paths and one summary line.
@@ -45,9 +55,10 @@ from pathlib import Path
 import numpy as np
 
 from app.detector import loops as loop_map
-from app.detector import pca
+from app.detector import pca, rbc
 from dataset import loader
 from eval import calibrate_driver as drv
+from eval import calibrate_watch as cw
 from eval import check_dev, metrics, run_record
 from eval.baselines import alarms as al
 from ingest import tags as tagmap
@@ -62,6 +73,15 @@ FAMILIES = {1: "feed composition", 2: "feed composition", 8: "feed composition",
             6: "feed supply", 7: "feed supply", 10: "feed temperature",
             4: "reactor cooling", 11: "reactor cooling", 14: "reactor cooling",
             5: "condenser cooling", 12: "condenser cooling", 13: "reaction kinetics"}
+FAMILY_GROUPS = {                                      # decision 65, fixed before any RBC result
+    "feed composition": ("feed",),
+    "feed supply": ("feed",),
+    "feed temperature": ("stripper", "feed"),
+    "reactor cooling": ("reactor",),
+    "condenser cooling": ("condenser",),
+    "reaction kinetics": ("reactor",),
+}
+TOP_TAGS = 3
 PENDING = "—"                                          # a column not built yet
 ROWS = ("grouped", "ungrouped")
 LEAD_ROW = "grouped"                                   # lead time is against grouped alarms
@@ -233,6 +253,51 @@ def lead_row(fault, app, base, n_boot):
             "only_app": lt.only_app, "only_base": lt.only_base, "neither": lt.neither}
 
 
+def attribution_row(fault, group_ratios, tag_ratios, dets, n, names, tags, n_boot):
+    """(row, right hits, right hits 30 min later) for one fault (decisions 64, 65).
+    group_ratios and tag_ratios map run number to whole-run RBC / W arrays (samples x
+    groups, samples x tags); dets maps run number to App 3's Detection. The hits map
+    (fault, run number) to "detected with the right place"; they're None for a fault with
+    no family."""
+    numbers = sorted(dets)
+    detected = [k for k in numbers if dets[k].detected]
+    allowed = FAMILY_GROUPS.get(FAMILIES.get(fault))
+    top_group, top_tag, right, right_30 = {}, {}, {}, {}
+    for k in detected:
+        t = dets[k].sample
+        _, g_order = rbc.rank_at(group_ratios[k], t, n)
+        _, t_order = rbc.rank_at(tag_ratios[k], t, n)
+        top_group[k], top_tag[k] = names[g_order[0]], tags[t_order[0]]
+        if allowed:
+            right[k] = metrics.right_place(g_order, names, allowed)
+            _, later = rbc.rank_at(group_ratios[k], t + metrics.SECONDARY_OFFSET, n)
+            right_30[k] = metrics.right_place(later, names, allowed)
+
+    tag_counts = {}
+    for tag in top_tag.values():
+        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    ranked = sorted(tag_counts, key=lambda tag: (-tag_counts[tag], tags.index(tag)))[:TOP_TAGS]
+    group_counts = {g: list(top_group.values()).count(g) for g in names}
+    best = max(names, key=lambda g: (group_counts[g], -names.index(g))) if detected else None
+    row = {"detected": len(detected),
+           "top_tags": {tag: tag_counts[tag] for tag in ranked},
+           "top_group": best,
+           "top_group_share": group_counts[best] / len(detected) if detected else None}
+    if not allowed:
+        return row, None, None
+
+    runs = [metrics.ScoredRun(fault, k, None) for k in numbers]
+    hits = {}
+    for label, got in (("", right), ("_30min", right_30)):
+        hit = {(fault, k): got.get(k, False) for k in numbers}
+        row[f"right_place{label}"] = {"rate": _rate(list(hit.values())),
+                                      "rate_ci95": _ci(runs, hit, _rate, n_boot),
+                                      "right": sum(hit.values()), "of_detected": len(detected)}
+        hits[label] = hit
+    row["allowed_groups"] = list(allowed)
+    return row, hits[""], hits["_30min"]
+
+
 def fault_row(fault, tracks, inputs, twins, warmup, n_boot, per_point=None):
     """(row, per-run detections) for one fault. tracks, inputs and twins are keyed by
     run number; inputs and twins hold only the detector's input columns (decision 57).
@@ -343,6 +408,14 @@ def _masked(m):
     return f"yes ({m['valves']})" if m["masked"] else "no"
 
 
+def _right(rp):
+    """A right-place figure: the rate over all runs (interval), then k of detected."""
+    if not rp:
+        return PENDING
+    lo, hi = rp["rate_ci95"]
+    return f"{_num(rp['rate'])} ({_num(lo)}–{_num(hi)}), {rp['right']} of {rp['of_detected']} detected"
+
+
 def _lags_note(cfg):
     """The header's lag note for a dynamic detector (empty for others). L = 0 means the
     lag rule found no lag worth adding, so DPCA equals static PCA (decision 63)."""
@@ -369,7 +442,9 @@ def render(record, record_path):
         + (f" Lead time (minutes, positive when App 3 is earlier) is against {lead_vs['detector']}."
            if lead_vs else "")
         + (f" Masked (decided on the selection runs): `{cfg['masked_record']}`."
-           if cfg.get("masked_record") else ""),
+           if cfg.get("masked_record") else "")
+        + (f" Right place (decision 65) is over all runs, then k of the detected runs; Watch "
+           f"boundaries: `{cfg['attribution']['watch_record']}`." if cfg.get("attribution") else ""),
         "",
         "| Fault | Family | Masked | Detected (any / right place) | Chance rate | "
         "Detected before divergence | Median delay, min (IQR) | Share still flagged | "
@@ -382,7 +457,7 @@ def render(record, record_path):
         dlo, dhi = r["delay_median_ci95"]
         lines.append(
             f"| {f}{' (excluded)' if f in EXCLUDED else ''} | {r['family']} | {_masked(r.get('masked'))} | "
-            f"{_num(r['rate'])} ({_num(lo)}–{_num(hi)}) / {PENDING} | {chance} | "
+            f"{_num(r['rate'])} ({_num(lo)}–{_num(hi)}) / {_right(r.get('attribution', {}).get('right_place'))} | {chance} | "
             f"{r['before_divergence']} of {r['before_divergence_of']} | "
             f"{_minutes(r['delay_median_min'])} ({_minutes(r['delay_q1_min'])}–{_minutes(r['delay_q3_min'])}); "
             f"median interval {_minutes(dlo)}–{_minutes(dhi)} | "
@@ -391,12 +466,44 @@ def render(record, record_path):
     for key, label in (("summary", "Mean, faults 1–15 except 3, 9, 15"),
                        ("excluded", "Mean, faults 3, 9, 15")):
         s = m[key]
+        rp = m.get("right_place", {}).get("summary") if key == "summary" else None
+        right = (f"{_num(rp['rate'])} ({_num(rp['rate_ci95'][0])}–{_num(rp['rate_ci95'][1])})"
+                 if rp else PENDING)
         lines.append(f"| {label} | | | {_num(s['rate'])} ({_num(s['rate_ci95'][0])}–"
-                     f"{_num(s['rate_ci95'][1])}) / {PENDING} | {chance} | | | | |")
+                     f"{_num(s['rate_ci95'][1])}) / {right} | {chance} | | | | |")
     lo, hi = nrm["per_24h_ci95"]
     lines.append(f"| Normal operation | | | false alerts per 24 h: {_num(nrm['per_24h'], 3)} "
                  f"({_num(lo, 3)}–{_num(hi, 3)}), {nrm['notifications']} in "
                  f"{_num(nrm['hours'], 1)} h | | | | | |")
+    if cfg.get("attribution"):
+        at = cfg["attribution"]
+        rp = m["right_place"]
+        lines += [
+            "",
+            "## Attribution at the notification (decisions 64, 65)",
+            "",
+            f"Groups ranked by RBC_g / W_g and tags by RBC_i / W_i, each the mean over the "
+            f"{at['window']} samples that triggered the notification (as-of only), with W at "
+            f"p = {at['p']}. \"30 min later\" is the same reading {at['secondary_offset']} "
+            "samples later. Right place: over all runs (interval), then k of the detected runs. "
+            "Top group and top tags: over the detected runs.",
+            "",
+            "| Fault | Family groups | Right place | Right place 30 min later | Top group (share) | "
+            "Top tags (runs ranked first) |",
+            "|---|---|---|---|---|---|",
+        ]
+        for f in FAULTS:
+            a = m["faults"][f"fault_{f:02d}"]["attribution"]
+            top = (f"{a['top_group']} ({_num(a['top_group_share'])})" if a["top_group"] else PENDING)
+            tags_ = ", ".join(f"{t} ({c})" for t, c in a["top_tags"].items()) or PENDING
+            lines.append(
+                f"| {f}{' (excluded)' if f in EXCLUDED else ''} | "
+                f"{', '.join(a.get('allowed_groups', [])) or PENDING} | {_right(a.get('right_place'))} | "
+                f"{_right(a.get('right_place_30min'))} | {top} | {tags_} |")
+        for key, label in (("summary", "at the notification"), ("summary_30min", "30 min later")):
+            s = rp[key]
+            lines.append(f"| Mean, faults 1–15 except 3, 9, 15, {label} | | {_num(s['rate'])} "
+                         f"({_num(s['rate_ci95'][0])}–{_num(s['rate_ci95'][1])}) | | | |")
     if all("load" in m["faults"][f"fault_{f:02d}"] for f in FAULTS):
         lines += [
             "",
@@ -423,7 +530,8 @@ def render(record, record_path):
 # ---------- the run ----------
 
 def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, lead_vs=None,
-        masked=None, allow_dirty=False, repo_root=None, tables_dir=None, n_boot=metrics.BOOTSTRAP_N):
+        masked=None, watch=None, allow_dirty=False, repo_root=None, tables_dir=None,
+        n_boot=metrics.BOOTSTRAP_N):
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     tables_dir = Path(tables_dir or DEFAULT_TABLES)
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)    # before any loading
@@ -438,6 +546,15 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
         if base.warmup != det.warmup:
             raise DevTableError(f"warm-ups differ: {det.warmup} and {base.warmup}")
     masked_rel, masked_by = load_masked(masked, repo_root) if masked is not None else (None, None)
+    watch_doc = None
+    if watch is not None:
+        if not isinstance(det, PCADetector):
+            raise DevTableError("attribution is App 3's; an alarm row has none")
+        watch_record, watch_doc = cw.load_watch(watch, limits_path, det.model, repo_root)
+        names = list(watch_doc["groups"])
+        w_group = np.array([watch_doc["groups"][g]["w"] for g in names])
+        w_tag = np.array([watch_doc["tags"][t] for t in det.model.tags])
+        hit_right, hit_right_30 = {}, {}
     warmup = det.warmup
     now = datetime.now(timezone.utc)
     table_path = tables_dir / f"{now.strftime('%Y%m%dT%H%M%SZ')}_dev_table_{det.name}.md"
@@ -464,6 +581,15 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
             row_["lead"] = lead_row(f, dets, base_dets, n_boot)
         if masked_by is not None:
             row_["masked"] = masked_by[f"fault_{f:02d}"]
+        if watch_doc is not None:
+            by_group, by_tag = cw.rbc_runs(det.model, det.lim, faulty, names)
+            row_["attribution"], right, right_30 = attribution_row(
+                f, {k: v / w_group for k, v in by_group.items()},
+                {k: v / w_tag for k, v in by_tag.items()}, dets, det.lim["n"], names,
+                list(det.model.tags), n_boot)
+            if right is not None:
+                hit_right.update(right)
+                hit_right_30.update(right_30)
         rows[f"fault_{f:02d}"] = row_
         hit.update({(f, k): d.detected for k, d in dets.items()})
 
@@ -471,6 +597,9 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
                "summary": mean_rate(hit, SUMMARY_FAULTS, n_boot),
                "excluded": mean_rate(hit, EXCLUDED, n_boot),
                "normal": normal_row(normal_tracks, warmup, n_boot)}
+    if watch_doc is not None:
+        results["right_place"] = {"summary": mean_rate(hit_right, SUMMARY_FAULTS, n_boot),
+                                  "summary_30min": mean_rate(hit_right_30, SUMMARY_FAULTS, n_boot)}
     config = {"detector": det.name, "pool": "dev", "warmup": warmup, **det.config,
               "onset": ONSET, "window": metrics.WINDOW_SAMPLES,
               "notification_window": [FIRST, LAST], "faults": list(FAULTS),
@@ -480,6 +609,12 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
               "bootstrap": {"resamples": n_boot, "level": 0.95, "method": "percentile"}}
     if masked_rel is not None:
         config["masked_record"] = masked_rel
+    if watch_doc is not None:
+        config["attribution"] = {"watch_record": watch_record.relative_to(repo_root).as_posix(),
+                                 "watch_sha256": run_record.sha256(watch),
+                                 "p": watch_doc["p"], "window": det.lim["n"],
+                                 "secondary_offset": metrics.SECONDARY_OFFSET,
+                                 "family_groups": {fam: list(g) for fam, g in FAMILY_GROUPS.items()}}
     if base is not None:
         config["lead_vs"] = {"detector": base.name,
                              "calibration_record": base_record.relative_to(repo_root).as_posix(),
@@ -520,6 +655,8 @@ def main(argv=None):
     lead.add_argument("--no-lead", action="store_true", help="leave the lead-time column empty")
     parser.add_argument("--masked", type=Path, default=None,
                         help="a masked_faults run record (eval/masked.py) for the Masked column")
+    parser.add_argument("--watch", type=Path, default=None,
+                        help="a watch file (eval/calibrate_watch.py) for right place and top tags")
     parser.add_argument("--allow-dirty", action="store_true",
                         help="run on a dirty tree; the record says dirty: true")
     args = parser.parse_args(argv)
@@ -527,7 +664,7 @@ def main(argv=None):
     lead_vs = None if (args.no_lead or is_alarm) else (args.lead_vs or DEFAULT_LEAD)
     try:
         run(args.limits, args.model, row=args.row, lead_vs=lead_vs, masked=args.masked,
-            allow_dirty=args.allow_dirty)
+            watch=args.watch, allow_dirty=args.allow_dirty)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError,
             run_record.RunRecordError, drv.CalibrationError, DevTableError) as e:
         print(f"error: {e}", file=sys.stderr)

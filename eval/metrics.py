@@ -285,6 +285,21 @@ def lead_time(app: Sequence[Detection], base: Sequence[Detection]) -> LeadTime:
     return LeadTime(median, len(gaps), only_app, only_base, neither)
 
 
+SECONDARY_OFFSET = 10         # the right-place reading 30 min after the notification (decision 65)
+
+
+def right_place(order, names, allowed) -> bool:
+    """Right place for one detected run (decision 65): the top-ranked group, names[order[0]],
+    is one of the true family's groups. order is rbc.rank_at's order for the group ratios
+    (highest mean first, ties in column order); names gives each column's group name;
+    allowed is the family's groups.
+
+    Raises ValueError if order is empty or isn't a permutation of range(len(names)), if
+    names repeat, if allowed is empty, or if allowed names a group that isn't in names
+    (a typo in the map must not read as a miss)."""
+    raise NotImplementedError("Raj: week 4 session 4")
+
+
 def _by_run_number(runs):
     """Group runs by run number: {number: [every run with that number]}."""
     groups = {}
