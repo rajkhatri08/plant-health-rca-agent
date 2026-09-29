@@ -1517,3 +1517,67 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Next (Raj):** implement the three functions until `tests/test_watch_limit.py` and `tests/test_calibrate_watch.py` pass. After committing, on a clean tree:
   1. `python -m eval.calibrate_watch`
   2. `python -m eval.check_dev --watch data/models/pca_static_watch.json`
+
+### 2026-09-29: week 4 session 3 (close), Watch calibrated (Raj's runs)
+- **Raj (e8700f0):** implemented `watch_limits_at`, `watch_shares` and `watch_limit`. All S3 tests pass.
+- **Runs (Raj, e8700f0, clean tree):**
+  - `eval/runs/20260929T065812Z_calibrate_watch.json`
+  - `eval/runs/20260929T065821Z_dev_false_alerts.json`
+- **Calibration (150 runs, 73,650 scored samples):**
+  - p = 99.67 (not the grid floor).
+  - Any-group Watch share 0.0195, at or below the 2% cap. Each group's own share is 0.0033.
+  - W_g: feed 1.001, reactor 0.941, separator 0.782, stripper 0.547, compressor 0.530, condenser 0.368. Every tag's W_i is in the record.
+- **Normal dev (50 runs):**
+  - Any-group Watch share 0.0200.
+  - By group: feed 0.0035, reactor 0.0023, condenser 0.0039, separator 0.0039, compressor 0.0033, stripper 0.0036.
+  - False alerts per 24 h 0.919 (0.665–1.173). That's identical to the week 2 `check_dev` record (`…20260927T150758Z`, same seed), so the `--watch` extension changed nothing in the false-alert reading.
+- **Reading (Raj):**
+  - The groups' Watch samples barely overlap: 6 × 0.33% ≈ 1.99%, against a union of 1.95%. So each group is abnormal on its own samples, and the plant-level cap works out to about 1/6 of 2% per group.
+  - The cap carries over to unseen normal runs: 2.00% on dev against 1.95% on calibration.
+- **Tests:** unchanged since e8700f0; all pass (1038 passed, 2 deselected, as Raj reports).
+- **Unsure about:** dev's 0.0200 sits right at the cap. It's a single reading with no interval, and the cap is set on calibration only, so this is expected, not a breach.
+- **Decisions needed:** none new.
+
+### 2026-09-29: week 4 session 4, right place and top tags: stub, dev-table columns, tests
+- **Changed:**
+  - **`eval/metrics.py` (stub for Raj, NotImplementedError):**
+    - `right_place(order, names, allowed)`: is `names[order[0]]` in the family's groups? `order` comes from `rbc.rank_at`.
+    - It refuses an empty order or one that isn't a permutation, repeated names, an empty `allowed`, and an `allowed` group that isn't in `names`, so a typo in the map can't read as a miss.
+    - Also `SECONDARY_OFFSET = 10` (30 min).
+  - **`eval/dev_table.py` (Claude):**
+    - **`FAMILY_GROUPS`:** decision 65's map, next to `FAMILIES`.
+    - **`attribution_row`:** for each detected run, `rank_at` over the n triggering samples (n is the calibrated persistence) on the group ratios RBC_g / W_g and the tag ratios RBC_i / W_i. The same group reading is taken 10 samples later.
+    - **Per fault it gives:**
+      - the right-place rate over all runs (a run that's missed or wrongly placed counts 0), with the run-number bootstrap interval and "right of detected"
+      - the same 30 minutes later
+      - the three tags most often ranked first, with counts (ties in model column order)
+      - the most frequent top group and its share of the detected runs
+      - Faults 3, 9 and 15 get top tags and top group only.
+    - **Summary:** equal-weight right-place means over the 12 faults (joint bootstrap), at the notification and 30 minutes later.
+    - **`--watch <watch file>`:** App 3 only; an alarm row is refused before loading. The file is checked with `calibrate_watch.load_watch` before loading. RBC is computed through `calibrate_watch.rbc_runs`, the same path as the Watch calibration.
+    - **Record:** `config.attribution` (watch record and SHA-256, p, window n, offset 10, the family map), `faults.*.attribution` and `metrics.right_place`.
+    - **Table:** the main column reads "any (interval) / right place (interval), k of d detected". A new "Attribution at the notification" section has, per fault, the family groups, right place now and 30 minutes later, the top group with its share, and the top tags with counts.
+    - Without `--watch`, everything is as before.
+- **Tests:**
+  - **`tests/test_right_place.py` (15, hand-built):** allowed and not, a two-group family, second place still a miss, numpy order, seven refusals, and 10 samples = 30 minutes.
+  - **`tests/test_dev_table_attribution.py` (11):**
+    - **The map equals decision 65.** Every family is mapped, only register groups are used, and 3, 9 and 15 have no family.
+    - **Two planted faults.** Fault 10 steps only the stripper's tags: top group stripper, right place on every detected run. Fault 1 steps only the condenser's tags: top group condenser, right place 0, the honest miss.
+    - **Rows match RBC computed directly** (argmax of window means) for faults 1, 5, 10 and 13: right now, right 30 minutes later, top-tag counts and top-group share.
+    - Excluded faults have no right place; the summary is the equal-weight mean; the record and table are rendered from the record.
+    - Unchanged without `--watch`; a watch file for other limits is refused before loading; `--watch` on an alarm row is refused.
+  - **Checked against a throwaway `right_place` reference** (a scratchpad plugin): these and `test_dev_table.py` give 63 passed. That caught two bugs in my own table test, which picked a "| 10 |" line from the wrong section. It now splits the table by section.
+  - **`pytest -q`:** 21 failed (all NotImplementedError from the stub), 1043 passed, 2 deselected.
+- **Not run:** no driver, no data.
+- **Also (Raj's S3 runs, this commit):** the two S3 records are untracked, ready to commit with this.
+- **The idea (for Raj):**
+  - Right place asks whether the group the detector blames when it first notifies is where the family's fault actually lives.
+  - Averaging the ratios over the n samples that triggered the alert uses exactly what the operator had at that moment, with nothing after.
+  - The 30-minute reading shows whether the blame settles on the right place or drifts once the disturbance spreads through the loops.
+- **Unsure about:**
+  - **The top group's share** counts the most frequent group; a tie goes to the earlier group in register order. The top tags break ties by model column order.
+  - **The 30-minute window can reach past the 4 h window** (at most sample 110 in 500-sample training runs). That's fine for training runs. A test run notifying near its end would need a guard, but test isn't touched until the frozen run.
+- **Decisions needed:** none new. Carried: mirror decision 65's S4 answers in PROTOCOL?
+- **Next (Raj):** implement `metrics.right_place` until `tests/test_right_place.py` and `tests/test_dev_table_attribution.py` pass. After committing, on a clean tree:
+  `python -m eval.dev_table --masked eval/runs/20260928T155738Z_masked_faults.json --watch data/models/pca_static_watch.json`
+  Then review the attribution section: this week's "done when".
