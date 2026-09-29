@@ -24,12 +24,13 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.detector import bands
 from app.detector import bundle as bundle_mod
 from app.detector import replay
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CSV = REPO_ROOT / "app" / "replay" / "run.csv"
-BANDS = ["Normal", "Alert", "Unknown"]
+BANDS = ["Normal", "Alert", "Unknown"]                  # a bundle without Watch boundaries
 WATCH_NOTE = "Watch band not built yet: it needs equipment-group attribution"
 
 
@@ -74,9 +75,12 @@ def create_app(bundle_dir=None, csv_path=None, allowed_origins=None):
     @app.get("/replay/info")
     def info():
         b, s = ready()
-        return {"start": s.ts[0].strftime(replay.TS_FORMAT), "end": s.ts[-1].strftime(replay.TS_FORMAT),
-                "step_min": replay.STEP_MIN, "samples": len(s.ts),
-                "warmup_samples": b.limits["warmup"], "bands": BANDS, "note": WATCH_NOTE}
+        out = {"start": s.ts[0].strftime(replay.TS_FORMAT), "end": s.ts[-1].strftime(replay.TS_FORMAT),
+               "step_min": replay.STEP_MIN, "samples": len(s.ts),
+               "warmup_samples": b.limits["warmup"]}
+        if b.watch is None:
+            return {**out, "bands": BANDS, "note": WATCH_NOTE}
+        return {**out, "bands": list(bands.BANDS), "groups": list(b.watch["groups"])}
 
     @app.get("/replay/status")
     def status(upto: str = Query(..., description="as-of time, e.g. 2026-01-05T07:00:00Z")):

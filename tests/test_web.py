@@ -39,3 +39,23 @@ def test_never_names_a_run_or_label():
 def test_vercel_config_is_static():
     cfg = json.loads((REPO / "web" / "vercel.json").read_text())
     assert not {"builds", "functions", "rewrites"} & set(cfg)
+
+
+def test_group_panel_is_hidden_until_the_api_reports_groups():
+    assert '<section id="groups-panel" class="panel" aria-label="Equipment groups" hidden>' in PAGE
+    assert '<span id="legend-watch" hidden>' in PAGE and '<li id="attributed-note" hidden>' in PAGE
+    assert "if (state.info.groups) {" in PAGE
+
+
+def test_watch_and_attribution_wording_is_advisory():
+    assert "Watch is an early, silent signal: it doesn't raise an alert." in PAGE
+    assert "It shows where the symptoms appear, not what caused them, and it isn't an instruction to act." in PAGE
+    # The marker names a symptom location, never a cause, a label or a diagnosis.
+    marker = re.search(r'tag\.textContent = "([^"]+)"', PAGE).group(1)
+    assert marker == "Symptoms show here first (attributed when the alert began)"
+    assert not re.search(r"\b(cause|diagnos\w*|root)\b", marker, re.IGNORECASE)
+
+
+def test_watch_band_has_a_colour_everywhere_it_is_drawn():
+    assert PAGE.count("--watch:") == 3                           # light, dark (media), dark (attribute)
+    assert ".pill.Watch" in PAGE and 'Watch: css("--watch")' in PAGE

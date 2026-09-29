@@ -1629,3 +1629,60 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Carried: mirror decision 65's S4 answers (denominator, top tags by RBC_i / W_i) in PROTOCOL → Right place?
   - For the README: right place 0.69 comes with the structural reason for 1, 2 and 8 (composition shows only in the analyzers, which the detector doesn't use). How that's worded is Raj's call.
 - **Next:** S5, status bands in the runtime (`bands.py`, bundle `pca_v2` with the Watch file, API, page, parity test).
+
+### 2026-09-29: week 4 session 5, status bands in the runtime (bands, bundle v2, replay, API, page)
+- **Changed (Claude, per Q6):**
+  - **`app/detector/bands.py` (new):** `plant_band` with decision 66's precedence (Unknown, Alert, Watch, Normal); `group_bands` (strictly above 1 is Watch; NaN or inf refused); `notifications` (the protocol's definition, restated because `app/` can't import `eval/`); `attributed` (below).
+  - **`app/detector/bundle.py`:**
+    - A bundle may hold `watch.json`, loaded as `Bundle.watch`; `pca_v1` has none and behaves as before.
+    - **The self-test, when `watch.json` is present:**
+      - every key is there
+      - it was calibrated for this model (SHA-256)
+      - the record and limits checksums are SHA-256s
+      - warm-up and detector match `limits.json`
+      - lags are 0
+      - p is in (0, 100]
+      - the groups are the register's groups, in order, with the register's tags in model order
+      - every W_g and W_i is finite and > 0
+      - known answer: every group's RBC at the fit mean is 0
+  - **`app/detector/replay.py`:** with Watch boundaries, each row adds `groups` ({group: {ratio RBC_g / W_g, band}}; None on Unknown rows) and `attributed`. The plant band follows `bands.plant_band`. RBC goes through `rbc.py`, the same code as the Watch calibration and the dev table. Rows from a v1 bundle are unchanged, key for key.
+  - **`app/api.py`:** `/replay/info` for a v2 bundle gives `bands` = Normal, Watch, Alert, Unknown and `groups` (the six names), with no note. For v1 it's unchanged (the note stays). Routes are unchanged, and every route is still a GET.
+  - **`eval/build_bundle.py`:** `--watch <watch file>` writes `watch.json`. That's the watch file (checked with `calibrate_watch.load_watch`: its record, the limits checksum, the register's groups) plus `watch_record_sha256`. The default output is then `app/bundles/pca_v2`. `pca_v1` is never touched: a bundle is never overwritten.
+  - **`web/index.html`:**
+    - **A group panel**, hidden until the API reports groups: each group's band pill, its ratio (Watch at 1) with a meter, and during an Alert a red outline on the attributed group, marked "Symptoms show here first (attributed when the alert began)".
+    - **Watch in the pill, the band strip, the counts and the legend** (the legend entry is hidden until groups exist).
+    - **Notes:**
+      - "Watch is an early, silent signal: it doesn't raise an alert."
+      - "It shows where the symptoms appear, not what caused them, and it isn't an instruction to act."
+    - With a v1 API, the page is exactly as before. No fault or run numbers, and no benchmark names.
+- **The attributed-group rule (my reading of decision 66, to confirm):** during an Alert, the page marks the group ranked first at the notification that started the episode (`rank_at` over the n triggering samples, decision 65), held until the alert ends. It isn't re-ranked each sample: decision 66 says "the top-ranked group (decision 65)", and the +30 min drift (fault 5: 1.00 → 0.22) is why.
+- **Tests (new or extended):**
+  - **`test_bands.py` (21):** precedence (nine cases); strict > 1; NaN refused; `notifications` equals `eval.metrics.notifications` on random tracks; attribution by hand (fixed for the episode, re-ranked for a new one, nothing read after the notification, an alert on at the first scored sample).
+  - **`test_bundle.py` (+19):** a v2 bundle passes and v1 has no Watch; 14 kinds of bad `watch.json` (another model, a bad SHA-256, warm-up or detector mismatch, p out of range, group order, W ≤ 0 or NaN, reordered tags, a missing tag, W_i < 0); a missing key; lags 1; a register that moves a tag to another group.
+  - **`test_replay.py` (+5):**
+    - **Parity with the evaluation path on a synthetic run:** every scored sample's group ratios (`calibrate_watch.rbc_runs` / W_g), group bands and plant band equal the evaluation's, and at every notification the attributed group equals `rank_at` on the evaluation ratios. It isn't vacuous: Watch appears before the step and alerts are attributed.
+    - Attributed only during an Alert and held per episode; Unknown rows carry no groups; as-of prefix stability, including attribution; v1 rows unchanged.
+  - **`test_api.py` (+4):** v2 health and info; the row contract; a failed Watch self-test returns 503 and blocks scoring; the leak scan and forbidden keys on every v2 response.
+  - **`test_build_bundle.py` (+4):** v2 has three files and `watch.json` = the watch file plus its record's SHA-256, and passes the self-test; a watch file with no record, or one for other limits, is refused and leaves nothing behind; `main` defaults to `pca_v2` with `--watch` and `pca_v1` without.
+  - **`test_web.py` (+3):** the panel is hidden until groups exist; the advisory wording; Watch has a colour in every theme.
+  - **`test_replay_parity_opendata.py` (new, opt-in with `-m opendata`):** the committed `app/replay/run.csv` through `pca_v2` equals the evaluation path on the same dev run, loaded from the open data (fault and run from `eval/replay_source.yaml`, builder side): bands, plant ratio, group ratios, and the attributed group at every notification. It skips until `pca_v2` exists, so it hasn't run yet.
+  - **`pytest -q`:** 1120 passed, 3 deselected (the opt-in open-data tests).
+- **Checking the tests:** two first versions failed for test-side reasons. At p = 99, a 60-sample synthetic stream never reached Watch, so the test bundle now uses p = 90. And two calibrations in one second collided on the record name, so that test now writes a second calibrate record by hand. No code change came from either.
+- **Not run:** `build_bundle` (as asked), the page in a browser, and the real-data parity test.
+- **Kept as is:**
+  - `DEFAULT_BUNDLE` is still `pca_v1`, so the API, Render and the committed thin-slice tests keep working until `pca_v2` exists.
+  - `eval/baselines/alarms.py` shows a change I didn't make (the IDE again). Left alone.
+- **The idea (for Raj):**
+  - The plant band says how the whole plant looks right now. The group panel says where it looks unusual.
+  - Watch lights a group when its reconstruction-based contribution passes its own boundary, often before any alert.
+  - When an alert starts, the page freezes the group that best explained the triggering samples, so the operator sees one stable "symptoms show here" answer for the episode rather than a marker that wanders as the disturbance spreads.
+- **Unsure about:**
+  - **The page hasn't been tried in a browser** against a v2 API. The JS is covered only by string checks. After the build, it should be tried locally (CLAUDE.md, run the page locally).
+  - **Response size:** each row now carries six group objects. The full 500-sample stream is about 6 times larger; fine for this demo.
+- **Decisions needed:** confirm the attributed-group rule above (fixed at the episode's notification).
+- **Next (Raj):** review and commit, then on a clean tree:
+  1. `python -m eval.build_bundle --watch data/models/pca_static_watch.json` (writes `app/bundles/pca_v2`)
+  2. `pytest -q -m opendata tests/test_replay_parity_opendata.py`
+  3. Try the page locally against `BUNDLE_DIR=app/bundles/pca_v2`.
+
+  Then Claude switches `DEFAULT_BUNDLE` to `pca_v2` (and the `render.yaml` comment), and Raj redeploys (Render, Vercel).

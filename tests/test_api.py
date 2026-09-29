@@ -128,3 +128,63 @@ def _keys(obj):
     elif isinstance(obj, list):
         for v in obj:
             yield from _keys(v)
+
+# ---------- a bundle with Watch boundaries (pca_v2) ----------
+
+from tests.replay_helpers import add_watch  # noqa: E402
+
+
+@pytest.fixture
+def paths_v2(tmp_path):
+    folder = add_watch(make_bundle(tmp_path / "pca_v2"), p=90.0)
+    csv_path = write_csv(tmp_path / "run.csv", stream_run()[0], VARIABLES)
+    return folder, csv_path
+
+
+GROUPS = ["feed", "reactor", "condenser", "separator", "compressor", "stripper"]
+
+
+def test_v2_health_and_info(paths_v2):
+    with client(paths_v2) as c:
+        h, r = c.get("/health").json(), c.get("/replay/info").json()
+    assert h == {"status": "ok", "self_test": "pass", "bundle": "pca_v2"}
+    assert r["bands"] == ["Normal", "Watch", "Alert", "Unknown"]
+    assert r["groups"] == GROUPS and "note" not in r
+
+
+def test_v2_status_rows(paths_v2):
+    with client(paths_v2) as c:
+        rows = c.get("/replay/status", params={"upto": ts(60)}).json()["samples"]
+    assert {"Watch", "Alert"} <= {s["band"] for s in rows}
+    for s in rows:
+        assert set(s) == {"ts", "band", "ratio", "reason", "groups", "attributed"}
+        if s["band"] == "Unknown":
+            assert s["groups"] is None and s["attributed"] is None
+        else:
+            assert list(s["groups"]) == GROUPS
+            assert all(set(v) == {"ratio", "band"} and v["band"] in ("Watch", "Normal")
+                       for v in s["groups"].values())
+            assert (s["attributed"] is not None) == (s["band"] == "Alert")
+            assert s["attributed"] in GROUPS + [None]
+
+
+def test_v2_failed_watch_self_test_blocks_scoring(paths_v2):
+    import json as json_
+    path = paths_v2[0] / "watch.json"
+    w = json_.loads(path.read_text())
+    w["p"] = 0.0
+    path.write_text(json_.dumps(w))
+    with client(paths_v2) as c:
+        h, s = c.get("/health"), c.get("/replay/status", params={"upto": ts(40)})
+    assert h.status_code == 503 and "p must be" in h.json()["detail"]
+    assert s.status_code == 503
+
+
+def test_v2_responses_have_no_leaks(paths_v2):
+    with client(paths_v2) as c:
+        bodies = [c.get("/health").text, c.get("/replay/info").text,
+                  c.get("/replay/status", params={"upto": ts(60)}).text]
+    for body in bodies:
+        assert find_leaks(body) == []
+        assert not {"run", "fault", "sample_number"} & set(_keys(json.loads(body)))
+        assert "IDV" not in body and "XMEAS" not in body and "XMV" not in body

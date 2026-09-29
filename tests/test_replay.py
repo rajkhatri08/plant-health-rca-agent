@@ -176,3 +176,91 @@ def test_scoring_matches_pca_scores(tmp_path, b, run_values):
     lim = b.limits
     expected = np.maximum(t2 / lim["t2_lim"], spe / lim["spe_lim"])
     assert [r["ratio"] for r in rows[3:]] == pytest.approx(expected[3:].tolist(), rel=RATIO_REL)
+
+
+# ---------- a bundle with Watch boundaries (pca_v2, decisions 64-66) ----------
+
+from app.detector import rbc  # noqa: E402
+from eval import calibrate_watch as cw  # noqa: E402
+from eval import metrics  # noqa: E402
+from tests.replay_helpers import add_watch  # noqa: E402
+
+
+@pytest.fixture
+def b2(tmp_path):
+    # p = 90 on 10 runs, so the Watch band shows up in a 60-sample stream (the real one
+    # comes from the calibration, decision 66).
+    return bm.load(add_watch(make_bundle(tmp_path / "pca_v2"), p=90.0))
+
+
+def evaluation_path(b, run_values):
+    """What evaluation computes for this run: the alert track (calibration driver), the
+    group ratios (calibrate_watch.rbc_runs, the Watch calibration's path, over W_g) and
+    the attributed group at each notification (rank_at, as the dev table does)."""
+    from dataset.loader import Runs
+    runs = Runs("faulty_training", 13, "dev", VARIABLES, {1: run_values})
+    lim = b.limits
+    scored = drv.score_runs(b.model, runs)
+    track = drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), lim["n"], lim["gap"], lim["warmup"])[1]
+    names = list(b.watch["groups"])
+    by_group, _ = cw.rbc_runs(b.model, lim, runs, names)
+    ratios = by_group[1] / np.array([b.watch["groups"][g]["w"] for g in names])
+    top = {t: names[rbc.rank_at(ratios, t, lim["n"])[1][0]]
+           for t in metrics.notifications(track, lim["warmup"])}
+    return track, ratios, names, top
+
+
+def test_parity_with_the_evaluation_path(tmp_path, b2, run_values):
+    track, ratios, names, top = evaluation_path(b2, run_values)
+    rows = replay.status(b2, stream(tmp_path, run_values), END)
+    w = b2.limits["warmup"]
+    for i, r in enumerate(rows[w:], start=w):
+        assert list(r["groups"]) == names
+        assert [r["groups"][g]["ratio"] for g in names] == pytest.approx(ratios[i].tolist(), rel=RATIO_REL)
+        assert [r["groups"][g]["band"] for g in names] == ["Watch" if x > 1 else "Normal" for x in ratios[i]]
+        expected = "Alert" if track[i] else ("Watch" if (ratios[i] > 1).any() else "Normal")
+        assert r["band"] == expected
+    for t, g in top.items():
+        assert rows[t - 1]["attributed"] == g
+    # Not vacuous: Watch appears before the step, and an alert is attributed after it.
+    assert "Watch" in {r["band"] for r in rows[w:29]}
+    assert top and all(rows[t - 1]["band"] == "Alert" for t in top)
+
+
+def test_attributed_only_during_an_alert_and_held_for_the_episode(tmp_path, b2, run_values):
+    rows = replay.status(b2, stream(tmp_path, run_values), END)
+    for prev, r in zip(rows, rows[1:]):
+        if r["band"] != "Alert":
+            assert r["attributed"] is None
+        elif prev["band"] == "Alert":
+            assert r["attributed"] == prev["attributed"]
+        else:
+            assert r["attributed"] is not None
+
+
+def test_v2_unknown_rows_have_no_groups(tmp_path, b2, run_values):
+    rows = replay.status(b2, stream(tmp_path, run_values, drop(40)), END)
+    for r in rows[:3] + rows[39:]:
+        assert r["band"] == "Unknown" and r["groups"] is None and r["attributed"] is None
+
+
+def test_v2_as_of_is_a_prefix(tmp_path, b2, run_values):
+    s = stream(tmp_path, run_values)
+    full = replay.status(b2, s, END)
+    for k in range(0, len(run_values) + 1, 7):
+        upto = ts_of(k) if k else ts_of(1) - timedelta(minutes=1)
+        part = replay.status(b2, s, upto)
+        assert_same_rows(part, full[:k])
+        assert [r["attributed"] for r in part] == [r["attributed"] for r in full[:k]]
+        for p_, f_ in zip(part, full[:k]):
+            if f_["groups"] is None:
+                assert p_["groups"] is None
+            else:
+                assert {g: v["band"] for g, v in p_["groups"].items()} == \
+                       {g: v["band"] for g, v in f_["groups"].items()}
+
+
+def test_v1_rows_are_unchanged(tmp_path, b, run_values):
+    rows = replay.status(b, stream(tmp_path, run_values), END)
+    assert all(set(r) == {"ts", "band", "ratio", "reason"} for r in rows)
+    assert "Watch" not in {r["band"] for r in rows}

@@ -4,24 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plant Health Replay</title>
-<meta name="description" content="Replay of one recorded plant stream through the plant-health detector: status band and alert ratio over time. Advisory only.">
+<meta name="description" content="Replay of one recorded plant stream through the plant-health detector: status band, alert ratio and equipment groups over time. Advisory only.">
 <style>
   :root {
     --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #5b6575; --line: #d9dee6;
     --normal: #2e7d4f; --alert: #c0392b; --unknown: #8a94a3; --accent: #2f5fb3;
-    --grid: #e8ebf0; --limit: #c0392b;
+    --grid: #e8ebf0; --limit: #c0392b; --watch: #b7791f;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #11151c; --panel: #1a2029; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2c3440;
       --normal: #4caf7a; --alert: #e5604f; --unknown: #6f7a89; --accent: #7aa2e8;
-      --grid: #232a35; --limit: #e5604f;
+      --grid: #232a35; --limit: #e5604f; --watch: #e0a64a;
     }
   }
   :root[data-theme="dark"] {
     --bg: #11151c; --panel: #1a2029; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2c3440;
     --normal: #4caf7a; --alert: #e5604f; --unknown: #6f7a89; --accent: #7aa2e8;
-    --grid: #232a35; --limit: #e5604f;
+    --grid: #232a35; --limit: #e5604f; --watch: #e0a64a;
   }
   * { box-sizing: border-box; }
   body {
@@ -46,6 +46,17 @@
   .pill.Normal { background: var(--normal); }
   .pill.Alert { background: var(--alert); }
   .pill.Unknown { background: var(--unknown); }
+  .pill.Watch { background: var(--watch); }
+  .pill.small { font-size: 0.8rem; padding: 1px 10px; }
+  .groups { display: grid; gap: 10px; margin-top: 8px; }
+  .group { display: grid; grid-template-columns: 110px 80px 1fr 60px; gap: 12px; align-items: center;
+           padding: 6px 8px; border-radius: 6px; border: 1px solid transparent; }
+  .group.attributed { border-color: var(--alert); }
+  .group .name { font-weight: 600; }
+  .group .num { font-variant-numeric: tabular-nums; text-align: right; }
+  .group .meter { margin-top: 0; }
+  .group .tag { grid-column: 1 / -1; color: var(--alert); font-size: 0.8rem; }
+  @media (max-width: 520px) { .group { grid-template-columns: 90px 70px 1fr 50px; gap: 8px; } }
   .reason { color: var(--muted); font-size: 0.85rem; }
   .meter { position: relative; height: 10px; background: var(--grid); border-radius: 5px; margin-top: 8px; overflow: hidden; }
   .meter > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
@@ -96,6 +107,11 @@
     </div>
   </section>
 
+  <section id="groups-panel" class="panel" aria-label="Equipment groups" hidden>
+    <div class="label">Equipment groups (Watch above 1)</div>
+    <div id="groups" class="groups"></div>
+  </section>
+
   <section class="panel" aria-label="Replay controls">
     <div class="controls">
       <button id="play" class="primary" disabled>Play</button>
@@ -116,6 +132,7 @@
     <canvas id="chart" role="img" aria-label="Alert ratio on a log scale with the limit at 1, and the status band for each sample"></canvas>
     <div class="legend">
       <span><b style="background:var(--normal)"></b>Normal</span>
+      <span id="legend-watch" hidden><b style="background:var(--watch)"></b>Watch</span>
       <span><b style="background:var(--alert)"></b>Alert</span>
       <span><b style="background:var(--unknown)"></b>Unknown (warm-up or missing data)</span>
       <span><b style="background:var(--limit);height:2px;vertical-align:3px"></b>Limit (ratio = 1)</span>
@@ -125,6 +142,7 @@
   <section class="panel" aria-label="Notes">
     <ul class="notes">
       <li id="watch-note">The Watch band isn't built yet: it needs equipment-group attribution.</li>
+      <li id="attributed-note" hidden>During an alert, the marked group is where the detector's reconstruction of the data points when the alert began. It shows where the symptoms appear, not what caused them, and it isn't an instruction to act.</li>
       <li>The ratio is how far the plant-wide statistic is from its alert limit; above 1 is outside normal operation. An alert needs several samples in a row above 1, and it stays on for a hold time after the ratio drops back, so one disturbance gives one alert.</li>
       <li>Each point is computed only from data up to that moment: nothing later changes what was shown earlier.</li>
       <li>The first samples of a stream are Unknown: the detector needs a short warm-up before it scores.</li>
@@ -192,13 +210,49 @@ function render(current) {
   const fill = current && current.ratio != null ? Math.min(current.ratio / 3, 1) * 100 : 0;
   $("meter-fill").style.width = fill + "%";
   $("clock").textContent = current ? current.ts.slice(11, 16) : "—";
-  const c = { Normal: 0, Alert: 0, Unknown: 0 };
+  const c = { Normal: 0, Watch: 0, Alert: 0, Unknown: 0 };
   state.samples.forEach((s) => c[s.band]++);
-  $("counts").textContent = state.samples.length ?
-    `Normal ${c.Normal} · Alert ${c.Alert} · Unknown ${c.Unknown}` : "";
+  $("counts").textContent = !state.samples.length ? "" : state.info.groups ?
+    `Normal ${c.Normal} · Watch ${c.Watch} · Alert ${c.Alert} · Unknown ${c.Unknown}` :
+    `Normal ${c.Normal} · Alert ${c.Alert} · Unknown ${c.Unknown}`;
+  renderGroups(current);
   $("progress").textContent = `${state.shown} / ${state.info.samples} samples`;
   $("play").textContent = state.playing ? "Pause" : "Play";
   draw();
+}
+
+function title(name) { return name.charAt(0).toUpperCase() + name.slice(1); }
+
+function renderGroups(current) {
+  if (!state.info.groups) return;
+  const box = $("groups");
+  box.textContent = "";
+  state.info.groups.forEach((g) => {
+    const cur = current && current.groups ? current.groups[g] : null;
+    const row = document.createElement("div");
+    const marked = current && current.band === "Alert" && current.attributed === g;
+    row.className = "group" + (marked ? " attributed" : "");
+    const name = document.createElement("span");
+    name.className = "name"; name.textContent = title(g);
+    const band = document.createElement("span");
+    band.className = "pill small " + (cur ? cur.band : "Unknown");
+    band.textContent = cur ? cur.band : "—";
+    const meter = document.createElement("div");
+    meter.className = "meter"; meter.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("span");
+    fill.style.width = (cur ? Math.min(cur.ratio / 3, 1) * 100 : 0) + "%";
+    const limit = document.createElement("i"); limit.style.left = "33.3%";
+    meter.append(fill, limit);
+    const num = document.createElement("span");
+    num.className = "num"; num.textContent = cur ? cur.ratio.toFixed(2) : "—";
+    row.append(name, band, meter, num);
+    if (marked) {
+      const tag = document.createElement("span");
+      tag.className = "tag"; tag.textContent = "Symptoms show here first (attributed when the alert began)";
+      row.append(tag);
+    }
+    box.append(row);
+  });
 }
 
 function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -236,7 +290,7 @@ function draw() {
   g.stroke();
   const sy = top + plotH + gapY, colW = (W - left - right) / total;
   g.fillStyle = css("--grid"); g.fillRect(left, sy, W - left - right, strip);
-  const color = { Normal: css("--normal"), Alert: css("--alert"), Unknown: css("--unknown") };
+  const color = { Normal: css("--normal"), Watch: css("--watch"), Alert: css("--alert"), Unknown: css("--unknown") };
   state.samples.forEach((s, i) => {
     g.fillStyle = color[s.band];
     g.fillRect(left + i * colW, sy, Math.max(colW, 1), strip);
@@ -273,6 +327,11 @@ async function init() {
   }
   clearTimeout(slow);
   if (state.info.note) $("watch-note").textContent = state.info.note + ".";
+  if (state.info.groups) {
+    $("watch-note").textContent = "Watch: at least one equipment group is unusual compared with its own " +
+      "normal behaviour (its ratio is above 1). Watch is an early, silent signal: it doesn't raise an alert.";
+    ["groups-panel", "legend-watch", "attributed-note"].forEach((id) => ($(id).hidden = false));
+  }
   ["play", "step", "reset"].forEach((id) => ($(id).disabled = false));
   $("play").onclick = () => {
     if (state.playing) { stop(); return; }

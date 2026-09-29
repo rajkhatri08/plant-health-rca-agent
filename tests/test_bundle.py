@@ -102,3 +102,77 @@ def test_register_mismatch_is_refused(folder, tmp_path):
     reg.write_text("tags:\n- {tag: XX-TI-001, kind: measurement}\n")
     with pytest.raises(bm.BundleError):
         bm.self_test(bm.load(folder), reg)
+
+# ---------- watch.json (pca_v2, decisions 64-66) ----------
+
+from tests.replay_helpers import SHA_A, add_watch, edit_watch  # noqa: E402
+
+
+@pytest.fixture
+def v2(tmp_path):
+    return add_watch(make_bundle(tmp_path / "pca_v2"))
+
+
+def test_v2_bundle_passes_and_carries_watch(v2):
+    b = bm.load(v2)
+    assert b.watch is not None and list(b.watch["groups"])[0] == "feed"
+    assert bm.self_test(b) is True
+
+
+def test_v1_bundle_has_no_watch(folder):
+    assert bm.load(folder).watch is None
+
+
+def _groups_reordered(w):
+    return dict(reversed(list(w["groups"].items())))
+
+
+@pytest.mark.parametrize("edit", [
+    lambda w: {"model_sha256": SHA_A},                                   # another model
+    lambda w: {"watch_record_sha256": "not-a-sha"},
+    lambda w: {"limits_sha256": None},
+    lambda w: {"warmup": w["warmup"] + 1},                               # differs from limits
+    lambda w: {"detector": "pca_dynamic"},
+    lambda w: {"p": 0.0}, lambda w: {"p": 100.5}, lambda w: {"p": True},
+    lambda w: {"groups": _groups_reordered(w)},                          # register order
+    lambda w: {"groups": {**w["groups"], "feed": {**w["groups"]["feed"], "w": 0.0}}},
+    lambda w: {"groups": {**w["groups"], "feed": {**w["groups"]["feed"], "w": float("nan")}}},
+    lambda w: {"groups": {**w["groups"], "feed": {**w["groups"]["feed"],
+                                                  "tags": w["groups"]["feed"]["tags"][::-1]}}},
+    lambda w: {"tags": dict(list(w["tags"].items())[1:])},               # a tag missing
+    lambda w: {"tags": {**w["tags"], FAST[0]: -1.0}},
+])
+def test_bad_watch_is_refused(v2, edit):
+    import json
+    edit_watch(v2, **edit(json.loads((v2 / "watch.json").read_text())))
+    with pytest.raises(bm.BundleError):
+        bm.self_test(bm.load(v2))
+
+
+def test_watch_key_missing_is_refused(v2):
+    import json
+    path = v2 / "watch.json"
+    w = json.loads(path.read_text())
+    del w["tags"]
+    path.write_text(json.dumps(w))
+    with pytest.raises(bm.BundleError, match="lacks"):
+        bm.self_test(bm.load(v2))
+
+
+def test_watch_needs_a_static_model(v2):
+    edit_limits(v2, lags=1)                       # 1 + n 2 - 1 <= warm-up 3, so only Watch refuses
+    with pytest.raises(bm.BundleError, match="static PCA"):
+        bm.self_test(bm.load(v2))
+
+
+def test_watch_groups_must_match_the_register(v2, tmp_path):
+    # A register that moves one tag to another group: the watch file no longer fits.
+    import yaml
+    reg = yaml.safe_load(bm.REGISTER.read_text())
+    for r in reg["tags"]:
+        if r["tag"] == "CD-TI-301":
+            r["group"] = "separator"
+    path = tmp_path / "tags.yaml"
+    path.write_text(yaml.safe_dump(reg))
+    with pytest.raises(bm.BundleError, match="group"):
+        bm.self_test(bm.load(v2), register=path)

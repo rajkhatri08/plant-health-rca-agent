@@ -9,15 +9,24 @@ calibration used: pca.scores -> alerting.plant_ratio -> alerting.alert_track.
 As of time `upto`, only rows with ts <= upto are used, so nothing later can change what
 is shown for earlier samples.
 
-Bands per sample (the thin slice; Watch needs equipment-group attribution, week 3/4):
+Bands per sample (app/detector/bands.py has the precedence, decision 66):
 - Unknown ("warm-up"): the first `warmup` samples, which aren't scored.
 - Unknown ("data"): from the first sample whose fast tags aren't all present with
   quality "good", or that doesn't follow the previous one by STEP_MIN, to the end.
   The data-quality layer isn't built yet (decision 51), so a gap is never read as
   Normal and scoring stops there.
 - Alert: the alert track is on (including its off-delay hold, decision 54).
+- Watch (only with a bundle that has Watch boundaries): not Alert, and at least one
+  group's ratio RBC_g / W_g is above 1.
 - Normal: otherwise.
 `ratio` is the plant ratio (decision 53) on scored samples, and None on Unknown ones.
+
+With Watch boundaries each row also has:
+- `groups`: {group: {"ratio": RBC_g / W_g, "band": "Watch" or "Normal"}} on scored
+  samples, None on Unknown ones. RBC comes from app/detector/rbc.py, the same code the
+  Watch calibration and the dev table use.
+- `attributed`: during an Alert, the group ranked first at the notification that started
+  it (decision 65); None otherwise.
 """
 
 import csv
@@ -26,7 +35,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-from app.detector import alerting, pca
+from app.detector import alerting, bands, pca, rbc
 
 HEADER = ["ts", "tag", "value", "quality"]
 GOOD = "good"
@@ -83,8 +92,20 @@ def read_csv(path, tags):
     return Stream(ts=tuple(order), values=values, tags=tags)
 
 
+def group_ratios(bundle, X):
+    """RBC_g / W_g for every sample of X (samples x the model's tags), groups in the
+    Watch file's order."""
+    w = bundle.watch
+    names = list(w["groups"])
+    cols = [tuple(bundle.model.tags.index(t) for t in w["groups"][g]["tags"]) for g in names]
+    M = rbc.index_matrix(bundle.model, bundle.limits["t2_lim"], bundle.limits["spe_lim"])
+    limits = np.array([w["groups"][g]["w"] for g in names])
+    return rbc.group_rbc(bundle.model, M, X, cols) / limits, names
+
+
 def status(bundle, stream, upto):
-    """Per-sample {ts, band, ratio, reason} for every sample with ts <= upto."""
+    """Per-sample {ts, band, ratio, reason} for every sample with ts <= upto, plus
+    `groups` and `attributed` when the bundle has Watch boundaries."""
     if stream.tags != bundle.model.tags:
         raise ReplayError("the stream's tags aren't the model's tags")
     lim = bundle.limits
@@ -96,21 +117,31 @@ def status(bundle, stream, upto):
             good == 0 or ts[good] - ts[good - 1] == timedelta(minutes=STEP_MIN)):
         good += 1
 
-    ratio = alert = None
+    ratio = alert = g_ratio = names = owner = None
+    watch = bundle.watch is not None
     if good:
         t2, spe = pca.scores(bundle.model, X[:good])
         ratio = alerting.plant_ratio(t2, spe, lim["t2_lim"], lim["spe_lim"])
         alert = alerting.alert_track(ratio, lim["n"], lim["gap"], lim["warmup"], lim["lags"])
+        if watch:
+            g_ratio, names = group_ratios(bundle, X[:good])
+            owner = bands.attributed(alert, g_ratio, lim["warmup"], lim["n"], names)
 
     out = []
     for i in range(m):
         row = {"ts": ts[i].strftime(TS_FORMAT), "band": "Unknown", "ratio": None, "reason": None}
+        if watch:
+            row.update(groups=None, attributed=None)
         if i >= good:
             row["reason"] = "data"
         elif i < lim["warmup"]:
             row["reason"] = "warm-up"
         else:
-            row["band"] = "Alert" if alert[i] else "Normal"
+            row["band"] = bands.plant_band(False, bool(alert[i]), g_ratio[i] if watch else None)
             row["ratio"] = float(ratio[i])
+            if watch:
+                row["groups"] = {g: {"ratio": float(r), "band": b}
+                                 for g, r, b in zip(names, g_ratio[i], bands.group_bands(g_ratio[i]))}
+                row["attributed"] = owner[i]
         out.append(row)
     return out
