@@ -1276,3 +1276,94 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:**
   - **PROTOCOL's key-values table (line 16) still says the detector is chosen "within 3 points of the best dev detection rate".** That contradicts decision 63 and PROTOCOL → Detection. Should it be updated to decision 63's wording?
   - Carried: the `TAG@t-j` name format; findings 2 and 3 on `plant_track`; replay after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
+
+### 2026-09-29: week 3 session 10 (close), selection verdict, masked tables, missed-run check
+- **Runs (Raj, 58d6733, clean tree), committed as 209c65b:**
+  - `eval/runs/20260929T020335Z_select_detector.json`
+  - `…020336Z_dev_table_pca_static.json`
+  - `…020402Z_dev_table_alarms_realistic_grouped.json`
+  - `…020427Z_dev_table_alarms_every_grouped.json`
+  - `…020515Z_check_missed_pca_dynamic.json`
+  - `…020537Z_check_missed_pca_static.json`
+- **Selection (decision 63):** static 0.975, DPCA (L = 1) 0.97917, difference +0.0042 against the 0.03 margin. The verdict is `pca_static`. The record cites both calibrate records and the grid check (`…104704Z`), which covers the grids that differ.
+- **Masked tables, checked by Claude (jq, read-only):**
+  - Each of the three re-run records equals its superseded record (`…112351Z`, `…112413Z`, `…112441Z`) in every metric and config value except the new `masked` fields and `masked_record`.
+  - A negative control (static against realistic alarms) did show a difference, so the comparison isn't vacuous.
+  - Every fault has a Masked verdict. Fault 4 is "yes (RX-FV-206)"; the others read "no".
+  - The static table is therefore unchanged on real data after session 8's DPCA generalisation of the scoring path.
+  - The three old records are superseded.
+- **The one-missed-run hypothesis (Raj's reading, checked against the records by Claude):**
+  - **DPCA's single miss is run 368 on each of faults 1, 4, 5, 6, 7, 12 and 14.** It's the only-alarms run in every one.
+    - On each, App 3's alert turned on at sample 15, 18 minutes before onset, in the stretch the faulty run shares with its twin.
+    - The normal dev run 368 has the same notification at 15, and the tracks are identical up to onset.
+    - The alert was still on at onset (sample 20), stayed on through the whole window (21–100), and never switched on anew. So no detection is scored.
+  - **The summary flags read False only because of fault 10.** Its only-alarms run 417 is a genuine miss: no alert in the window, first switch-on at sample 109, 9 samples after the window.
+    - All 8 of DPCA's fault 10 misses are like that, with first switch-ons at samples 103–143.
+  - **Static PCA has no on-at-onset misses.**
+    - Fault 10's only-alarms runs 132 and 417 are genuine, with first switch-ons at 102 and 109.
+    - Fault 13's miss, run 383, is genuine (switch-on at 117). The alarms missed it too, so it's "neither".
+  - **Recorded (Raj): the hypothesis holds for the one-miss pattern (faults 1, 4, 5, 6, 7, 12, 14).** False alerts have a second cost: an alert already on hides the next fault's start. PROTOCOL counts only a new notification after onset, so the fault reaches no one as news.
+  - **Run 368 alone accounts for DPCA's whole dev gap.**
+    - It costs 7 × 0.02 / 12 = 0.0117 on the summary mean.
+    - DPCA gains 0.04 on fault 10 and 0.02 on fault 13, together +0.005.
+    - Net −0.0067, which is exactly 0.9817 → 0.975.
+- **Changed:**
+  - **`eval/PROTOCOL.md`, key values:** the "Detector selection" row now states decision 63's rule (the selection runs, not dev; > 0.03; otherwise static stays). Raj approved it.
+  - **`docs/log.md`:** this entry and the week 3 summary.
+  - **`docs/PLAN.md`:** the week 3 close note.
+- **Tests:** no code change in this stage. The suite is as at 58d6733: 949 passed, 2 deselected.
+- **Unsure about:** nothing new.
+- **Decisions needed:** none new. Carried items are in the summary below.
+
+### 2026-09-29: week 3 summary
+- **Done when:** met. The per-fault detection table on dev exists for static PCA and DPCA, next to both alarm lists. Every one has the Masked column, and static PCA has lead time against the realistic grouped alarms. Static PCA stays the production detector (decision 63, `…020335Z_select_detector.json`).
+- **Decisions 57–63:**
+  - 57: detection scored from the documented onset; twin divergence as a diagnostic only
+  - 58: the conventional-alarm baseline
+  - 59: the finer top of the q grid, for every detector
+  - 60: operator-load counts and lead time
+  - 61: the loop map from the generating control code
+  - 62: the masked-fault rule, judged on the settled half, at plant level; valve headroom
+  - 63: the DPCA lag rule, the pad, lagged names and the selection rule
+  - Also: decision 50's hashes corrected, and PROTOCOL's selection row aligned with decision 63.
+- **Built:**
+  - the divergence metric
+  - the alarm baseline and its calibration
+  - the operator-load, chattering and lead-time functions
+  - `library/loops.yaml` and `app/detector/loops.py` (headroom)
+  - `eval/masked.py`
+  - DPCA (`app/detector/dpca.py`, `eval/fit_dpca.py`, a lag-aware calibration, dev check and dev table)
+  - `eval/select_detector.py` and `eval/check_missed.py`
+  - Tests went from 587 to 949.
+- **Headline dev numbers (50 run numbers; means over the 12 summary faults; 95% run-number bootstrap intervals):**
+
+  | Detector | Record | Detection | Faults 3, 9, 15 | False alerts per 24 h | Chance rate |
+  |---|---|---|---|---|---|
+  | App 3, static PCA (n 3, G 15, q 95.57) | `…020336Z_dev_table_pca_static` | 0.982 (0.972–0.990) | 0.087 | 0.92 (0.65–1.21) | 0.06 (0.00–0.14) |
+  | DPCA, L = 1 (n 3, G 13, q 97.07) | `…175722Z_dev_table_pca_dynamic` | 0.975 (0.948–0.992) | 0.133 | 1.08 (0.76–1.41) | 0.12 (0.04–0.22) |
+  | Realistic alarms, grouped (n 1, G 0, q 99.992) | `…020402Z_dev_table_alarms_realistic_grouped` | 0.958 (0.947–0.970) | 0.200 | 1.39 (1.08–1.70) | 0.22 (0.12–0.34) |
+  | Every-tag alarms, grouped (n 1, G 0, q 99.992) | `…020427Z_dev_table_alarms_every_grouped` | 0.962 (0.950–0.973) | 0.253 | 1.56 (1.23–1.90) | 0.26 (0.14–0.38) |
+
+- **Findings, in plain terms:**
+  1. **App 3 isn't earlier than the realistic alarms on most faults.**
+     - The alarms lead by a median 6 minutes on faults 4, 5, 6, 7, 12 and 14, by 9 on fault 2 and by 3 on fault 13.
+     - App 3 leads on faults 1 (3 min), 8 (4.5), 10 (10.5, over 24 both-detected runs) and 11 (3). Only 1 and 8 have intervals above 0.
+     - Most of the 6-minute gap is the persistence floor: n = 3 can't notify before 9 minutes, n = 1 can at 3.
+  2. **App 3 wins on operator load and coverage.**
+     - App 3 gives 1 notification per episode, with no floods and no chattering.
+     - The realistic alarms give up to 65 per episode (fault 14, all chattering) and flood on fault 7.
+     - On fault 10, App 3 detects 0.80 against 0.52.
+  3. **The alarms run over budget on unseen runs** (1.39 and 1.56 per 24 h). App 3's point estimate is within it (0.92, though its interval reaches 1.21). So the lead-time comparison favours the alarms' looser operating point. The README must say so.
+  4. **Masking:** only fault 4 is masked (58 of 100 selection runs, absorbed by RX-FV-206). On it, the realistic alarms clear (share still flagged 0.01) while App 3 holds (1.00).
+  5. **DPCA doesn't earn its place.**
+     - On the selection runs it's +0.004, far below the 0.03 margin.
+     - On dev it's 0.007 lower than static PCA. Run 368 accounts for all of that (session 10).
+     - It costs a higher false-alert rate (1.08 against 0.92) and a doubled chance rate.
+  6. **False alerts have a second cost.** An alert already on at onset hides the next fault's start. DPCA's false alert at sample 15 of run 368 bridged into seven faults and cost one detection on each. Static PCA has no such misses on dev.
+  7. **Genuine misses are late, not silent.** Every fault 10 miss, for both detectors, first alerts 2–52 samples after the 4 h window (samples 102–152).
+- **Carried to week 4 (open):**
+  - **The published-number check (Must, Metrics) hasn't run.** It still needs the Yin 2012 component count, the agreement band and the theoretical 99% limits, decided together first. It's week 2 work, still open.
+  - **Status bands:** the Watch band follows RBC (schedule note). The plant ratio and bands are shipped.
+  - **README wording** for finding 3: the comparison isn't at equal dev false-alert rates. An AMOC curve would put both detectors on one axis.
+  - **Decisions:** the `TAG@t-j` name format (needed by RBC's "lags combined per tag"; DPCA isn't shipping, so it's low priority); findings 2 and 3 on `plant_track`; replay after a data gap; `httpx2`; McNemar against a paired bootstrap; Neon (later).
+- **Week 4 (19–25 Oct in the plan, starting early):** reconstruction-based contributions and signature features, the library schema, and the first 5 entries.

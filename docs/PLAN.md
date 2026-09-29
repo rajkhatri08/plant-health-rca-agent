@@ -59,7 +59,7 @@ Stitched timeline, simulator runs, operating-mode changes, in-loop sensor faults
 
 ## Cut line
 If behind, drop in this order:
-1. DPCA, moved to after 2 December.
+1. DPCA, moved to after 2 December. (Moot since week 3: DPCA is built and wasn't selected; static PCA ships, decision 63.)
 2. LangGraph, replaced by plain Python with approval as a database status.
 3. Four library entries, going from 12 to 8. Faults 7, 8, 10 and 12 join the unknown-fault test.
 4. Status bands, replaced by a plain alert list.
@@ -80,6 +80,7 @@ Never cut: the sealed test and splits, the tested metric code, the single calibr
 
 ## Schedule notes
 - **Watch band moves to after week 4 (Raj, 28 September 2026).** Each group's Watch statistic is the group's joint RBC (decision 9), so the Watch band is built after RBC in week 4. Week 3's status-band work is the plant ratio and bands already shipped. The page keeps "Watch isn't built yet" until then.
+- **Week 3 closed (29 September 2026).** Its "Done when" is met: the per-fault dev table exists for static PCA, DPCA and both alarm lists, with the Masked column (records in `docs/log.md`, week 3 summary). Static PCA stays the production detector (decision 63, `eval/runs/20260929T020335Z_select_detector.json`), so the bundle and replay stay static. The end-of-week-3 checkpoint passes, so no cut is taken. The build runs about two weeks ahead of the dates in the table, so week 4 starts now. Still open from earlier weeks: the published-number check (Must, Metrics), which needs the Yin component count, agreement band and theoretical 99% limits decided first.
 
 ## Parking lot
 Ideas that come up mid-build go here. Nothing enters scope unless something else leaves.

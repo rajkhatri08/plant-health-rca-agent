@@ -13,7 +13,7 @@ Confirm these before the protocol commit.
 | Warm-up | 9 samples (27 min); scoring starts at sample 10. Every detector's memory fits inside it: lags + persistence window − 1 ≤ 9 (decision 52) |
 | Useful detection window | 4 h after onset |
 | Notification window (alarm comparison) | first 2 h after onset |
-| Detector selection | simplest detector within 3 points of the best dev detection rate, at the same budget |
+| Detector selection | decided on the 100 selection runs, not dev: DPCA replaces static PCA only if its selection score (mean detection rate over the 12 selection faults, at its own calibrated n, G and q) is more than 3 points (0.03) higher; otherwise static PCA stays (decision 63) |
 | Diagnosis times | provisional at alert + 30 min, revised at + 60 min |
 | Matcher candidates (top-k) | smallest k with at least 95% candidate recall on dev |
 | Decline thresholds (matcher, forest) | accept 95% of known-fault dev cases (not authoring runs) |
