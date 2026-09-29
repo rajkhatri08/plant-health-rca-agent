@@ -1475,3 +1475,45 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **`group_rbc` inverts each group's ΞᵀMΞ.** M is positive definite, so it's invertible. For the 8-tag feed group, solving is steadier than inverting, but that's Raj's choice.
 - **Decisions needed:** PROTOCOL → Right place doesn't yet mention the two S4 answers (the denominator and top tags by RBC_i / W_i). They're in decision 65 only, as asked. Mirror them in PROTOCOL?
 - **Next (Raj):** implement `app/detector/rbc.py` until `tests/test_rbc.py` passes. Then S3 (Watch calibration, with W_i alongside W_g).
+
+### 2026-09-29: week 4 session 3, Watch calibration stubs, driver and dev reading
+- **Raj (S2, committed):** implemented `app/detector/rbc.py` (with guidance from the Claude.ai chat). All 40 RBC tests pass.
+- **Changed:**
+  - **`eval/calibrate.py` (stubs for Raj, NotImplementedError):**
+    - `WATCH_CAP = 0.02`
+    - `watch_limits_at(rbc_runs, p, warmup)`: per-column pooled percentile of scored samples
+    - `watch_shares(rbc_runs, limits, warmup)`: the any-column share and each column's share, strict "above"
+    - `watch_limit(rbc_runs, warmup, cap, q_grid)`: the stable-lowest p, scanned from the top, None if the top fails
+    - The two helpers are stubbed too, because they're limit and calibration code, as `limits_at` is.
+  - **`eval/calibrate_watch.py` (Claude, new):** `python -m eval.calibrate_watch`.
+    - **Before loading:** it refuses an existing output, a dirty tree, limits without a `calibrate_pca` record, another model, and DPCA limits (RBC isn't built for DPCA, decision 64).
+    - **Scoring:** the calibration pool once, as whole-run group RBC and tag RBC through `rbc.py`, with groups from `groups.load(model.tags)`.
+    - **Calibration:** p = `watch_limit`, and a p of None stops with decision 66's error. W_g and W_i come from `watch_limits_at` at p.
+    - **Watch file:** `data/models/pca_static_watch.json` holds p, the cap, each group's tags and W_g, each tag's W_i, and the model and limits SHA-256s.
+    - **Record:** `calibrate_watch` holds p, whether it's the grid floor, every W_g and W_i, the scored sample count, and the any-group and per-group shares on calibration.
+    - **Helpers for later sessions:** `watch_record_for`, and `load_watch` (checks the record, the limits SHA-256 and that the groups match the register).
+  - **`eval/check_dev.py`:** a new `--watch <watch file>`.
+    - It checks the file before loading anything, then reads the any-group and per-group Watch shares on the same normal dev runs (dev loaded once).
+    - They're recorded under `metrics.watch`, with `watch_record` and `watch_sha256` in the config. Without `--watch` the record is unchanged.
+    - `calibrate_watch` is imported inside `run`, because `calibrate_watch` imports `check_dev` for `calibration_record_for`.
+- **Tests:**
+  - **`tests/test_watch_limit.py` (24, hand-built):** two columns of 1..100 over two runs, with a 1e6 warm-up sample that would move every percentile if it were counted.
+    - Pooled linear percentiles, and warm-up skipped.
+    - Shares by hand. "Aligned" columns count their exceedances once. "Reversed" columns add up: 2% + 2% = 4%, so the plant cap is stricter than a per-group one.
+    - A value equal to its limit isn't in Watch.
+    - p = 98 aligned and 99 reversed on a 4-point grid. The bottom of the grid when everything passes. None when the top fails. p = 97.98 on the real grid.
+    - Refusals.
+  - **`tests/test_calibrate_watch.py` (16):** on the calibration fixture's 33 real fast-tag names. The watch file equals direct calibration; the record; the shares; only calibration loaded; no qualifying p; five refusals before loading; `main`'s exit code; `check_dev --watch` against a direct computation; unchanged without `--watch`; and a file with no record or with other groups refused before loading.
+  - **Checked against a throwaway reference** of the three stubs (a pytest plugin in the scratchpad, not the repo): all 46 pass (these plus `test_check_dev.py`). That check caught a bug in my test helper, which indexed raw dataset columns by plant tag. It now uses `tagmap.column_indices`, as the driver does.
+  - **`pytest -q`:** 30 failed and 4 errors (all NotImplementedError from the stubs; the errors are the fixture that calibrates Watch), 1004 passed, 2 deselected.
+- **Not run:** no driver, no data.
+- **The idea (for Raj):**
+  - Each group's Watch boundary is a high percentile of its own normal RBC. With one shared percentile, every group is equally strict.
+  - The cap counts a sample once if any group is above its line. So six groups each at 2% would put the plant in Watch up to about 12% of the time, and the search raises p until the union is at most 2%.
+- **Unsure about:**
+  - **The shares have no interval.** They're a sanity reading, like the calibration shares. A run-number bootstrap could be added if the README quotes them.
+  - **The any-group share is monotone in p**, because every boundary rises with p. So the stable-lowest rule gives the same p as "lowest passing". It's kept for consistency with decision 54.
+- **Decisions needed:** none new. Carried: whether to mirror decision 65's S4 answers in PROTOCOL.
+- **Next (Raj):** implement the three functions until `tests/test_watch_limit.py` and `tests/test_calibrate_watch.py` pass. After committing, on a clean tree:
+  1. `python -m eval.calibrate_watch`
+  2. `python -m eval.check_dev --watch data/models/pca_static_watch.json`

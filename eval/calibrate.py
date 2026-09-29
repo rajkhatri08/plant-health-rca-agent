@@ -95,6 +95,42 @@ def lowest_stable_q(ratio_runs_at: Callable[[float], Mapping[int, np.ndarray]], 
     return lowest
 
 
+WATCH_CAP = 0.02                            # decision 66: any group in Watch at most 2% of normal time
+
+
+def watch_limits_at(rbc_runs, p, warmup) -> np.ndarray:
+    """Boundaries at percentile p (decisions 65, 66): per column, the p-th percentile
+    (numpy's default linear method) of that column over every run's scored samples
+    (index warmup onwards), pooled over runs. rbc_runs is a list of whole-run arrays,
+    samples x columns (RBC per group, or per tag), index 0 = sample 1. Returns shape
+    (columns,), float64.
+
+    Raises ValueError if p isn't in (0, 100], if there are no runs, if runs have different
+    column counts, if the warm-up doesn't end inside every run, or on NaN or inf."""
+    raise NotImplementedError("Raj: week 4 session 3")
+
+
+def watch_shares(rbc_runs, limits, warmup) -> tuple[float, np.ndarray]:
+    """(any_share, column_shares) over every run's scored samples, pooled. A column is in
+    Watch at a sample when its value is strictly above its limit (RBC_g / W_g > 1).
+    any_share is the share of samples with at least one column in Watch; column_shares[j]
+    is column j's own share. Same refusals as watch_limits_at, plus limits whose length
+    isn't the column count or that aren't finite and > 0."""
+    raise NotImplementedError("Raj: week 4 session 3")
+
+
+def watch_limit(rbc_runs, warmup, cap=WATCH_CAP, q_grid=Q_GRID) -> float | None:
+    """The shared percentile p for every group's Watch boundary (decision 66): the lowest
+    p in q_grid such that it and every higher grid value give watch_shares(...)[0] <= cap
+    at watch_limits_at(rbc_runs, p, warmup). Scan from the top down and stop at the first
+    failure, as lowest_stable_q does. None if the highest grid value already fails; the
+    driver then stops with an error.
+
+    Raises ValueError if q_grid is empty or not strictly increasing, or cap isn't in
+    [0, 1), plus watch_limits_at's refusals."""
+    raise NotImplementedError("Raj: week 4 session 3")
+
+
 def selection_score(tracks_by_fault: Mapping[int, list], warmup) -> float:
     """Mean detection rate over SELECTION_FAULTS (each fault weighted equally).
 
