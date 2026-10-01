@@ -1,0 +1,9 @@
+entry_id: reactor-cooling-water-warm-supply
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-01T19:06:29Z'
+note: 'Reviewed as reviewer, not approver. Schema valid and the leak scan clean (eval/approve_entry.py
+  --check passes those gates and preconditions). Every signature item checked against the authoring evidence:
+  all 10 items agree on 5 of 5 detected runs. The description''s claims (valve high, reactor temperature
+  held normal, the masked pattern) match the evidence at both readings. The valve running out of travel
+  is stated as a possibility, not observed, which is right. Nothing blocking.'

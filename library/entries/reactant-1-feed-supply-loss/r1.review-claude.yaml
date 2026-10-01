@@ -1,0 +1,10 @@
+entry_id: reactant-1-feed-supply-loss
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-01T19:06:29Z'
+note: 'Reviewed as reviewer, not approver. Schema valid and the leak scan clean (eval/approve_entry.py
+  --check passes those gates and preconditions). Every signature item checked against the authoring evidence:
+  required items agree on 5 of 5; two supporting items on 4 of 5 (the purge reactant-1 analyzer, and the
+  feed loop saturated at the revised reading). Minor, for an r2: the description says the valve is fully
+  open within the hour, but the evidence shows that on 4 of 5 runs, the fifth still losing control. The
+  composition loop losing control and the low compressor power match on every run. Nothing blocking.'

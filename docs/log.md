@@ -1899,3 +1899,69 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Expected for every draft until week 5:** `--check` will show entry_tests FAIL (no runner yet), and gap_24h FAIL for the first 24 hours after `created_at`. All other gates should pass before a draft is committed.
 - **Decisions needed:** none new.
 - **Next (Raj):** write the five r1 drafts and run `--check` on each before committing it; then add each to `eval/entry_provenance.yaml`. Approvals come in week 5.
+
+### 2026-10-02: week 4 session 8 (close), five r1 drafts and Claude's reviews
+- **Raj:** wrote the five r1 drafts (with guidance from the Claude.ai chat, reviewed himself) and committed them with the entry key (9f900c7, ffdbc30, 8d1c04f). Each passed `--check` on schema, leak scan, provenance and preconditions.
+
+  | Entry | Provenance | Authoring runs detected |
+  |---|---|---|
+  | `reactor-cooling-water-warm-supply` | `fault_04.yaml` | 5 of 5 |
+  | `condenser-cooling-water-warm-supply` | `fault_05.yaml` | 5 of 5 |
+  | `reactant-1-feed-supply-loss` | `fault_06.yaml` | 5 of 5 |
+  | `mixed-feed-reactant-ratio-shift` | `fault_01.yaml` | 5 of 5 |
+  | `reaction-rate-drift` | `fault_13.yaml` | 4 of 5 (late: 54 to 159 min) |
+- **Claude's review (as reviewer, never approver):**
+  - `--check` re-run: schema, leak scan, provenance and preconditions pass for all five; entry_tests and gap_24h fail, as expected until week 5.
+  - All 56 signature items checked against the authoring evidence: every required item agrees on every detected run, and every supporting item on at least half (two at 4 of 5, one at 3 of 4).
+  - **The description claims that aren't in the signatures were checked too, and match:**
+    - reactor temperature held normal (cooling)
+    - compressor power low at the revised reading (condenser) and at both readings (feed supply, ratio shift)
+    - the reactant-1 composition loop losing control (feed supply)
+    - feed valve and gas-loop pressures high (ratio shift)
+  - **Non-blocking notes for an r2 (in the review files):**
+    - **feed supply:** "fully open within the hour" holds on 4 of 5 runs.
+    - **reaction drift:** the signature uses loop CP-FIC-501, but `equipment.loops` and `links.loops` are empty.
+    - **ratio shift:** the description contrasts it with the feed-supply entry, but `related_entries` is empty.
+  - **No sign of dev influence.** The ratio shift's compressor location matches what dev showed in S4, but the authoring evidence supports it on its own (5 of 5).
+  - **Wrote `library/entries/<entry>/r1.review-claude.yaml` for all five.** The notes contain no fault numbers, run numbers or provenance file names (the leak scan passes), and the store loads them with `claude` as reviewer.
+  - The reaction-drift note's delay range was corrected (to 54 to 159 min) before any commit.
+- **Tests:** unchanged code; the library, leak-scan and sources tests pass (122). The full suite was last 1306 passed, 3 deselected.
+- **Decisions needed:** none new.
+
+### 2026-10-02: week 4 summary
+- **Done when: met.** The top tags look right on dev faults: Raj's review in S4 (`eval/runs/20260929T073949Z_dev_table_pca_static.json`).
+- **Decisions 64–68** (all fixed before the results they govern):
+  - 64: RBC on the combined index; groups rebuilt jointly; ranked by RBC_g / W_g
+  - 65: attribution over the n triggering samples; the family → groups map; right place reported both ways; top tags by RBC_i / W_i
+  - 66: the Watch band, capped at the plant level
+  - 67: the library schema, storage, governance, source register and gated approval
+  - 68: the feature vocabulary, amended for `one_of`
+- **Built:**
+  - **S1–S2:** decisions 64–66; `app/detector/rbc.py` (Raj) and `app/detector/groups.py`.
+  - **S3:** the Watch calibration (`watch_limit`, Raj; `eval/calibrate_watch.py`, `check_dev --watch`).
+  - **S4:** right place and top tags in the dev table (`metrics.right_place`, Raj).
+  - **S5:** status bands in the runtime (`bands.py`), bundle `pca_v2`, the group panel on the page; live on Render and Vercel.
+  - **S6:** the library schema and store, the accounts.
+  - **S7:** `features.py`, the evidence normals, authoring and provenance.
+  - **S8:** `one_of`, `eval/sources.yaml`, `eval/approve_entry.py` (with `--check`), the leak-scan patterns in `eval/leak_scan.py` with the sources' surnames, the entry key and template, and five r1 drafts reviewed.
+  - **Tests:** 949 → 1306.
+- **Headline numbers, each from its record:**
+  - **Watch** (`…065812Z_calibrate_watch.json`, `…065821Z_dev_false_alerts.json`): p = 99.67. Any-group Watch 1.95% of calibration samples and 2.00% of normal dev; each group about 0.33%. False alerts unchanged (0.919 per 24 h).
+  - **Right place** (`…073949Z_dev_table_pca_static.json`): 0.69 (0.67–0.70) at the notification, 0.54 (0.52–0.56) 30 min later. Faults 1, 2 and 8 score 0: composition shows only in the analyzers, which the detector doesn't use. Attribution drifts by +30 min, which supports reading it at the notification.
+  - **Parity:** the committed replay stream through `pca_v2` equals the evaluation path on the real dev run (`pytest -m opendata`).
+  - **Authoring** (`…20261001T182856Z_authoring.json`): faults 1, 4, 5, 6 detected on 5 of 5 authoring runs, fault 13 on 4 of 5 (late).
+- **Findings, in plain terms:**
+  1. RBC places most faults in the right group, and fails honestly where the cause is invisible to the detector's tags.
+  2. The plant-level Watch cap holds on unseen normal runs.
+  3. The five entries' signatures agree with their authoring evidence, and their texts claim nothing the evidence doesn't show.
+  4. **No entry is approved yet.** That's deliberate: decision 24 needs real entry tests, which come with the matcher.
+- **A process lesson:** S5's real-data parity test first skipped silently (the conftest's data wall turned a loader error into a skip), and "passes" was reported. It now fails rather than skips on a loader error, and the S5 log says so. An `s` in pytest output needs checking.
+- **Carried to week 5 (open):**
+  - **Approve the five drafts:** the entry-test runner with the matcher, then `eval/approve_entry.py`. The 24 h gap opens about 19:00 UTC on 2 October 2026 (created_at 18:58–19:03 UTC on 1 October).
+  - **The published-number check (Must, Metrics):** still needs the paper's component count, agreement band and theoretical 99% limits.
+  - **ISO 14224 category names:** Raj to verify; until then the fields hold `unverified`.
+  - **Licences "to confirm"** in `eval/sources.yaml`.
+  - **The r2 notes** from the reviews (minor).
+  - **Bundle `pca_v3`** with the evidence normals, when the agent needs them at runtime.
+  - **Not built:** RBC for DPCA (decision 64); dynamics in the features (decision 68).
+- **Week 5 (26 Oct–1 Nov in the plan, starting early):** 7 more entries (12 in total), the matcher, the random-forest baseline, and the 3-hour LangGraph spike.

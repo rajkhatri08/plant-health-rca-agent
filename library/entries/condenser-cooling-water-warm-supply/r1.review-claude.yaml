@@ -1,0 +1,9 @@
+entry_id: condenser-cooling-water-warm-supply
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-01T19:06:29Z'
+note: 'Reviewed as reviewer, not approver. Schema valid and the leak scan clean (eval/approve_entry.py
+  --check passes those gates and preconditions). Every signature item checked against the authoring evidence:
+  all 12 items agree on 5 of 5 detected runs. The description''s claims also match items not in the signature:
+  the compressor power is low at the revised reading on every run and normal at the provisional one, as
+  ''within the hour'' says. Nothing blocking.'

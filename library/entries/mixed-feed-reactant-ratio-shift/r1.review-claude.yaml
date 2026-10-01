@@ -1,0 +1,10 @@
+entry_id: mixed-feed-reactant-ratio-shift
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-01T19:06:29Z'
+note: 'Reviewed as reviewer, not approver. Schema valid and the leak scan clean (eval/approve_entry.py
+  --check passes those gates and preconditions). Every signature item checked against the authoring evidence:
+  all 13 items agree on 5 of 5 detected runs, and the description''s further claims (feed valve high,
+  all three gas-loop pressures high, compressor power low) match on every run. Suggestion for an r2: the
+  description contrasts this entry with reactant-1-feed-supply-loss, so listing it under related_entries
+  would help tell the two apart. Nothing blocking.'

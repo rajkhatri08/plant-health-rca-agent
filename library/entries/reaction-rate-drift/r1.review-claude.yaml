@@ -1,0 +1,10 @@
+entry_id: reaction-rate-drift
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-01T19:06:29Z'
+note: 'Reviewed as reviewer, not approver. Schema valid and the leak scan clean (eval/approve_entry.py
+  --check passes those gates and preconditions). Every signature item checked against the authoring evidence:
+  4 of 5 runs detected, late (54 to 159 min after the documented start), which the description states
+  honestly. Required items agree on 4 of 4; the provisional recycle-flow loop compensating on 3 of 4 (supporting).
+  The one_of pressure states fit the evidence (low on 3, high on 1). Minor, for an r2: the signature uses
+  loop CP-FIC-501, but equipment.loops and links.loops are empty. Nothing blocking.'
