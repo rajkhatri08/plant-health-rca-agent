@@ -1,0 +1,70 @@
+# Template for one library revision (decisions 23, 67, 68). Copy it to
+# library/entries/<entry_id>/r1.yaml and replace every value. Never edit a committed
+# revision: a change is a new file, r2.yaml, with supersedes: 1.
+#
+# Keep it in the agent's terms: plant tags, loop IDs, register groups, your own words.
+# No fault numbers, run numbers, raw tag names, benchmark or source names (the leak scan
+# and eval/approve_entry.py refuse them). Write the signature from the entry's provenance
+# file (eval/provenance/, listed in eval/entry_provenance.yaml), never from dev.
+# tests/test_entry_template.py checks this file still validates against the schema.
+
+entry_id: replace-with-a-mechanism-slug    # lowercase-with-hyphens; describes the mechanism
+revision: 1
+event_type: process                        # data_quality | instrument | planned_activity | process
+family: reactor cooling                    # one of the PROTOCOL families
+title: Replace with a short title (at most 120 characters)
+description: >-
+  Replace with what happens and how it shows, in your own words (at most 1200
+  characters).
+withdrawn: false                           # true only in a revision that takes the entry out
+
+equipment:
+  group: reactor                           # a register group
+  equipment_class: unverified              # ISO 14224; "unverified" until the names are checked
+  tags: [RX-TI-204]                        # tags involved (any register tag)
+  loops: [RX-TIC-204]                      # loops involved (library/loops.yaml)
+
+iso14224:                                  # every field "unverified" until checked (decision 67)
+  failure_mode: unverified                 # or not_applicable when no plant equipment has failed
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:                                 # decision 68; unlisted items are "don't care"
+  location:                                # at the notification only
+    top_group: {one_of: [reactor], weight: required}
+    top_tags: {any_of: [RX-TI-204], weight: supporting}   # at least one of these in the top 3
+  provisional:                             # as of notification + 30 min
+    tags:                                  # fast tags: high | low | both | normal
+      RX-TI-204: {state: high, weight: required}
+      RX-PI-202: {one_of: [high, low], weight: supporting}   # several acceptable states
+    loops:                                 # held | compensating | lost | saturated
+      RX-TIC-204: {state: lost, weight: supporting}
+    analyzers:                             # high | low | normal | not_yet_available
+      RX-AI-211: {one_of: [normal, not_yet_available], weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:                                 # as of notification + 60 min; same form
+    tags:
+      RX-TI-204: {state: high, weight: required}
+
+actions:                                   # advisory only; none writes to controls
+- action_id: replace-with-an-action-slug   # unique across the library
+  kind: check                              # check | confirm | request_setpoint_change | escalate
+  text: Replace with what the operator should do, in plain words.
+  safety_preconditions:                    # at least one
+  - Replace with the safety condition that must hold first.
+  approval_required: true                  # always true
+
+links:
+  related_entries: []                      # other entry_ids
+  loops: [RX-TIC-204]
+
+sources: [src-001]                         # opaque IDs from eval/sources.yaml only
+
+governance:
+  author: raj
+  created_at: 2026-10-02T09:00:00Z         # full UTC timestamps
+  effective_from: 2026-10-02T09:00:00Z
+  review_due: 2027-04-02T09:00:00Z         # after effective_from
+  change_note: First revision.
+  supersedes: null                         # null for r1, then k - 1

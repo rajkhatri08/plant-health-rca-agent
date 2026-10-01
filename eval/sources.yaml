@@ -1,0 +1,45 @@
+# Source register (builder side; decisions 25 and 67).
+#
+# Library entries cite only these opaque IDs (src-NNN). Titles, authors and links stay
+# here: they name the benchmark or its authors, so they must never appear in library/
+# (LEAKAGE wall 2; tests/test_sources.py checks it). An ID is never reused or renumbered.
+#
+# role:    what the source is used for
+# licence: as known; "to confirm" means not yet checked against the source itself
+# cited:   the decision that cites it, so each line can be traced
+sources:
+- id: src-001
+  title: "App 3 authoring evidence: signature features on the 5 authoring runs per fault (eval/provenance/)"
+  role: signature evidence (the only source a signature may be written from; LEAKAGE wall 3)
+  licence: own work
+  cited: decisions 67, 68
+- id: src-002
+  title: "Rieth et al., Tennessee Eastman Process simulation dataset, Harvard Dataverse, doi:10.7910/DVN/6C3JR1"
+  role: data (fit, calibration, authoring and evaluation runs)
+  licence: "Custom Dataset Terms: public domain dedication; don't imply endorsement (dataset/manifest.yaml)"
+  cited: decisions 33, 49
+- id: src-003
+  title: "N. L. Ricker, Tennessee Eastman archive (tecode.zip, temexd_mod.zip), https://depts.washington.edu/control/LARRY/TE/download.html"
+  role: simulator behaviour (analyzer sampling and dead time)
+  licence: to confirm
+  cited: decision 50
+- id: src-004
+  title: "Russell, Chiang and Braatz, closed-loop simulator code temain_mod.f (public mirror camaramm/tennessee-eastman-profBraatz)"
+  role: control strategy (the loop map, library/loops.yaml)
+  licence: to confirm
+  cited: decision 61
+- id: src-005
+  title: "Yin, Ding, Haghani, Hao and Zhang (2012), Journal of Process Control 22(9), 1567-1581, doi:10.1016/j.jprocont.2012.06.009"
+  role: published-number check (PCA detection rates)
+  licence: to confirm (paywalled; cited, not copied)
+  cited: decision 56
+- id: src-006
+  title: "Ku, Storer and Georgakis (1995), dynamic PCA lag selection"
+  role: method (the DPCA lag rule)
+  licence: to confirm (cited, not copied)
+  cited: decision 63
+- id: src-007
+  title: "ISO 14224, petroleum, petrochemical and natural gas industries: collection and exchange of reliability and maintenance data for equipment"
+  role: terminology (equipment class, failure mode, mechanism, cause, detection method)
+  licence: "to confirm; the category names are unverified until Raj checks them against a source he can access (decision 67)"
+  cited: decisions 23, 67

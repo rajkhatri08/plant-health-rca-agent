@@ -1825,3 +1825,77 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   2. `python -m eval.authoring`
 
   Then S8: `eval/approve_entry.py`, `eval/sources.yaml`, and the first 5 entries from the provenance files.
+
+### 2026-10-02: week 4 session 8, steps 1–4: one_of, source register, gated approval, entry key and template
+- **Raj (S7 close):** S7 ran and is committed (`eval/runs/20261001T182856Z_evidence_normals.json`, `…_authoring.json`, `eval/provenance/fault_{01,04,05,06,13}.yaml`). Confirmed: `src-NNN` IDs, the most recent side for an analyzer out on both sides, and provenance per fault with an entry key in `eval/`.
+- **Step 1, decision 68 amended (Raj, from the authoring evidence, not dev):**
+  - Tag and analyzer expectations may give `one_of` several acceptable states, and any of them agrees. Exactly one of `state` or `one_of` (at least 2 different states). Loops keep a single state.
+  - **The evidence:** `fault_13.yaml` has RX-PI-202, SP-PI-403 and ST-PI-602 low on 3 detected runs and high on 1, at both readings.
+  - **Code:** `app/library/schema.py`, with `accepted()` on every expectation.
+  - **Tests (+9 in `tests/test_library.py`):** valid `one_of`, six refusals (neither, both, one state, repeated, unknown, an analyzer state on a tag), loops refusing `one_of`, and the store loading a `one_of` entry.
+- **Step 2, `eval/sources.yaml` (builder side):** seven sources, pre-filled from what the decisions already cite:
+  - src-001: authoring evidence (own work)
+  - src-002: the dataset (its terms, from the manifest)
+  - src-003: the simulator archive (decision 50)
+  - src-004: the control code (decision 61)
+  - src-005: the published-number paper (decision 56)
+  - src-006: the DPCA lag rule (decision 63)
+  - src-007: ISO 14224 (decisions 23, 67)
+  - Each has a role, a licence (four "to confirm") and the decision citing it. IDs are never reused or renumbered.
+  - **`tests/test_sources.py` (4):** IDs unique and in order, all fields present, no title or link appears in `library/`, and the register isn't in `library/`.
+- **Step 3, `eval/approve_entry.py` (Claude):** `python -m eval.approve_entry <entry_id> <k> --approver raj-review`.
+  - **The six gates, all evaluated and reported at once; nothing is written unless all pass:**
+    1. **schema:** the whole library loads through the store, and every cited source is in `eval/sources.yaml` (my addition, folded into this gate).
+    2. **leak_scan:** the revision file, with the CI patterns.
+    3. **provenance:** the entry key names the file; the file is an output of an authoring record; the family matches; and the signature agrees with the detected authoring runs: a required item on every run, a supporting item on at least half (my thresholds, to confirm).
+    4. **preconditions.**
+    5. **entry_tests:** a clean `entry_tests` record says `entry@rk` passed.
+    6. **gap_24h.**
+  - **Other refusals:** an approver without the role or the author's account, a dirty tree, an existing approval (never overwritten), and an unknown revision.
+  - **`independent`** is computed from the accounts (same person: false), not an option.
+  - After writing, it reloads the store and removes the file if the store refuses it.
+  - **The leak-scan patterns moved to `eval/leak_scan.py`,** so CI and the approval gate share one definition. `tests/test_leak_scan.py` imports and re-exports them; nothing else changed.
+  - **`tests/test_approve_entry.py` (27):** in a throwaway git repo with a copy of the register and loop map.
+    - A full approval: file contents, the store label, and `independent` true for another person.
+    - Each gate failing on its own: an unknown source, a library that doesn't load, a leak, no key, no authoring record, the wrong family, a required item agreeing on 3 of 4, four ways for entry tests to fail, and 23 h 59 min.
+    - Supporting at exactly half passes and a quarter fails; `one_of` agreement; agreement counts; all failures reported together.
+    - Approver refusals (the author's account, Claude, unknown); no overwrite; dirty tree; unknown revision; `main`; the entry-key refusals.
+- **Step 4:**
+  - **`eval/entry_provenance.yaml`:** empty (`entries: {}`), with the line format in a comment. Raj adds one line per entry with its r1.
+  - **`docs/entry_template.yaml`:** a commented r1 template, not in `library/`, that validates against the schema. `tests/test_entry_template.py` (2) checks it validates, shows `one_of` and passes the leak scan. Its tags and states are placeholders, not authoring evidence.
+- **Tests:** `pytest -q` gives 1290 passed, 3 deselected.
+- **Not run:** nothing on data; no approval.
+- **Unsure about:**
+  - **The entry_tests gate can't pass yet.** There's no entry-test runner until the matcher (week 5), so `approve_entry` will refuse every entry until then. That's the honest reading of decision 24 ("only tested entries"), but it means no approval this week.
+  - **The agreement thresholds** (required: all detected authoring runs; supporting: at least half) are mine. They decide what "the signature agrees with its provenance" means.
+  - **The leak scan's word list** doesn't include the published-number paper's or the control code's other authors (for example Yin or Russell). The sources test catches each exact title and link. Adding names is Raj's call.
+  - **Not Claude's:** `eval/baselines/alarms.py` shows a change again (the IDE). Left alone.
+- **Decisions needed:**
+  - **The agreement thresholds** for the provenance gate (1.0 required, 0.5 supporting).
+  - **The entry_tests gate before week 5:** wait for the matcher, or define an interim entry test? For example, the entry's own signature scored against held-out authoring runs isn't possible with only 5 runs.
+  - Whether to add more source-author names to the leak scan's word list.
+- **Next (Raj):** review and commit; write the five r1 drafts from the provenance files, adding each to `eval/entry_provenance.yaml`. Approvals wait for the entry_tests decision and 24 h after each `created_at`.
+
+### 2026-10-02: week 4 session 8 (continued), Raj's answers, leak-scan names, approve --check
+- **Raj's answers:**
+  1. **The agreement thresholds are confirmed:** required items on every detected authoring run, supporting items on at least half. Recorded in decision 67's gate list.
+  2. **The entry_tests gate waits for the matcher.** There's no interim test. The five entries stay drafts this week and are approved in week 5, once real entry tests exist. Recorded in decision 67.
+  3. **Add the sources' authors' distinctive surnames to the leak scan.**
+  4. **Add a `--check` mode to `approve_entry`.**
+- **Changed:**
+  - **`eval/leak_scan.py`:** adds `yin`, `haghani`, `russell` and `storer` as whole words. Chiang, Braatz, Ricker, Vogel, Georgakis, Lyman, Rieth and Bathelt were already there. Not added:
+    - Ku: too short.
+    - Ding, Hao, Zhang: common words or surnames that would false-positive.
+    - Downs: "ups and downs", which an existing test must pass. "Vogel" covers that paper.
+  - **`tests/test_leak_scan.py`:** the new names are caught ("Yin et al.", "Haghani", "Russell's code", "Storer", plus the existing names spelled out); ordinary text still passes ("yinyang flow", "a restorer valve", "ding dong"). Agent-visible and served text were scanned first: none of the new names appear.
+  - **`eval/LEAKAGE.md`, CI checks:** the runtime scan line now describes the surname list instead of naming two authors.
+  - **`eval/approve_entry.py`:** `--check` (`python -m eval.approve_entry <entry_id> <k> --check [--approver …]`).
+    - It evaluates and reports the six gates, and the approver if given, on any tree, dirty or not, and never writes.
+    - It prints when the 24-hour gap will allow approval, and a one-line summary. It exits 0 only when every gate passes.
+    - `--approver` is required only without `--check`.
+    - The approval path is unchanged; the shared pieces moved into `_now`, `approver_problem` and `report`.
+  - **`tests/test_approve_entry.py` (+5):** `--check` on an uncommitted draft (reports leak_scan and gap_24h, writes nothing), all gates passing on a dirty tree, an approver that can't approve, an existing approval left as it is, and `main`'s exit codes and the `--approver` requirement.
+- **Tests:** `pytest -q` gives 1306 passed, 3 deselected (+5 `--check` tests, +11 leak-scan cases).
+- **Expected for every draft until week 5:** `--check` will show entry_tests FAIL (no runner yet), and gap_24h FAIL for the first 24 hours after `created_at`. All other gates should pass before a draft is committed.
+- **Decisions needed:** none new.
+- **Next (Raj):** write the five r1 drafts and run `--check` on each before committing it; then add each to `eval/entry_provenance.yaml`. Approvals come in week 5.

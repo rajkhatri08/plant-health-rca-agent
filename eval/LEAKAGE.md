@@ -25,5 +25,5 @@ Three walls. CI enforces walls 1 and 2; wall 3 is audited from the access log an
 
 ## CI checks
 - Scan prompts and `library/` for fault labels, raw tag names and the benchmark name.
-- Scan every tool's output at runtime for the same, plus the source paper's author names (Downs, Vogel).
+- Scan every tool's output at runtime for the same, plus the sources' authors' distinctive surnames (`eval/leak_scan.py`; very short or common ones are left out to avoid false positives, and "Downs" because of "ups and downs": "Vogel" covers that paper).
 - Check that `app/` imports neither `eval/` nor `ingest/`, that only `dataset/` reads raw files, and that the historian columns match the list above.

@@ -58,19 +58,46 @@ def _slug(value, what):
 Weight = Literal["required", "supporting"]
 
 
+def _one_state(self):
+    """Exactly one of state or one_of; one_of lists at least 2 different states."""
+    if (self.state is None) == (self.one_of is None):
+        raise ValueError("give either state or one_of, not both or neither")
+    if self.one_of is not None and len(set(self.one_of)) != len(self.one_of):
+        raise ValueError("one_of repeats a state")
+    return self
+
+
 class TagExpect(_Strict):
-    state: Literal[TAG_STATES]
+    """One expected state, or several acceptable ones (one_of: any of them agrees;
+    decision 68, amended 2 October 2026)."""
+    state: Literal[TAG_STATES] | None = None
+    one_of: tuple[Literal[TAG_STATES], ...] | None = Field(default=None, min_length=2)
     weight: Weight
+
+    _check = model_validator(mode="after")(_one_state)
+
+    def accepted(self) -> tuple:
+        return (self.state,) if self.state is not None else self.one_of
 
 
 class LoopExpect(_Strict):
     state: Literal[LOOP_STATES]
     weight: Weight
 
+    def accepted(self) -> tuple:
+        return (self.state,)
+
 
 class AnalyzerExpect(_Strict):
-    state: Literal[ANALYZER_STATES]
+    """As TagExpect: one state, or one_of several acceptable ones."""
+    state: Literal[ANALYZER_STATES] | None = None
+    one_of: tuple[Literal[ANALYZER_STATES], ...] | None = Field(default=None, min_length=2)
     weight: Weight
+
+    _check = model_validator(mode="after")(_one_state)
+
+    def accepted(self) -> tuple:
+        return (self.state,) if self.state is not None else self.one_of
 
 
 class MaskedExpect(_Strict):

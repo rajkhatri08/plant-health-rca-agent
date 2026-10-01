@@ -1,0 +1,7 @@
+# Entry key (builder side; decision 67, S7): which provenance file each library entry's
+# signature was written from. Labels live here and in eval/provenance/, never in library/.
+# One provenance file per entry; eval/approve_entry.py checks the signature against it.
+#
+# Fill in one line per entry when you write its r1, for example:
+#   some-mechanism-slug: eval/provenance/fault_04.yaml
+entries: {}

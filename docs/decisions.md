@@ -481,9 +481,9 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
       - **The approval records `independent`.** It must be false when author and approver are the same person, and it's shown as "self-approved (single-person demo)". An entry can be upgraded later to an independent approval (option 2) by a real second approver's account, with `independent: true`.
       - **Approval happens only through the gated command,** `eval/approve_entry.py` (builder side), built in S8 before the first approval (Raj, 29 September 2026). It refuses unless:
         - the schema is valid and the leak scan is clean
-        - the signature agrees with its provenance
+        - the signature agrees with its provenance: every required item on every detected authoring run, every supporting item on at least half of them (Raj, 2 October 2026)
         - every action has preconditions
-        - the entry's tests pass (decision 24)
+        - the entry's tests pass (decision 24). There's no interim test: entries stay drafts until the matcher brings real entry tests in week 5 (Raj, 2 October 2026)
         - at least 24 hours have passed since the revision was created
         - The approval file records these checks, and the store refuses an approval that lacks any of them or comes less than 24 hours after `created_at`.
     - **Entry tests** live in `eval/`, keyed by `entry_id`, because they carry labels.
@@ -515,6 +515,11 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
       - `not_yet_available` means fewer than 2 updates published since the notification.
     - **Dynamics (F6-A):** none in v1. Adding them later needs a decision whose reason doesn't come from dev results.
     - **Evidence normals** (the bands for all 52 tags) are planned for S7. The `pca_v3` bundle waits until the agent needs them at runtime.
+    - **Amendment (Raj, 2 October 2026, from the authoring evidence, not dev):**
+      - A tag or analyzer expectation may list several acceptable states with `one_of`; any of them agrees.
+      - An expectation gives exactly one of `state` or `one_of` (at least 2 different states).
+      - Loop expectations keep a single state.
+      - *Why:* on the authoring runs of the kinetics entry, the pressures move either way across runs (high on 1, low on 3, `eval/provenance/fault_13.yaml`). A single state would make a true direction-free symptom contradict on some runs.
 
     *Why:*
     - One definition of "out" (decision 62) serves the masked label, the loops and the signatures.

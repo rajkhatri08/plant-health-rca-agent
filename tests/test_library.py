@@ -385,3 +385,51 @@ def test_committed_revision_files_are_never_edited():
             assert len(commits) <= 1, f"{p.relative_to(REPO)} was edited after it was committed"
     except (OSError, subprocess.CalledProcessError):
         pytest.skip("git history not available")
+
+# ---------- decision 68 amendment: one_of for tags and analyzers ----------
+
+def with_tags(tags, analyzers=None):
+    doc = revision()
+    doc["signature"]["provisional"]["tags"] = tags
+    if analyzers is not None:
+        doc["signature"]["provisional"]["analyzers"] = analyzers
+    return yaml.safe_load(yaml.safe_dump(doc))
+
+
+def test_one_of_lists_several_acceptable_states():
+    rev = schema.Revision.model_validate(with_tags(
+        {"RX-PI-202": {"one_of": ["high", "low"], "weight": "required"},
+         "RX-FV-206": {"state": "high", "weight": "supporting"}},
+        {"RX-AI-211": {"one_of": ["high", "not_yet_available"], "weight": "supporting"}}))
+    p = rev.signature.provisional
+    assert p.tags["RX-PI-202"].accepted() == ("high", "low")
+    assert p.tags["RX-FV-206"].accepted() == ("high",)
+    assert p.analyzers["RX-AI-211"].accepted() == ("high", "not_yet_available")
+
+
+@pytest.mark.parametrize("expect", [
+    {"weight": "required"},                                            # neither
+    {"state": "high", "one_of": ["high", "low"], "weight": "required"},  # both
+    {"one_of": ["high"], "weight": "required"},                        # one_of needs two
+    {"one_of": ["high", "high"], "weight": "required"},                # repeated
+    {"one_of": ["high", "up"], "weight": "required"},                  # not in the vocabulary
+    {"one_of": ["high", "not_yet_available"], "weight": "required"},   # an analyzer state on a tag
+])
+def test_bad_tag_expectations_are_refused(expect):
+    with pytest.raises(ValidationError):
+        schema.Revision.model_validate(with_tags({"RX-PI-202": expect}))
+
+
+def test_loops_keep_a_single_state():
+    doc = revision()
+    doc["signature"]["provisional"]["loops"] = {"RX-TIC-204": {"one_of": ["held", "lost"],
+                                                               "weight": "supporting"}}
+    with pytest.raises(ValidationError):
+        schema.Revision.model_validate(yaml.safe_load(yaml.safe_dump(doc)))
+
+
+def test_a_one_of_entry_loads_in_the_store(root, accounts):
+    put(root, "r1.yaml", with_tags({"RX-PI-202": {"one_of": ["high", "low"], "weight": "required"}}))
+    put(root, "r1.approval.yaml", approval())
+    got = load(root, accounts).get(ENTRY, T0 + timedelta(days=2))
+    assert got.stored.revision.signature.provisional.tags["RX-PI-202"].one_of == ("high", "low")
