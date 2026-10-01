@@ -1,0 +1,82 @@
+entry_id: mixed-feed-reactant-ratio-shift
+revision: 1
+event_type: process
+family: feed composition
+title: Reactant ratio in the mixed feed shifted
+description: >-
+  The mixed feed carries less reactant 1 and more reactant 2 than normal. The
+  reactor feed analyzers show it first: reactant 1 falls and reactant 2 rises. The
+  reactant-1 composition controller responds by raising the reactant-1 feed, so
+  that flow and its valve go high, and the pressures around the gas loop (reactor,
+  separator and stripper) rise while the compressor draws less power. The feed
+  flows don't show the cause; the composition does. Unlike a reactant-1 supply
+  loss, the reactant-1 feed flow goes up, not down.
+withdrawn: false
+
+equipment:
+  group: feed
+  equipment_class: unverified
+  tags: [FD-FI-104, FD-FI-101, RX-AI-211, RX-AI-213]
+  loops: [RX-AIC-211, FD-FIC-101]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [compressor], weight: supporting}
+    top_tags: {any_of: [ST-PI-602, CP-JI-502, RX-PI-202], weight: supporting}
+  provisional:
+    tags:
+      FD-FI-101: {state: high, weight: required}
+      ST-PI-602: {state: high, weight: supporting}
+      RX-PI-202: {state: high, weight: supporting}
+    analyzers:
+      RX-AI-211: {state: low, weight: required}
+      RX-AI-213: {state: high, weight: required}
+      SP-AI-411: {state: low, weight: supporting}
+      SP-AI-413: {state: high, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      FD-FI-101: {state: high, weight: supporting}
+    analyzers:
+      RX-AI-211: {state: low, weight: required}
+      RX-AI-213: {state: high, weight: required}
+
+actions:
+- action_id: check-mixed-feed-composition
+  kind: check
+  text: Ask for a laboratory sample or the supplier's certificate of the mixed feed to confirm its reactant ratio.
+  safety_preconditions:
+  - Sampling follows the site's approved sampling procedure.
+  approval_required: true
+- action_id: confirm-reactor-feed-analyzer-trends
+  kind: confirm
+  text: Confirm the reactor feed analyzer trends for reactant 1 and reactant 2, and that the analyzers themselves are healthy, with recent calibration and no analyzer alarms.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: request-composition-setpoint-review
+  kind: request_setpoint_change
+  text: If the new feed ratio persists, request that the process engineer review the reactor feed composition setpoints.
+  safety_preconditions:
+  - Only the process engineer or shift supervisor approves a setpoint change, under the site's management-of-change procedure.
+  approval_required: true
+
+links:
+  related_entries: [reactant-1-feed-supply-loss]
+  loops: [RX-AIC-211, FD-FIC-101]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-01T19:03:12Z
+  effective_from: 2026-10-01T19:03:12Z
+  review_due: 2027-10-01T19:03:12Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

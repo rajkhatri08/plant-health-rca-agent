@@ -1,0 +1,77 @@
+entry_id: reaction-rate-drift
+revision: 1
+event_type: process
+family: reaction kinetics
+title: Reaction rate drifting slowly
+description: >-
+  The reaction rate drifts slowly away from normal, in either direction, as can
+  happen when catalyst activity or the reaction kinetics change. No single
+  controller sees it directly. It shows as the pressures around the gas loop
+  (reactor, separator and stripper) moving together, down in most cases and up in
+  some. It develops over hours, so it's caught late and not on every run, and the
+  evidence for it is weaker than for a step change.
+withdrawn: false
+
+equipment:
+  group: reactor
+  equipment_class: unverified
+  tags: [RX-PI-202, SP-PI-403, ST-PI-602]
+  loops: []
+
+iso14224:
+  failure_mode: unverified
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [reactor, stripper], weight: supporting}
+    top_tags: {any_of: [RX-PI-202, SP-PI-403, ST-PI-602], weight: required}
+  provisional:
+    tags:
+      RX-PI-202: {one_of: [high, low], weight: required}
+      SP-PI-403: {one_of: [high, low], weight: supporting}
+      ST-PI-602: {one_of: [high, low], weight: supporting}
+    loops:
+      CP-FIC-501: {state: compensating, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      RX-PI-202: {one_of: [high, low], weight: supporting}
+    loops:
+      CP-FIC-501: {state: compensating, weight: supporting}
+
+actions:
+- action_id: check-reaction-conditions
+  kind: check
+  text: Check the reactor operating conditions against their normal ranges, and whether anything changed recently, such as a feed batch or the catalyst.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: confirm-with-laboratory-analysis
+  kind: confirm
+  text: Confirm with a laboratory analysis of the product that the reaction performance has shifted.
+  safety_preconditions:
+  - Sampling follows the site's approved sampling procedure.
+  approval_required: true
+- action_id: escalate-to-process-engineer
+  kind: escalate
+  text: Escalate to the process engineer, because a slow drift needs an engineering assessment rather than an operator response.
+  safety_preconditions:
+  - The process engineer decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: []
+  loops: []
+
+sources: [src-001]
+
+governance:
+  author: raj
+  created_at: 2026-10-01T19:03:23Z
+  effective_from: 2026-10-01T19:03:23Z
+  review_due: 2027-10-01T19:03:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

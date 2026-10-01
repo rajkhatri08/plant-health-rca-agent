@@ -7,3 +7,6 @@
 entries:
   reactor-cooling-water-warm-supply: eval/provenance/fault_04.yaml
   condenser-cooling-water-warm-supply: eval/provenance/fault_05.yaml
+  reactant-1-feed-supply-loss: eval/provenance/fault_06.yaml
+  mixed-feed-reactant-ratio-shift: eval/provenance/fault_01.yaml
+  reaction-rate-drift: eval/provenance/fault_13.yaml

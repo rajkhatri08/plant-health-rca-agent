@@ -1,0 +1,83 @@
+entry_id: reactant-1-feed-supply-loss
+revision: 1
+event_type: process
+family: feed supply
+title: Reactant-1 feed supply lost
+description: >-
+  The supply of reactant 1 drops. Its flow controller opens the feed valve to make
+  up the flow, but the flow keeps falling, and within the hour the valve is fully
+  open: the loop has run out of travel. Less reactant 1 reaches the reactor, so
+  its share of the reactor feed falls and the reactant-1 composition controller
+  loses control as well. The compressor draws less power. The cause is upstream of
+  the valve, not the valve itself.
+withdrawn: false
+
+equipment:
+  group: feed
+  equipment_class: unverified
+  tags: [FD-FI-101, FD-FV-105, RX-AI-211]
+  loops: [FD-FIC-101, RX-AIC-211]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [feed], weight: required}
+    top_tags: {any_of: [FD-FI-101, FD-FV-105], weight: supporting}
+  provisional:
+    tags:
+      FD-FI-101: {state: low, weight: required}
+      FD-FV-105: {state: high, weight: required}
+    loops:
+      FD-FIC-101: {state: lost, weight: required}
+    analyzers:
+      RX-AI-211: {state: low, weight: required}
+      SP-AI-411: {state: low, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      FD-FI-101: {state: low, weight: required}
+    loops:
+      FD-FIC-101: {state: saturated, weight: supporting}
+    analyzers:
+      RX-AI-211: {state: low, weight: required}
+      RX-AI-213: {state: high, weight: supporting}
+
+actions:
+- action_id: check-reactant-1-supply
+  kind: check
+  text: Check the reactant-1 supply, including its header pressure and upstream isolation valves, and ask the upstream unit or supplier whether delivery has dropped.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  - Any field check follows the site's permit-to-work procedure.
+  approval_required: true
+- action_id: confirm-reactant-1-feed-valve-position
+  kind: confirm
+  text: Confirm the reactant-1 feed valve position and flow. A fully open valve with a falling flow means the supply is limiting, not the valve.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-reactant-1-supply-loss
+  kind: escalate
+  text: Escalate to the shift supervisor, because with reactant 1 short the reactor feed composition and production will drift.
+  safety_preconditions:
+  - The shift supervisor decides any response, including any rate change, under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: []
+  loops: [FD-FIC-101, RX-AIC-211]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-01T19:02:56Z
+  effective_from: 2026-10-01T19:02:56Z
+  review_due: 2027-10-01T19:02:56Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null
