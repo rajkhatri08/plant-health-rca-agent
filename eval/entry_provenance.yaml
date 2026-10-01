@@ -4,4 +4,5 @@
 #
 # Fill in one line per entry when you write its r1, for example:
 #   some-mechanism-slug: eval/provenance/fault_04.yaml
-entries: {}
+entries:
+  reactor-cooling-water-warm-supply: eval/provenance/fault_04.yaml

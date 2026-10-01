@@ -1,0 +1,79 @@
+entry_id: reactor-cooling-water-warm-supply
+revision: 1
+event_type: process
+family: reactor cooling
+title: Reactor cooling water supply warmer than normal
+description: >-
+  The cooling water reaching the reactor is warmer than usual, so each unit of
+  water removes less heat. The reactor temperature controller compensates by
+  opening the cooling water valve further, and the reactor temperature stays at
+  its setpoint. The fault is masked: the measurements look normal and only the
+  valve position shows it. If the supply keeps warming, the valve can run out of
+  travel, and the reactor temperature would then rise.
+withdrawn: false
+
+equipment:
+  group: reactor
+  equipment_class: unverified
+  tags: [RX-FV-206, RX-TI-204, RX-TI-205]
+  loops: [RX-TIC-204, RX-TIC-205]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [reactor], weight: required}
+    top_tags: {any_of: [RX-FV-206, RX-TI-205, RX-TI-204], weight: supporting}
+  provisional:
+    tags:
+      RX-FV-206: {state: high, weight: required}
+      RX-TI-204: {state: normal, weight: supporting}
+    loops:
+      RX-TIC-204: {state: compensating, weight: required}
+      RX-TIC-205: {state: compensating, weight: supporting}
+    masked: {state: true, weight: required}
+  revised:
+    tags:
+      RX-FV-206: {state: high, weight: required}
+    loops:
+      RX-TIC-204: {state: compensating, weight: supporting}
+    masked: {state: true, weight: supporting}
+
+actions:
+- action_id: check-reactor-cooling-water-supply-temperature
+  kind: check
+  text: Check the cooling water supply temperature to the reactor at the utility header, and ask the utilities operator whether the supply has warmed.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  - Any field check follows the site's permit-to-work procedure.
+  approval_required: true
+- action_id: confirm-reactor-cooling-valve-headroom
+  kind: confirm
+  text: Confirm that the reactor temperature is holding at its setpoint and that the reactor cooling water valve still has travel left before fully open.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-reactor-cooling-near-limit
+  kind: escalate
+  text: If the reactor cooling water valve approaches fully open or the reactor temperature starts to rise, escalate to the shift supervisor before temperature control is lost.
+  safety_preconditions:
+  - The shift supervisor decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: []
+  loops: [RX-TIC-204, RX-TIC-205]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-01T18:58:06Z
+  effective_from: 2026-10-01T18:58:06Z
+  review_due: 2027-10-01T18:58:06Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null
