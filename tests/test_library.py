@@ -49,7 +49,7 @@ def revision(entry_id=ENTRY, k=1, created=T0, **changes):
                      "safety_preconditions": ["Readings only: no work on live equipment."],
                      "approval_required": True}],
         "links": {"loops": ["RX-TIC-204"]},
-        "sources": ["src-own-notes"],
+        "sources": ["src-001"],
         "governance": {"author": "raj", "created_at": iso(created), "effective_from": iso(created),
                        "review_due": iso(created + timedelta(days=180)),
                        "change_note": "First revision." if k == 1 else f"Revision {k}.",
@@ -147,6 +147,8 @@ def bad(**changes):
     bad(title=""),
     bad(links={"related_entries": [ENTRY]}),                           # links to itself
     bad(actions=[revision()["actions"][0]] * 2),                       # repeated action_id
+    bad(sources=["src-yin-2012"]),                                     # not opaque: a title leaks
+    bad(sources=["reference paper"]),
 ])
 def test_invalid_revisions_are_refused(doc):
     with pytest.raises(ValidationError):

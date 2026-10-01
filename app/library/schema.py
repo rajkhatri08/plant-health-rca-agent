@@ -37,6 +37,7 @@ ISO_VERIFIED = {"equipment_class": (), "failure_mode": (), "failure_mechanism": 
                 "cause_category": (), "detection_method": ()}
 
 SLUG = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+SOURCE_ID = re.compile(r"^src-\d{3}$")     # opaque: the register (eval/sources.yaml) holds the titles
 LABEL_IN_ID = re.compile(r"(?:^|-)(?:fault|idv)(?:-?\d|$|-)")
 
 
@@ -218,6 +219,15 @@ class Revision(_Strict):
     @classmethod
     def _id(cls, v):
         return _slug(v, "entry_id")
+
+    @field_validator("sources")
+    @classmethod
+    def _opaque_sources(cls, v):
+        bad = [s for s in v if not SOURCE_ID.match(s)]
+        if bad:
+            raise ValueError(f"sources {bad} aren't opaque register IDs (src-NNN); titles stay in "
+                             "eval/sources.yaml, never in library/")
+        return v
 
     @model_validator(mode="after")
     def _consistent(self):

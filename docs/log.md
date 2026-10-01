@@ -1770,3 +1770,58 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The source register (decision 25), before entries cite sources.
   - Carried: mirror decision 65's S4 answers in PROTOCOL?
 - **Next:** S7, `app/detector/features.py` (Claude writes, Raj reviews), the evidence normals for all 52 tags, and `eval/authoring.py` (authoring runs only), which writes the provenance files.
+
+### 2026-09-29: week 4 session 7, features, evidence normals and authoring (code only, nothing run)
+- **Raj's answers (S6 close):**
+  - The approval file is confirmed.
+  - The gated approval command is `eval/approve_entry.py`, built in S8 before the first approval.
+  - The source register is `eval/sources.yaml` (builder side), and entries cite only its opaque IDs, because source titles name the benchmark.
+  - Mirror decision 65's S4 answers in PROTOCOL.
+- **Changed, docs:**
+  - **`docs/decisions.md`, decision 67:** the approval file marked confirmed; `eval/approve_entry.py` named; `eval/sources.yaml` and opaque IDs added.
+  - **`eval/PROTOCOL.md`, Right place:** reported both ways, and top tags by RBC_i / W_i over the triggering window (with W_i at p, setting no band).
+- **Changed, code:**
+  - **`app/library/schema.py`:** `sources` must be opaque IDs of the form `src-NNN` (Claude's format, to confirm), so no title-like ID (for example `src-yin-2012`) can reach `library/`. Two new refusal tests.
+  - **`app/detector/features.py` (new, Claude writes, Raj reviews):** decision 68, runtime.
+    - **`tag_state`:** out is decision 62's rule, 3 consecutive samples outside the band with the edges inside. high or low when every such run is on one side; both otherwise, including one run that crosses sides.
+    - **`analyzer_state`:** only values published after the notification and up to the diagnosis time. Fewer than 2 is not_yet_available. high or low on 2 consecutive published values out. If both sides qualify, the most recent run decides (Claude's reading, to confirm).
+    - **`loop_state`:** saturated (end valve at or below 2% or at or above 98% for 3 consecutive samples), then lost, then compensating, then held. Analyzer-controlled loops are judged on the held analyzer series.
+    - **The masked flag:** decision 62's plant rule over the window, with analyzers judged on their held series, as decision 62 did.
+    - **`location`:** `rbc.rank_at` over the n triggering samples, the top group and the top 3 tags.
+    - **`reading` and `extract`:** the window runs from t − n + 1 to the diagnosis time. Provisional is at t + 10, revised at t + 20, and a reading past the end of the data is left out.
+    - **Refusals:** a gap in the window, a window outside the run, and a tag with no normal band.
+    - **`plant_from_files`:** the fast tags, analyzers, measurements, valves, and each loop's controlled tag and end valve, from `library/`.
+  - **`eval/evidence_normals.py` (new):** `python -m eval.evidence_normals`.
+    - It computes all 52 tags' central-99% bands on the calibration pool with `eval/masked.normal_bands`, so the numbers are exactly decision 62's.
+    - It writes `data/models/evidence_normals.json` and an `evidence_normals` record holding every band.
+    - It refuses an existing file, a dirty tree before loading, and an empty band (lo = hi).
+    - Also `load_normals`, which needs the file's record.
+  - **`eval/authoring.py` (new):** `python -m eval.authoring`.
+    - **Loads only the authoring pool** (5 run numbers) of faults 1, 4, 5, 6 and 13, and checks it got exactly 5 authoring runs. `load_authoring` refuses any other fault.
+    - **Scores** through calibration's alert path, `metrics.detection`, `calibrate_watch.rbc_runs` over W, and `features.extract`.
+    - **Analyzer publications are recovered from the held series:** every change must fall on one schedule every update interval (2 or 5 samples), and the publications are every sample on it. A change off the schedule refuses the run instead of guessing.
+    - **Writes `eval/provenance/fault_NN.yaml`** with a builder-side header: the runs; per run, the detection, notification sample, delay and features; and a summary giving, per feature, the count of each state over the detected runs. Plus an `authoring` record (the input records and limits checksum, detected counts per fault, each provenance file's SHA-256). The files and the record name each other.
+    - **Provenance is per fault,** because entry IDs don't exist until S8. The entry → provenance link will be a small key in `eval/`.
+- **Tests:**
+  - **`tests/test_features.py` (42):** tag states (edges, 2 vs 3 in a row, both kinds of both); analyzer states (the minimum, the most recent side); loop precedence; held series; whole readings on the real register and loop map (normal, a valve absorbing gives masked and compensating through the cascade, a measurement out gives lost and unmasked, an analyzer out unmasks through its held series); analyzers counted only after t; as-of (NaN after the diagnosis time isn't read); the window start; refusals; extract (location, no revised reading before +60 min, missing normals).
+  - **`tests/test_evidence_normals.py` (5):** bands equal `masked.normal_bands` for all 52 tags; the record; the load round trip; refusals.
+  - **`tests/test_authoring.py` (12):** publications (schedule, an equal consecutive value still counts, off-schedule and never-changing refused); only faults 1, 4, 5, 6, 13 from the authoring pool; provenance contents and counts (one quiet run isn't detected and has no features); features equal a direct `features.extract`; the record ties files and inputs; refusals before loading; nothing written under `library/`.
+  - The first authoring run found fault 1's synthetic step too small to detect (a test-data issue); the step was raised.
+  - **`pytest -q`:** 1248 passed, 3 deselected.
+- **Not run:** `evidence_normals` and `authoring` on real data (as asked).
+- **The idea (for Raj):**
+  - The features turn "what the plant looked like" into a short list of categorical states, one per tag, loop and analyzer, using the same "out" rule everywhere. The matcher can then count agreements and contradictions against an entry's signature.
+  - Authoring runs the whole detector, exactly as evaluation does, on the 5 authoring runs only, and writes down how often each state appeared. You write the signature from those counts and never from dev.
+- **Unsure about:**
+  - **The analyzer schedule** is checked on the data, not assumed. If the real held series change off a single schedule (for example if the dataset's first sample isn't on the schedule), `authoring` will refuse loudly; tell me what it says.
+  - **Analyzer bands come from the held series at 3-minute resolution.** Each publication repeats 2 or 5 times, evenly, so the percentiles match those of the published values except at the run edges.
+  - **"Most recent side decides"** for an analyzer out high and low in one window isn't in decision 68.
+- **Decisions needed:**
+  - Confirm `src-NNN` as the opaque source ID format.
+  - Confirm "most recent side decides" for analyzers.
+  - Confirm provenance per fault (`eval/provenance/fault_NN.yaml`) with an entry key in `eval/` at S8.
+- **Next (Raj, after review and commit, on a clean tree):**
+  1. `python -m eval.evidence_normals`
+  2. `python -m eval.authoring`
+
+  Then S8: `eval/approve_entry.py`, `eval/sources.yaml`, and the first 5 entries from the provenance files.

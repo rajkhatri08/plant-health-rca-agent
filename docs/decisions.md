@@ -464,7 +464,7 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
 67. **The library schema, storage and governance (Raj's decisions, 29 September 2026).**
     - **Event types (decision 23), in decision 7's triage order:** `data_quality`, `instrument`, `planned_activity`, `process`. Only process entries are written now (decision 24).
     - **Storage:** `library/entries/<entry_id>/r<k>.yaml`, one file per revision, never edited. Revisions run 1, 2, … with no gaps, and each names the one it supersedes.
-      - **Approval is its own file** (Claude's reconciliation, to confirm): `r<k>.approval.yaml`, written only by the gated approval command. That way the revision file is never edited, and a revision is a draft exactly when it has no approval file.
+      - **Approval is its own file** (Claude's reconciliation, confirmed by Raj 29 September 2026): `r<k>.approval.yaml`, written only by the gated approval command. That way the revision file is never edited, and a revision is a draft exactly when it has no approval file.
       - **A reviewer's note** is also its own file: `r<k>.review-<account>.yaml`.
     - **Fields of a revision:**
       - **Identity:** `entry_id` (a mechanism slug, never a fault number), `revision`, `event_type`, `family` (the mechanism family names in PROTOCOL), `title`, `description` (own words, short), `withdrawn` (true takes the entry out from its effective time).
@@ -473,13 +473,13 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
       - **`signature`,** in decision 68's vocabulary: the location at the notification, plus provisional and revised readings. Each listed item is `required` or `supporting`; unlisted means "don't care", and contradictions are counted only on listed items. At least one item must be required.
       - **`actions`:** `action_id` (unique across the library), `text`, `kind` (`check`, `confirm`, `request_setpoint_change`, `escalate`), at least one safety precondition, and `approval_required: true`. No action writes to controls.
       - **`links`:** related entries and loops, by ID.
-      - **`sources`:** source-register IDs, stripped at retrieval. The signature's provenance (including run numbers) lives in `eval/provenance/<entry_id>.yaml`, never in `library/`.
+      - **`sources`:** opaque source-register IDs, stripped at retrieval. The register lives builder side, in `eval/sources.yaml` (Raj, 29 September 2026). Source titles name the benchmark, so they must never be in `library/`. The signature's provenance (including run numbers) lives in `eval/provenance/<entry_id>.yaml`, never in `library/`.
       - **`governance`:** `author`, `created_at`, `effective_from`, `review_due`, `change_note`, `supersedes`. Times are full UTC timestamps.
     - **In force as of t:** the highest revision whose approval exists at t and whose `effective_from` is on or before t. If that revision is withdrawn, the entry is out. Drafts are never returned. An entry past `review_due` is flagged, not dropped. A diagnosis records `entry_id@r<k>` for every entry it used (decision 16).
     - **Author ≠ approver in a one-person demo (option 1, with an upgrade path):**
       - **Accounts** are listed in `library/accounts.yaml`: `raj` (author) and `raj-review` (approver) are the same person; `claude` may only be a reviewer.
       - **The approval records `independent`.** It must be false when author and approver are the same person, and it's shown as "self-approved (single-person demo)". An entry can be upgraded later to an independent approval (option 2) by a real second approver's account, with `independent: true`.
-      - **Approval happens only through the gated command** (not built yet). It refuses unless:
+      - **Approval happens only through the gated command,** `eval/approve_entry.py` (builder side), built in S8 before the first approval (Raj, 29 September 2026). It refuses unless:
         - the schema is valid and the leak scan is clean
         - the signature agrees with its provenance
         - every action has preconditions

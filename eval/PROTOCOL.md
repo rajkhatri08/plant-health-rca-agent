@@ -61,6 +61,8 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
     - condenser cooling → condenser
     - reaction kinetics → reactor
   - **Scope:** faults 3, 9 and 15 have no family and get no right-place figure. The map and labels stay in `eval/`, never in `app/` or `library/`.
+  - **Reported both ways:** the right-place rate over all runs (next to "any", on the same denominator), with "k of detected" beside it; the same 30 minutes later.
+  - **Top tags (diagnostic):** tags ranked by RBC_i / W_i, averaged over the same triggering window, with W_i at the same shared percentile p as the groups (decision 66); W_i sets no band. Per fault: the three tags most often ranked first over the detected runs, with counts.
 - **Delay:** median and IQR in minutes, with misses counted as +∞, so the median is +∞ when more than half of the runs are missed. Quantiles use linear interpolation between sorted values, and any interpolation that touches +∞ gives +∞. Plot a cumulative detection curve, and a delay vs false-alerts-per-24-h curve (AMOC) with the operating point marked. Note the analyzer delay floor per fault.
 - **False alerts per 24 h:** over normal runs only, from the same split (normal dev on dev, normal test on test), excluding warm-up and gaps. The pre-onset part of a fault run isn't counted: it is a copy of the normal run with the same number (decision 49). State the hours counted.
 - **Persistence:** the share of each fault's duration still flagged after first detection: the share of samples from the first detection to the end of the run, both ends included, where the alert is on. Missed runs are left out, and the number of detected runs is reported with it.
