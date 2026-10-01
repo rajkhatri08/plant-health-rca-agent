@@ -1965,3 +1965,31 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Bundle `pca_v3`** with the evidence normals, when the agent needs them at runtime.
   - **Not built:** RBC for DPCA (decision 64); dynamics in the features (decision 68).
 - **Week 5 (26 Oct–1 Nov in the plan, starting early):** 7 more entries (12 in total), the matcher, the random-forest baseline, and the 3-hour LangGraph spike.
+
+### 2026-10-02: week 5 kickoff, plan and Raj's answers
+- **Changed:** docs only (this entry). No code, and nothing run.
+- **Week 5 plan approved.** Each session stops for review and commit, and Raj runs every data job on a clean tree. Nothing touches the test split, faults 16–20 or the sealed folder.
+  1. **S1:** decisions 69–72, made before any dev result: matcher scoring and decline (69), diagnosis cases on dev (70), entry tests (71), baselines (72). Claude drafts options; Raj chooses.
+  2. **S2:** the matcher. Claude writes the stub and tests in `app/diagnosis/matcher.py`, and moves the signature-item evaluation out of `eval/approve_entry.py` into `app/`, so the gate and the matcher share it. Raj writes the scoring.
+  3. **S3:** Claude writes `eval/cases.py` (authoring's scoring path, shared and parameterised by fault and pool) and `eval/entry_tests.py` (writes the `*_entry_tests.json` records the approval gate reads). Raj runs the entry tests and approves the five drafts through `eval/approve_entry.py`.
+  4. **S4:** `eval/authoring.py --faults` for faults 2, 7, 8, 10, 11, 12 and 14, never overwriting a committed provenance file. Raj runs it.
+  5. **S5:** Raj drafts seven r1 entries; Claude reviews them and runs the entry tests; Raj approves each 24 h after its `created_at`.
+  6. **S6:** diagnosis metrics (Raj; Claude writes stubs and tests), the random floor, and the forest scaffolding (Claude).
+  7. **S7:** the dev diagnosis table: matcher, forest on 5 runs, ceiling forest and random, with top-k, decline thresholds and leave-one-out on faults 2 and 11. This is the week's "Done when".
+  8. **S8:** the 3-hour LangGraph spike in `spikes/langgraph/`, against pass criteria Raj writes first; the verdict for week 6; the week close.
+- **Raj's answers:**
+  1. **Entry tests (for decision 71):** authoring runs only, ranked first with ties allowed. On its own detected authoring runs, the entry has no required contradictions and is first or tied for first. On every other entry's detected authoring runs, it never ranks strictly above the right entry. Ties are honest ambiguity between physical twins (a step and a random variation of the same disturbance); they show up in the dev table, not as a failed approval.
+  2. **New entries and approved ones:** a new entry must not break approved ones. Before a new entry is approved, every approved entry's tests are re-run on the larger library. If one fails, the new entry is revised before its approval. An old entry gets an r2, through the normal approval, only if it's shown to be too broad. Approved entries stay in force meanwhile.
+  3. **Readings (for decision 69):** both are reported, with provisional (+30 min) as the headline, consistent with decision 65. The +30 min diagnosis scores the provisional items; the +60 min diagnosis scores both readings.
+  4. **The matcher** lives in `app/diagnosis/matcher.py`.
+  5. **Dependencies:** scikit-learn and langgraph are approved, pinned in `requirements.txt`, and not in `requirements-app.txt` until week 6 needs them.
+  6. **The forest:** Claude writes the scaffolding; Raj fixes its hyperparameters in decision 72 before it runs.
+  7. **The spike** lives in `spikes/langgraph/`.
+  8. **Hours:** all 12 entries stay. If time runs short, the spike moves ahead of S7.
+  9. **Carried items** (the published-number check, ISO 14224 names, source licences, the r2 notes) stay parked this week.
+- **Tests:** none (docs only). The suite is unchanged: 1306 passed, 3 deselected (last run in week 4 S8).
+- **Unsure about:**
+  - **Hours.** Eight sessions will likely exceed 15 h.
+  - **Thin authoring evidence.** Faults 2, 8 and 10 may be detected on few of their 5 authoring runs. If any has 0 of 5, it goes under Decisions needed; no other runs are swapped in.
+  - **Answer 1 and step vs random twins:** under "never strictly above", a twin pair that always ties passes both entries' tests, so the approval gate doesn't separate them. The dev table will show how often they tie.
+- **Decisions needed:** decisions 69–72 in S1.
