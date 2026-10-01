@@ -1,0 +1,114 @@
+{
+  "name": "authoring",
+  "time": "2026-10-01T18:28:56+00:00",
+  "commit": "2f66ba1dd18fba1e58c25d367cf745ecfc9ab6ee",
+  "dirty": false,
+  "config": {
+    "faults": [
+      1,
+      4,
+      5,
+      6,
+      13
+    ],
+    "pool": "authoring",
+    "runs": [
+      94,
+      176,
+      178,
+      206,
+      301
+    ],
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+    "normals_record": "eval/runs/20261001T182856Z_evidence_normals.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "readings": {
+      "provisional": 10,
+      "revised": 20
+    }
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {
+    "fault_01": {
+      "path": "eval/provenance/fault_01.yaml",
+      "sha256": "da789bf517d9daf1e39bdf9be0fdd377a17b9d581fe60ac8796f8b6ee71a01a8"
+    },
+    "fault_04": {
+      "path": "eval/provenance/fault_04.yaml",
+      "sha256": "a900f0d8f8cbfdd8f099b6bca800e7e11c2e6e50156730009d78f655946854e7"
+    },
+    "fault_05": {
+      "path": "eval/provenance/fault_05.yaml",
+      "sha256": "3f898d59308442b50373a5b99b4f2aa9ab0e508f7932b1797792590a79a9ed9e"
+    },
+    "fault_06": {
+      "path": "eval/provenance/fault_06.yaml",
+      "sha256": "c2b36599d332855a9004d97f22fac7911efe9eaa83fe5e7fddf009f3a7a72c13"
+    },
+    "fault_13": {
+      "path": "eval/provenance/fault_13.yaml",
+      "sha256": "29fdc2cbe61469059ccf7d36f658d6752fafa2e650722449e08d950aad6119ab"
+    }
+  },
+  "metrics": {
+    "fault_01": {
+      "detected": 5,
+      "notification_samples": [
+        25,
+        25,
+        25,
+        25,
+        25
+      ]
+    },
+    "fault_04": {
+      "detected": 5,
+      "notification_samples": [
+        23,
+        23,
+        23,
+        23,
+        23
+      ]
+    },
+    "fault_05": {
+      "detected": 5,
+      "notification_samples": [
+        23,
+        23,
+        23,
+        23,
+        23
+      ]
+    },
+    "fault_06": {
+      "detected": 5,
+      "notification_samples": [
+        23,
+        23,
+        23,
+        23,
+        23
+      ]
+    },
+    "fault_13": {
+      "detected": 4,
+      "notification_samples": [
+        73,
+        58,
+        51,
+        0,
+        38
+      ]
+    }
+  }
+}
