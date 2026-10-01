@@ -1,0 +1,81 @@
+entry_id: condenser-cooling-water-warm-supply
+revision: 1
+event_type: process
+family: condenser cooling
+title: Condenser cooling water supply warmer than normal
+description: >-
+  The cooling water reaching the condenser is warmer than usual, so the condenser
+  removes less heat. The condenser outlet and the separator it feeds run hotter,
+  and more of the product stays in the vapor, which shows as more product 1 in the
+  purge gas. No control loop hides this one: the temperatures themselves show it.
+  Within the hour the reactor, separator and stripper pressures settle lower and
+  the compressor draws less power.
+withdrawn: false
+
+equipment:
+  group: condenser
+  equipment_class: unverified
+  tags: [CD-TI-301, CD-FV-302, SP-TI-401]
+  loops: [ST-FIC-603]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [condenser], weight: required}
+    top_tags: {any_of: [SP-TI-401, CD-TI-301], weight: supporting}
+  provisional:
+    tags:
+      CD-TI-301: {state: high, weight: required}
+      SP-TI-401: {state: high, weight: required}
+    analyzers:
+      SP-AI-417: {state: high, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      CD-TI-301: {state: high, weight: required}
+      SP-TI-401: {state: high, weight: supporting}
+      RX-PI-202: {state: low, weight: supporting}
+      SP-PI-403: {state: low, weight: supporting}
+      ST-PI-602: {state: low, weight: supporting}
+    analyzers:
+      SP-AI-417: {state: high, weight: supporting}
+
+actions:
+- action_id: check-condenser-cooling-water-supply-temperature
+  kind: check
+  text: Check the cooling water supply temperature to the condenser, and ask the utilities operator whether the supply has warmed.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  - Any field check follows the site's permit-to-work procedure.
+  approval_required: true
+- action_id: confirm-separator-temperature-trend
+  kind: confirm
+  text: Confirm the separator temperature trend and how much travel the condenser cooling water valve has left.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-separator-temperature-rising
+  kind: escalate
+  text: If the separator temperature keeps rising, escalate to the shift supervisor, since product lost to the purge gas grows while it stays high.
+  safety_preconditions:
+  - The shift supervisor decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: []
+  loops: [ST-FIC-603]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-01T18:59:47Z
+  effective_from: 2026-10-01T18:59:47Z
+  review_due: 2027-10-01T18:59:47Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

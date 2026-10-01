@@ -6,3 +6,4 @@
 #   some-mechanism-slug: eval/provenance/fault_04.yaml
 entries:
   reactor-cooling-water-warm-supply: eval/provenance/fault_04.yaml
+  condenser-cooling-water-warm-supply: eval/provenance/fault_05.yaml
