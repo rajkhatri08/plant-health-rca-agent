@@ -2106,3 +2106,17 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
      - The library under test holds only approved entries plus the subject. Run all five tests first and each draft is tested alone, and the five are never checked against each other.
      - In sequence, the k-th entry's specificity and the regression check cover every pair with the entries approved before it, so all ten pairs get checked once all five are in.
      - The order of the five is Raj's choice. If a later entry fails against an earlier one, decision 71 says revise the later one (an r2 for the earlier one only if it's shown to be too broad).
+
+### 2026-10-02: week 5 session 3 (close), Raj's answers recorded
+- **Raj:** S3 committed (a1628b4).
+- **Raj's answers, recorded:**
+  1. **Sequential approval:** yes.
+     - Decision 71 gains "Sequential approval": test, commit the record, approve, commit the approval, then the next draft, in the author's chosen order.
+     - PROTOCOL's governance line says the same.
+  2. **The forest seed is 20261002.** Recorded in decision 72 and PROTOCOL's methods line, before any forest runs.
+  3. **Leave-one-out runs at both diagnosis times,** with the main table's decline thresholds (set on the full library's dev cases, not re-set without the left-out entries). Recorded in decisions 70 and 72 and in PROTOCOL's leave-one-out line.
+- **Changed:** docs only (`docs/decisions.md`, `eval/PROTOCOL.md`, this entry). No code; nothing run.
+- **Tests:** none needed (docs only). Last full suite: 1389 passed, 4 deselected (S3).
+- **Decisions needed:**
+  - Still open from S2: the leave-one-out scope. "Correct only when declined" is recorded for the matcher and the forests. PROTOCOL keeps the agent's rule on test (a decline, or a family-level answer flagged "mechanism not in library"), and decision 42 and the LLM keep rule are unchanged. Confirm, or say if answer 1 was meant for every method.
+- **Next (Raj):** the five approvals in sequence (S3's Next, step 2), then S4.

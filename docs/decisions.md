@@ -571,6 +571,7 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
     - **Leave-one-out on dev:**
       - The entries for faults 2 and 11 are removed. Their cases are correct when they're declined.
       - Family accuracy (the top entry's family equals the case's family) is reported alongside.
+      - It runs at both diagnosis times, with the same decline thresholds as the main table: those set on the full library's dev cases, not re-set without the left-out entries (Raj, 2 October 2026).
     - **Entry to fault:** goes through `eval/entry_provenance.yaml` and the provenance files, in `eval/` only.
 
     *Why:* the cases are what an operator would see: an alert, then a diagnosis at +30 and +60 min. False alerts get diagnosed too, so declining them is part of the job. Removing two entries shows whether the matcher declines a mechanism it doesn't know, or forces a label on it.
@@ -586,6 +587,11 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
       - A failure revises the new entry.
       - An old entry gets an r2, through the normal approval, only if it's shown to be too broad.
       - Approved entries stay in force meanwhile.
+    - **Sequential approval (Raj, 2 October 2026):**
+      - The library under test is the approved entries plus the subject; other drafts are left out.
+      - So drafts are tested and approved one at a time: test, commit the record, approve, commit the approval, then the next draft.
+      - Each later draft is then checked both ways (specificity and regression) against every entry approved before it, so every pair is checked once all are in.
+      - The order is the author's choice.
     - **Record:** `eval/entry_tests.py` writes a `*_entry_tests.json` run record with `config.entry = entry_id@r<k>` and `metrics.passed`, which `eval/approve_entry.py`'s entry_tests gate reads (decision 67).
 
     *Why:*
@@ -604,7 +610,7 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
     - **Training sets:**
       - **Forest-5** trains on the detected authoring runs of the 12 faults, at most 5 per fault (the entries' own data budget).
       - **The ceiling forest** trains on the detected runs of the `forest_ceiling` pool.
-    - **Hyperparameters, fixed now, no tuning:** 500 trees, `max_features` sqrt, `min_samples_leaf` 1, `class_weight` balanced, bootstrap on, and a fixed seed recorded here (value to be set by Raj before the forests run in S6). Arrays only, no pickles; the forests never ship.
+    - **Hyperparameters, fixed now, no tuning:** 500 trees, `max_features` sqrt, `min_samples_leaf` 1, `class_weight` balanced, bootstrap on, and the fixed seed 20261002 (Raj, 2 October 2026, before any forest runs). Arrays only, no pickles; the forests never ship.
     - **Decline thresholds:**
       - There's one per diagnosis time (provisional and revised), for the matcher and for each forest.
       - Each is set on dev by the 95% rule: accept 95% of known-fault dev cases.
@@ -612,6 +618,7 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
     - **Leave-one-out:**
       - Both forests are retrained without the left-out faults' classes.
       - Their leave-one-out cases are correct when they're declined.
+      - At both diagnosis times, with the same thresholds as the main table, set on the full library's dev cases (decision 70).
     - **Paired comparisons, matcher against each baseline:**
       - The headline is a paired bootstrap of the top-1 difference, by run number (decision 49, rule 3), with the same draws for both methods.
       - McNemar may be shown alongside, not as the headline.

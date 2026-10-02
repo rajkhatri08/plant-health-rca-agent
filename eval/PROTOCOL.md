@@ -102,7 +102,7 @@ The loop map is `library/loops.yaml`, taken from the control code that generated
 - **Excluded (near-undetectable):** faults 3, 9, 15, reported separately
 - **Families:** feed composition (1, 2, 8), feed supply (6, 7), feed temperature (10), reactor cooling (4, 11, 14), condenser cooling (5, 12), reaction kinetics (13)
 - **Leave-one-out on test:** remove the entry for faults 1, 4, 5 and 13, one at a time. Correct means a decline, or a family-level answer flagged "mechanism not in library." Dev leave-one-out uses faults 2 and 11.
-- **Leave-one-out for the matcher and the forests (decisions 70, 72):** they can't flag a family-level answer, so their leave-one-out cases are correct only when declined. Family accuracy (the top entry's family equals the case's family) is reported alongside. Both forests are retrained without the left-out faults' classes.
+- **Leave-one-out for the matcher and the forests (decisions 70, 72):** they can't flag a family-level answer, so their leave-one-out cases are correct only when declined. Family accuracy (the top entry's family equals the case's family) is reported alongside. Both forests are retrained without the left-out faults' classes. Leave-one-out runs at both diagnosis times with the main table's decline thresholds, set on the full library's dev cases.
 - **Dev cases (decision 70):** a detected dev run of a known fault, diagnosed at the notification + 10 samples (provisional) and + 20 (revised); a reading past the run end is left out. Every notification on a normal dev run is also diagnosed, and the right answer is a decline; the share declined is reported.
 - **If the cut line removes the entries for 7, 8, 10 and 12:** 7, 8 and 12 are scored like leave-one-out (a decline, or a family-level answer flagged "mechanism not in library"). 10 has no family entry, so it needs a strict decline. They are reported separately from 16–20.
 
@@ -111,7 +111,7 @@ The loop map is `library/loops.yaml`, taken from the control code that generated
 ### Methods
 All methods run on the same cases with the same features.
 - Random (floor): the analytic chance values over the N entries in force, top-1 = 1/N, top-3 = 3/N, family accuracy = the case family's entry count / N, no decline (decision 72)
-- Random forest on the detected authoring runs (at most 5 per fault), and on the detected `forest_ceiling` runs (ceiling): one-hot decision 68 features, one forest per diagnosis time, hyperparameters fixed in decision 72 with no tuning
+- Random forest on the detected authoring runs (at most 5 per fault), and on the detected `forest_ceiling` runs (ceiling): one-hot decision 68 features, one forest per diagnosis time, hyperparameters and seed (20261002) fixed in decision 72 with no tuning
 - Signature matcher (decision 69): fewer required contradictions first, then fit; ties kept as blocks with fractional credit
 - Agent: matcher candidates plus one LLM call
 - LLM only: whole library, no matcher candidates (1 repeat, diagnostic)
@@ -136,7 +136,7 @@ Headline results use no work-order history (C0).
 - Every tag, asset, entry and number in the output traces back to the evidence, and every stated direction matches it.
 - Every recommended action comes from a cited entry's action ID. Anything else is an unverified suggestion and can't be approved.
 - Every cited revision was in force at diagnosis time. Drafts are never cited.
-- An entry is approved only after its entry tests pass on authoring runs, never dev (decision 71): on its own runs, no required contradiction and first or tied first at both diagnosis times; on every other entry's runs, never strictly above that run's entry. A new entry's approval needs every approved entry's tests to pass on the larger library.
+- An entry is approved only after its entry tests pass on authoring runs, never dev (decision 71): on its own runs, no required contradiction and first or tied first at both diagnosis times; on every other entry's runs, never strictly above that run's entry. A new entry's approval needs every approved entry's tests to pass on the larger library. Drafts are tested and approved one at a time, so every pair of entries is checked.
 - An output that fails is not shown as a diagnosis. The deterministic evidence is shown instead, and the failure is counted.
 
 | Measure | Target |
