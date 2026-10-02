@@ -1,0 +1,42 @@
+{
+  "name": "entry_tests",
+  "time": "2026-10-02T03:58:58+00:00",
+  "commit": "26d13c28a22f12c160eed746420721e6e03774ee",
+  "dirty": false,
+  "config": {
+    "entry": "reactor-cooling-water-warm-supply@r1",
+    "as_of": "2026-10-02T03:58:58Z",
+    "library": {
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "revision_sha256": {
+      "reactor-cooling-water-warm-supply": "ec0f427513039f962355cbeed704aaf0300877f5bb5921c43fb6c5e37c92bfe9"
+    },
+    "provenance": {
+      "reactor-cooling-water-warm-supply": "eval/provenance/fault_04.yaml"
+    },
+    "provenance_sha256": {
+      "reactor-cooling-water-warm-supply": "a900f0d8f8cbfdd8f099b6bca800e7e11c2e6e50156730009d78f655946854e7"
+    }
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "passed": true,
+    "entries": 1,
+    "runs": {
+      "reactor-cooling-water-warm-supply": 5
+    },
+    "self_failures": 0,
+    "specificity_failures": 0,
+    "regression_failures": 0
+  }
+}
