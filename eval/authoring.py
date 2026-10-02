@@ -5,8 +5,11 @@ decisions 49, 67, 68).
                              [--limits data/models/pca_static_limits.json]
                              [--watch data/models/pca_static_watch.json]
                              [--normals data/models/evidence_normals.json] [--allow-dirty]
+                             [--faults 2 7 8 10 11 12 14]
 
-For each of FAULTS, loads the authoring pool: the same 5 non-dev run numbers for every
+Without --faults it authors FAULTS, the first five (week 4). --faults authors any of
+SECOND_FAULTS, the other seven known faults (week 5, S4), and nothing else: the first five
+are never re-authored, and faults 3, 9, 15 and 16-20 have no entry. For each fault, loads the authoring pool: the same 5 non-dev run numbers for every
 fault (dataset/splits.yaml). Nothing else: no dev, no selection runs, no other fault. Per
 run it scores App 3 exactly as evaluation does, through eval/cases.py's shared path
 (load_inputs, score_pool; S3 moved it there unchanged): the alert track and first
@@ -36,6 +39,8 @@ from eval import calibrate_watch as cw
 from eval import cases, dev_table, evidence_normals, run_record
 
 FAULTS = (1, 4, 5, 6, 13)                  # Raj's first entries (Q11): one per family
+SECOND_FAULTS = (2, 7, 8, 10, 11, 12, 14)  # the other seven known faults (week 5, S4)
+AUTHORED = tuple(sorted(FAULTS + SECOND_FAULTS))
 POOL = "authoring"
 AUTHORING_RUNS = 5
 DEFAULT_DIR = run_record.REPO_ROOT / "eval" / "provenance"
@@ -47,8 +52,8 @@ publications_from_held = cases.publications_from_held
 
 def load_authoring(fault):
     """The authoring pool for one fault, and nothing else."""
-    if fault not in FAULTS:
-        raise AuthoringError(f"fault {fault} isn't one of the authored faults {FAULTS}")
+    if fault not in AUTHORED:
+        raise AuthoringError(f"fault {fault} isn't one of the authored faults {AUTHORED}")
     runs = loader.load_faulty(fault, POOL)
     if runs.pool != POOL or len(runs.runs) != AUTHORING_RUNS:
         raise AuthoringError(f"expected {AUTHORING_RUNS} authoring runs for fault {fault}, got "
@@ -82,11 +87,22 @@ def summarise(per_run):
     return summary
 
 
+def check_faults(faults):
+    """FAULTS itself, or distinct faults from SECOND_FAULTS."""
+    faults = tuple(faults)
+    if faults == FAULTS:
+        return faults
+    if not faults or len(set(faults)) != len(faults) or not set(faults) <= set(SECOND_FAULTS):
+        raise AuthoringError(f"--faults takes distinct faults from {SECOND_FAULTS}, got {faults}")
+    return faults
+
+
 def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw.DEFAULT_OUT,
-        normals_path=evidence_normals.DEFAULT_OUT, *, out_dir=DEFAULT_DIR, allow_dirty=False,
-        repo_root=None):
+        normals_path=evidence_normals.DEFAULT_OUT, *, faults=FAULTS, out_dir=DEFAULT_DIR,
+        allow_dirty=False, repo_root=None):
+    faults = check_faults(faults)
     out_dir = Path(out_dir)
-    paths = {f: out_dir / f"fault_{f:02d}.yaml" for f in FAULTS}
+    paths = {f: out_dir / f"fault_{f:02d}.yaml" for f in faults}
     existing = [str(p) for p in paths.values() if p.exists()]
     if existing:
         raise FileExistsError(f"provenance files exist: {existing}; they are never overwritten")
@@ -97,7 +113,7 @@ def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw
     now = datetime.now(timezone.utc)
     record_rel = (run_record.RUNS_DIR / f"{now.strftime('%Y%m%dT%H%M%SZ')}_authoring.json").as_posix()
     docs, summary_metrics = {}, {}
-    for f in FAULTS:
+    for f in faults:
         runs = load_authoring(f)
         per_run = cases.score_pool(inp, runs)
         docs[f] = {"fault": f, "family": dev_table.FAMILIES[f], "pool": POOL,
@@ -116,19 +132,19 @@ def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw
             yaml.safe_dump(doc, fh, sort_keys=False)
     record = run_record.write(
         "authoring",
-        config={"faults": list(FAULTS), "pool": POOL, "runs": docs[FAULTS[0]]["runs"],
-                "calibration_record": docs[FAULTS[0]]["inputs"]["calibration_record"],
-                "watch_record": docs[FAULTS[0]]["inputs"]["watch_record"],
-                "normals_record": docs[FAULTS[0]]["inputs"]["normals_record"],
+        config={"faults": list(faults), "pool": POOL, "runs": docs[faults[0]]["runs"],
+                "calibration_record": docs[faults[0]]["inputs"]["calibration_record"],
+                "watch_record": docs[faults[0]]["inputs"]["watch_record"],
+                "normals_record": docs[faults[0]]["inputs"]["normals_record"],
                 "limits_sha256": inp.limits_sha256,
                 "readings": dict(features.READINGS)},
         seeds={},
         metrics=summary_metrics,
-        outputs={f"fault_{f:02d}": paths[f] for f in FAULTS},
+        outputs={f"fault_{f:02d}": paths[f] for f in faults},
         commit=commit, dirty=dirty, repo_root=repo_root, now=now)
     if Path(record) != repo_root / record_rel:
         raise AuthoringError(f"the provenance files name {record_rel}, but the record is {record}")
-    for f in FAULTS:
+    for f in faults:
         print(f"fault {f:2d}: {summary_metrics[f'fault_{f:02d}']['detected']} of {AUTHORING_RUNS} "
               f"authoring runs detected -> {paths[f]}")
     print(f"run record: {record}")
@@ -143,9 +159,12 @@ def main(argv=None):
     parser.add_argument("--normals", type=Path, default=evidence_normals.DEFAULT_OUT)
     parser.add_argument("--allow-dirty", action="store_true",
                         help="run on a dirty tree; the record says dirty: true")
+    parser.add_argument("--faults", type=int, nargs="+", default=list(FAULTS),
+                        help=f"author these of {SECOND_FAULTS} instead of the first five")
     args = parser.parse_args(argv)
     try:
-        run(args.model, args.limits, args.watch, args.normals, allow_dirty=args.allow_dirty)
+        run(args.model, args.limits, args.watch, args.normals, faults=args.faults,
+            allow_dirty=args.allow_dirty)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError, run_record.RunRecordError,
             drv.CalibrationError, evidence_normals.NormalsError, AuthoringError) as e:
         print(f"error: {e}", file=sys.stderr)

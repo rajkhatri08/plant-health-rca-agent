@@ -14,11 +14,12 @@ import dataset.loader as loader_mod
 from app.detector import features
 from dataset.convert import VARIABLES
 from dataset.loader import Runs
-from eval import authoring
+from eval import approve_entry, authoring, cases, dev_table
 from eval import calibrate_driver as drv
 from eval import calibrate_watch as cw
 from eval import evidence_normals, metrics, run_record
 from ingest import tags as tagmap
+from tests.test_approve_entry import commit
 from tests.test_calibrate_driver import GAPS, GRID, setup  # noqa: F401 (fixture)
 from tests.test_calibrate_watch import WGRID
 from tests.test_fit_pca import FAST, two_factor_runs
@@ -64,7 +65,7 @@ def ready(setup, monkeypatch, tmp_path):
 
     def load_faulty(fault, pool):
         calls.append((fault, pool))
-        if pool != "authoring" or fault not in authoring.FAULTS:
+        if pool != "authoring" or fault not in authoring.AUTHORED:
             pytest.fail(f"authoring loaded fault {fault} from {pool}")
         return authoring_runs(fault)
 
@@ -102,8 +103,11 @@ def test_off_schedule_changes_are_refused():
 
 def test_only_the_authored_faults():
     assert authoring.FAULTS == (1, 4, 5, 6, 13)
-    with pytest.raises(authoring.AuthoringError):
-        authoring.load_authoring(2)
+    assert authoring.SECOND_FAULTS == (2, 7, 8, 10, 11, 12, 14)
+    assert authoring.AUTHORED == cases.KNOWN_FAULTS                # the 12 known faults
+    for f in (3, 9, 15, 16, 20):
+        with pytest.raises(authoring.AuthoringError):
+            authoring.load_authoring(f)
 
 
 # ---------- the whole run ----------
@@ -224,3 +228,58 @@ def test_provenance_never_goes_to_the_library(ready):
                if "provenance" in p.parts]
     assert written and set(written) == {"eval"}                 # nothing under library/
     assert not (ready["repo"] / "library").exists()
+
+
+# ---------- the second seven (--faults, week 5 S4) ----------
+
+def test_second_faults_write_only_their_own_files(ready):
+    docs = author(ready, faults=(2, 11))
+    assert ready["calls"] == [(2, "authoring"), (11, "authoring")]
+    assert sorted(p.name for p in ready["prov"].iterdir()) == ["fault_02.yaml", "fault_11.yaml"]
+    (path,) = (ready["repo"] / "eval" / "runs").glob("*_authoring.json")
+    rec = json.loads(path.read_text())
+    assert rec["config"]["faults"] == [2, 11] and set(rec["outputs"]) == {"fault_02", "fault_11"}
+    for f in (2, 11):
+        assert docs[f]["family"] == dev_table.FAMILIES[f] and docs[f]["runs"] == NUMBERS
+        assert rec["outputs"][f"fault_{f:02d}"]["sha256"] == run_record.sha256(ready["prov"] / f"fault_{f:02d}.yaml")
+
+
+def test_second_batch_leaves_the_first_five_untouched(ready):
+    author(ready)
+    commit(ready["repo"])
+    first = {p.name: run_record.sha256(p) for p in ready["prov"].iterdir()}
+    author(ready, faults=authoring.SECOND_FAULTS)
+    assert {p.name: run_record.sha256(p) for p in ready["prov"].iterdir() if p.name in first} == first
+    assert len(list(ready["prov"].iterdir())) == 12
+    records = sorted((ready["repo"] / "eval" / "runs").glob("*_authoring.json"))
+    assert len(records) == 2
+    for p in ready["prov"].iterdir():                 # each file comes from exactly one record
+        found, _ = approve_entry.authoring_record_for(p, ready["repo"])
+        assert found is not None
+        owners = [r for r in records if any(o["sha256"] == run_record.sha256(p)
+                                            for o in json.loads(r.read_text())["outputs"].values())]
+        assert len(owners) == 1
+
+
+@pytest.mark.parametrize("faults", [
+    (1,), (2, 4), (4, 5, 6, 13, 1),                    # the first five are never re-authored
+    (3,), (9,), (15,), (16,), (20,),                   # no entry
+    (), (2, 2),
+])
+def test_refuses_other_faults_before_loading(ready, faults):
+    with pytest.raises(authoring.AuthoringError):
+        author(ready, faults=faults)
+    assert ready["calls"] == [] and not ready["prov"].exists()
+
+
+def test_refuses_an_existing_second_file_before_loading(ready):
+    ready["prov"].mkdir(parents=True)
+    (ready["prov"] / "fault_07.yaml").write_text("kept")
+    with pytest.raises(FileExistsError):
+        author(ready, faults=(2, 7))
+    assert ready["calls"] == [] and (ready["prov"] / "fault_07.yaml").read_text() == "kept"
+    assert not (ready["prov"] / "fault_02.yaml").exists()
+
+
+def test_main_refuses_a_first_five_fault():
+    assert authoring.main(["--faults", "4"]) == 1

@@ -2120,3 +2120,29 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:**
   - Still open from S2: the leave-one-out scope. "Correct only when declined" is recorded for the matcher and the forests. PROTOCOL keeps the agent's rule on test (a decline, or a family-level answer flagged "mechanism not in library"), and decision 42 and the LLM keep rule are unchanged. Confirm, or say if answer 1 was meant for every method.
 - **Next (Raj):** the five approvals in sequence (S3's Next, step 2), then S4.
+
+### 2026-10-02: week 5 session 4, authoring for the other seven faults (code only, nothing run)
+- **Raj (S3 follow-up):** the entry tests passed for `reactor-cooling-water-warm-supply@r1`, and the record is committed. The approvals wait for the 24-hour gap, from about 19:00 UTC on 2 October.
+- **Changed, `eval/authoring.py`:**
+  - **`--faults`:** `SECOND_FAULTS = (2, 7, 8, 10, 11, 12, 14)`, and `AUTHORED` (all 12, equal to `cases.KNOWN_FAULTS`).
+  - **Without `--faults`, nothing changes:** it authors the first five (`FAULTS`).
+  - **`--faults` takes only distinct faults from `SECOND_FAULTS`:**
+    - A first-five fault is refused, even mixed in or reordered, so a committed file can never be re-authored.
+    - So are 3, 9, 15 and 16–20, an empty list and a repeated fault.
+    - `check_faults` refuses all of these before any file check or loading.
+  - **Never overwrites:** an existing provenance file for any requested fault is refused before loading, as before.
+  - `load_authoring` accepts the 12 known faults. The record's config, outputs and printout follow the requested faults. A second batch writes its own `authoring` record, so each provenance file is an output of exactly one record (the approval gate's provenance check finds either).
+- **Tests, `tests/test_authoring.py` (+14):**
+  - The constants.
+  - A second batch writes only its own files and record.
+  - The first five are untouched by the second batch (checksums), with each of the 12 files owned by exactly one record.
+  - Ten refused requests, before loading and with nothing written.
+  - An existing `fault_07.yaml` refused before loading and kept.
+  - `main --faults 4` exits 1.
+  - The golden pin still matches for the default run.
+- **`pytest -q`:** 1403 passed, 4 deselected. The one warning is the old `httpx2` notice.
+- **Not run:** `eval.authoring` on real data.
+- **Unsure about:**
+  - **Thin evidence,** as flagged at kickoff: faults 2, 8 and 10 may be detected on few of their 5 authoring runs. A fault with 0 detected can't get an entry, and its entry tests would fail (no detected run). If that happens, it goes under Decisions needed; no other runs are swapped in.
+- **Decisions needed:** none new. Still open from S2: the leave-one-out scope for the agent.
+- **Next (Raj), after review and commit, on a clean tree:** `python -m eval.authoring --faults 2 7 8 10 11 12 14`, then commit the seven provenance files and the record. Then S5: the seven r1 drafts.
