@@ -3,6 +3,7 @@
 Static PCA, the Watch boundaries and the evidence normals are made first with their own
 drivers on the calibration fixture, then the loaders serve only the authoring pool."""
 
+import hashlib
 import json
 
 import numpy as np
@@ -156,6 +157,23 @@ def test_features_equal_a_direct_extraction(ready):
                             by_tag[k] / np.array([watch["tags"][t] for t in model.tags]), names)
     row = next(r for r in docs[5]["per_run"] if r["run"] == k)
     assert row["notification_sample"] == det.sample and row["features"] == want
+
+
+def canonical(docs):
+    """The provenance content that doesn't depend on when or where it ran: everything but
+    the commit, dirty flag, record name and input record paths."""
+    keep = {f: {k: v for k, v in d.items() if k not in ("commit", "dirty", "record", "inputs")}
+            for f, d in docs.items()}
+    return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
+
+
+# SHA-256 of canonical(docs) from the pre-S3 authoring.py (commit b1c0edc) on this fixture.
+# S3 moved the scoring path into eval/cases.py; the output must not change.
+GOLDEN = "6bd02c7a3e8285287c48c9945480d7665b600fec3c2998b9914ee113569a6bf9"
+
+
+def test_output_is_unchanged_since_the_scoring_path_moved(ready):
+    assert canonical(author(ready)) == GOLDEN
 
 
 def test_record_ties_the_files_and_inputs(ready):

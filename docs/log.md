@@ -2056,3 +2056,53 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The forest seed's value (decision 72), before S6.
   - Confirm the leave-one-out scope above.
 - **Next:** S3, the case builder (`eval/cases.py`) and the entry-test runner (`eval/entry_tests.py`), then Raj runs the entry tests and approves the five drafts.
+
+### 2026-10-02: week 5 session 3, case builder and entry-test runner (code only, nothing run)
+- **Changed:**
+  - **`eval/cases.py` (new, Claude):** `python -m eval.cases <pool> [--faults …]`.
+    - Authoring's scoring path, moved here unchanged:
+      - `load_inputs` loads the model, limits, Watch boundaries and evidence normals, each checked against its record.
+      - `publications_from_held` is unchanged.
+      - `score_pool` gives the per-run detection and features at the first notification after onset.
+    - Pools: `authoring`, `dev` and `forest_ceiling`. Faults: the 12 known faults only (3, 9, 15 and 16–20 are refused before loading).
+    - Writes `data/cases/<stamp>_<pool>/fault_NN.json` (gitignored: labels and run numbers) and a `cases` run record holding each file's SHA-256.
+    - Refuses a dirty tree before loading, and never overwrites.
+  - **`eval/authoring.py`:** now calls `cases.load_inputs` and `cases.score_pool`. `AuthoringError` and `publications_from_held` are aliases of the shared ones. FAULTS, the refusals and the provenance files are unchanged. S4 adds `--faults`.
+  - **`eval/entry_tests.py` (new, Claude):** `python -m eval.entry_tests <entry_id> <k>`, decision 71's tests.
+    - **The library under test:** the revisions in force now, with the subject in place of its own entry's revision. Other drafts are left out.
+    - **The cases:** the detected runs in each entry's provenance file. Each file must be named in the entry key and written by a committed authoring record, as the approval gate requires. Nothing is loaded from data/.
+    - **The tests, at both diagnosis times, through the matcher:** self, specificity, and regression (every other entry's self and specificity on the larger library). An entry with no detected run fails its self test.
+    - **The record:** `*_entry_tests.json` with `config.entry` (`entry_id@r<k>`), `as_of`, the library (each reference and revision-file SHA-256, each provenance path and SHA-256), and `metrics.passed` plus the failure counts. That's the shape the approval gate reads.
+    - It prints every failure, refuses a dirty tree before reading anything unless `--allow-dirty` (a dirty record never satisfies the gate), and exits 0 only when passed.
+- **The pin on authoring's output:**
+  - **`tests/test_authoring.py`, every push:** `GOLDEN` is the SHA-256 of the provenance content (everything but commit, dirty, record and input paths), taken from the pre-S3 code (b1c0edc) on the synthetic fixture, twice, with the same value both times. It still matches after the move.
+  - **`tests/test_cases_opendata.py`, opt-in (`pytest -q -m opendata`):** recomputes the five committed provenance files from the inputs they name, and checks runs, per-run evidence and summary for equality. Not run: it reads data/. Missing data or models skip it; a loader error fails it.
+- **Tests:**
+  - **`tests/test_cases.py` (18):**
+    - the 12 known faults and pools; data/cases is gitignored
+    - authoring uses the shared path
+    - the same per-run evidence as authoring
+    - dev files and record; all 12 by default
+    - nine bad requests refused before loading; a dirty tree; never overwriting; `main`
+  - **`tests/test_entry_tests.py` (20):**
+    - **Passing:** an entry alone, with the record's shape; the approval gate accepting the record; a distinct approved entry; a tied twin.
+    - **Failing:** a required contradiction (2 failures, one per time); not first (8); specificity with regression flagging the other entry (8 and 8); no detected run.
+    - **Which library:** other drafts left out; an approval after as_of left out; r2 replacing r1; the approved revision as the subject.
+    - **Refusals:** unknown revision; an entry without provenance; provenance no record wrote; a dirty tree writes nothing; `--allow-dirty` writes a record the gate ignores; nothing written under library/; `main`'s exit codes.
+  - **`pytest -q`:** 1389 passed, 4 deselected (the new opendata test is the fourth). The one warning is the old `httpx2` notice.
+- **Not run:** `eval.cases`, `eval.entry_tests` and the opendata pin. Nothing touched data/ or the test split.
+- **The idea (for Raj):** the entry tests replay the matcher on the evidence each signature was written from. Self asks whether an entry recognises its own runs. Specificity asks whether it steals another entry's runs. Regression asks whether adding it breaks anything already approved. Only authoring runs are used, so passing says nothing about dev; that's what S7's table is for.
+- **Unsure about:**
+  - **The library is "in force now".** An approved entry whose `effective_from` is still in the future is left out of the library under test, so a test run before then won't see it.
+  - **Regression reports, but doesn't name a culprit.** If an approved entry fails, the subject is the likely cause (decision 71: revise the new entry). The printed messages show which runs.
+  - **Normal dev runs** (decision 70's false-alert cases) aren't in `cases.py` yet. They need every notification, not the first after onset, so they come with S7.
+  - **Drafts aren't tested against each other.** Decision 71's library is the approved entries plus the subject, so the order of approval decides which pairs are checked when. Sequential approval covers every pair (Next, step 2). Testing all drafts together isn't in decision 71.
+- **Decisions needed:**
+  - **The order effect above:** keep sequential approval (it covers all pairs, and the first-approved entry is never tested as the subject against the others), or add a pre-approval check of all drafts together? I lean to sequential, since regression covers the reverse direction.
+  - Carried: the forest seed's value (decision 72), and the leave-one-out scope from S2.
+- **Next (Raj), on a clean tree after review and commit:**
+  1. Optional: `pytest -q -m opendata tests/test_cases_opendata.py` (the pin on real data).
+  2. **One entry at a time, in sequence:** `python -m eval.entry_tests <entry> 1`, commit the record, `python -m eval.approve_entry <entry> 1 --approver raj-review`, commit the approval, then the next entry.
+     - The library under test holds only approved entries plus the subject. Run all five tests first and each draft is tested alone, and the five are never checked against each other.
+     - In sequence, the k-th entry's specificity and the regression check cover every pair with the entries approved before it, so all ten pairs get checked once all five are in.
+     - The order of the five is Raj's choice. If a later entry fails against an earlier one, decision 71 says revise the later one (an r2 for the earlier one only if it's shown to be too broad).

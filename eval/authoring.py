@@ -8,17 +8,11 @@ decisions 49, 67, 68).
 
 For each of FAULTS, loads the authoring pool: the same 5 non-dev run numbers for every
 fault (dataset/splits.yaml). Nothing else: no dev, no selection runs, no other fault. Per
-run it scores App 3 exactly as evaluation does:
-- the alert track (calibrate_driver.score_runs and tracks) and the first notification in
-  the detection window (metrics.detection)
-- group and tag RBC over the Watch boundaries (calibrate_watch.rbc_runs)
-- the features at the notification (location), +30 min (provisional) and +60 min
-  (revised), through app/detector/features.py, the code the agent's tools will use
-
-Analyzers are stored as held series. Their published values are recovered here: the
-samples where the held value changes must all fall on one schedule, every update interval
-(library/tags.yaml), and the publications are every sample on that schedule. If a change
-falls off the schedule, the run is refused rather than guessed at.
+run it scores App 3 exactly as evaluation does, through eval/cases.py's shared path
+(load_inputs, score_pool; S3 moved it there unchanged): the alert track and first
+notification, group and tag RBC over the Watch boundaries, and the features at the
+notification, +30 min and +60 min. Analyzer publications are recovered from the held
+series there, and a change off the update schedule refuses the run.
 
 Writes eval/provenance/fault_NN.yaml per fault (builder side, never library/): the runs
 used, each run's detection and features, and per feature the count of each state over the
@@ -33,26 +27,22 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import numpy as np
 import yaml
 
 from app.detector import features
 from dataset import loader
 from eval import calibrate_driver as drv
 from eval import calibrate_watch as cw
-from eval import dev_table, evidence_normals, metrics, run_record
-from ingest import tags as tagmap
+from eval import cases, dev_table, evidence_normals, run_record
 
 FAULTS = (1, 4, 5, 6, 13)                  # Raj's first entries (Q11): one per family
 POOL = "authoring"
 AUTHORING_RUNS = 5
-ONSET = metrics.TRAIN_ONSET
-SAMPLE_MIN = metrics.SAMPLE_MIN
 DEFAULT_DIR = run_record.REPO_ROOT / "eval" / "provenance"
 
 
-class AuthoringError(RuntimeError):
-    pass
+AuthoringError = cases.CasesError          # one error type for the shared path and this driver
+publications_from_held = cases.publications_from_held
 
 
 def load_authoring(fault):
@@ -64,22 +54,6 @@ def load_authoring(fault):
         raise AuthoringError(f"expected {AUTHORING_RUNS} authoring runs for fault {fault}, got "
                              f"{len(runs.runs)} from {runs.pool}")
     return runs
-
-
-def publications_from_held(series, interval):
-    """[(sample, value), ...] from a held analyzer series (1-based samples). The changes
-    must all fall on one schedule s = phase (mod interval); the publications are every
-    sample on it. Raises AuthoringError if a change is off the schedule, or if there's
-    none to set the phase."""
-    x = np.asarray(series, dtype=np.float64)
-    changes = [i + 1 for i in range(1, len(x)) if x[i] != x[i - 1]]
-    if not changes:
-        raise AuthoringError("a held analyzer series never changes; its schedule can't be found")
-    phase = changes[0] % interval
-    off = [s for s in changes if s % interval != phase]
-    if off:
-        raise AuthoringError(f"held values change off the {interval}-sample schedule at samples {off[:5]}")
-    return [(s, float(x[s - 1])) for s in range(1, len(x) + 1) if s % interval == phase]
 
 
 def _counts(items):
@@ -118,45 +92,17 @@ def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw
         raise FileExistsError(f"provenance files exist: {existing}; they are never overwritten")
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)    # before any loading
-    cal_record, lim, model = cw.load_pair(limits_path, model_path, repo_root)
-    watch_record, watch = cw.load_watch(watch_path, limits_path, model, repo_root)
-    normals_record, bands = evidence_normals.load_normals(normals_path, repo_root)
-    plant = features.plant_from_files(model.tags)
-    names = list(watch["groups"])
-    w_group = np.array([watch["groups"][g]["w"] for g in names])
-    w_tag = np.array([watch["tags"][t] for t in model.tags])
-    interval = {r["tag"]: r["update_interval_min"] // SAMPLE_MIN for r in tagmap.register()
-                if r["kind"] == "analyzer"}
-    warmup, n = lim["warmup"], lim["n"]
+    inp = cases.load_inputs(model_path, limits_path, watch_path, normals_path, repo_root)
 
     now = datetime.now(timezone.utc)
     record_rel = (run_record.RUNS_DIR / f"{now.strftime('%Y%m%dT%H%M%SZ')}_authoring.json").as_posix()
     docs, summary_metrics = {}, {}
     for f in FAULTS:
         runs = load_authoring(f)
-        scored = drv.score_runs(model, runs)
-        tracks = drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), n, lim["gap"], warmup)
-        by_group, by_tag = cw.rbc_runs(model, lim, runs, names)
-        fast_cols = tagmap.column_indices(runs.columns, model.tags)
-        an_cols = dict(zip(plant.analyzers, tagmap.column_indices(runs.columns, plant.analyzers)))
-        per_run = []
-        for k in sorted(runs.runs):
-            x = runs.runs[k]
-            det = metrics.detection(tracks[k], ONSET, warmup=warmup)
-            row = {"run": int(k), "detected": bool(det.detected),
-                   "notification_sample": int(det.sample) if det.detected else None,
-                   "delay_min": float(det.delay_min) if det.detected else None}
-            if det.detected:
-                pubs = {t: publications_from_held(x[:, c], interval[t]) for t, c in an_cols.items()}
-                row["features"] = features.extract(
-                    plant, x[:, fast_cols], pubs, bands, det.sample, n,
-                    by_group[k] / w_group, by_tag[k] / w_tag, names)
-            per_run.append(row)
+        per_run = cases.score_pool(inp, runs)
         docs[f] = {"fault": f, "family": dev_table.FAMILIES[f], "pool": POOL,
                    "runs": [int(k) for k in sorted(runs.runs)], "commit": commit, "dirty": dirty, "record": record_rel,
-                   "inputs": {"calibration_record": cal_record.relative_to(repo_root).as_posix(),
-                              "watch_record": watch_record.relative_to(repo_root).as_posix(),
-                              "normals_record": normals_record.relative_to(repo_root).as_posix()},
+                   "inputs": dict(inp.records),
                    "summary": summarise(per_run), "per_run": per_run}
         summary_metrics[f"fault_{f:02d}"] = {
             "detected": sum(r["detected"] for r in per_run),
@@ -174,7 +120,7 @@ def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw
                 "calibration_record": docs[FAULTS[0]]["inputs"]["calibration_record"],
                 "watch_record": docs[FAULTS[0]]["inputs"]["watch_record"],
                 "normals_record": docs[FAULTS[0]]["inputs"]["normals_record"],
-                "limits_sha256": run_record.sha256(limits_path),
+                "limits_sha256": inp.limits_sha256,
                 "readings": dict(features.READINGS)},
         seeds={},
         metrics=summary_metrics,
