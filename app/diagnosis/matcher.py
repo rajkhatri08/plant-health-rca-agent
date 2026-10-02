@@ -57,25 +57,65 @@ def score(revision, features, at) -> Score:
     """One revision (schema.Revision) against one case's features at diagnosis time at
     ("provisional" or "revised"), per decision 69. Uses items.items() for the verdicts;
     only items whose scope is in SCOPES[at] count."""
-    raise NotImplementedError
+    if at not in SCOPES:
+        raise ValueError(f"at must be one of {tuple(SCOPES)}, got {at!r}")
+    rc = agree = contra = total = 0
+    verdicts = []
+    for item in sig_items.items(revision.signature):
+        if item.scope not in SCOPES[at]:
+            continue                                    # not in scope at this diagnosis time
+        w = WEIGHTS[item.weight]
+        v = item.verdict(features)
+        total += w                                      # unknown items still count in the total
+        if v == sig_items.AGREE:
+            agree += w
+        elif v == sig_items.CONTRADICT:
+            contra += w
+            if item.weight == "required":
+                rc += 1
+        verdicts.append((item.name, v))
+    if total == 0:
+        raise ValueError(f"{revision.entry_id} lists no item in scope at {at}")
+    return Score(ref=f"{revision.entry_id}@r{revision.revision}", entry_id=revision.entry_id,
+                 required_contradictions=rc, agree_weight=agree, contradict_weight=contra,
+                 total_weight=total, fit=Fraction(agree - contra, total), verdicts=tuple(verdicts))
 
 
 def rank(scores) -> list:
     """[(Score, ...), ...]: tied blocks, best first (fewer required contradictions, then
     higher fit); within a block, ordered by ref."""
-    raise NotImplementedError
+    blocks = {}
+    for sc in scores:                                   # equal (contradictions, fit) share a block
+        blocks.setdefault((sc.required_contradictions, sc.fit), []).append(sc)
+    order = sorted(blocks, key=lambda key: (key[0], -key[1]))   # fewer contradictions, then higher fit
+    return [tuple(sorted(blocks[key], key=lambda sc: sc.ref)) for key in order]
 
 
 def credit(ranking, entry_id, k) -> Fraction:
     """Top-k credit for the right entry, with ties counted fractionally (see the module
     docstring)."""
-    raise NotImplementedError
+    a = 1                                               # the first rank this block covers
+    for block in ranking:
+        b = a + len(block) - 1                          # the last rank it covers
+        if any(sc.entry_id == entry_id for sc in block):
+            if k >= b:
+                return Fraction(1)
+            if k < a:
+                return Fraction(0)
+            return Fraction(k - a + 1, len(block))      # part of the tied block fits in the top k
+        a = b + 1
+    return Fraction(0)                                  # not ranked at all
 
 
 def decline(ranking, threshold) -> bool:
     """True when the ranking is empty, every entry has a required contradiction, or the
     top block's fit is below threshold."""
-    raise NotImplementedError
+    if not ranking:
+        return True                                     # no entry in force
+    top = ranking[0][0]                                 # the whole top block shares its scores
+    if top.required_contradictions > 0:
+        return True                                     # the best has one, so every entry has one
+    return top.fit < threshold                          # strictly below; equal isn't declined
 
 
 def candidates(library, as_of) -> list:

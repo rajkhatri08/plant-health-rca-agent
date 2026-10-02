@@ -147,6 +147,9 @@ class Signature(_Strict):
         weights = [x.weight for x in loc + list(self.provisional.items()) + list(self.revised.items())]
         if "required" not in weights:
             raise ValueError("a signature needs at least one required item")
+        if not loc and not list(self.provisional.items()):
+            # the +30 min diagnosis scores only these, and fit needs a non-zero total (decision 69)
+            raise ValueError("a signature needs at least one location or provisional item")
         return self
 
 

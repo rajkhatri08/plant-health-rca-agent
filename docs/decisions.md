@@ -525,3 +525,99 @@ Decisions 64–66 were fixed before any RBC result existed on real data.
     - One definition of "out" (decision 62) serves the masked label, the loops and the signatures.
     - Categorical values let the matcher count agreements and contradictions (decision 15).
     - Every choice follows decisions made before any dev result, so the vocabulary isn't tuned on dev.
+
+## Week 5 decisions, 2 October 2026
+
+Decisions 69–72 were fixed before any diagnosis result existed on dev.
+
+69. **Matcher scoring (Raj's decision).**
+    - **Verdicts:** each listed signature item is one of:
+      - **agree:** the observed state is accepted (its `state`, or any of its `one_of`).
+      - **contradict:** an observed state that isn't accepted.
+      - **unknown:** nothing was observed. Either the reading is past the end of the run, or an analyzer is `not_yet_available` and the item doesn't accept that.
+
+      One definition, `app/diagnosis/items.py`, serves the matcher and the approval gate's provenance check. The gate counts only agree.
+    - **Scope:**
+      - The +30 min diagnosis (provisional) scores the location and provisional items.
+      - The +60 min diagnosis (revised) scores the location, provisional and revised items.
+    - **Weights, fixed in advance:** required 2, supporting 1.
+    - **Ranking:**
+      - Fewer required contradictions first.
+      - Then higher fit = (agreeing weight − contradicting weight) / total listed weight in scope.
+      - Unknown items count in the total but neither agree nor contradict.
+    - **Ties are kept, not broken:**
+      - Entries with equal (required contradictions, fit) share a block.
+      - If the right entry's block covers ranks a … b (m = b − a + 1 entries), its top-k credit is 1 if k ≥ b, 0 if k < a, and (k − a + 1)/m otherwise.
+      - So top-1 gives 1/m when m entries tie for first, including the right one.
+      - An entry that isn't ranked gets 0.
+    - **Decline** when no entry is in force, when every entry has a required contradiction, or when the top block's fit is strictly below the threshold for that diagnosis time (decision 72 sets the thresholds).
+    - **Conventions (Claude's, confirmed by Raj):**
+      - fit is an exact fraction, so ties are exact equality, never a float tolerance.
+      - A ranking is a list of tied blocks, best first, each ordered by `entry_id@r<k>`.
+      - A fit equal to the threshold isn't declined.
+    - **Every entry can be scored at +30 min:** the schema refuses a signature with no location or provisional item, because fit needs a non-zero total.
+    - **Code:** `app/diagnosis/matcher.py` (Raj), with candidates the entries in force as of the diagnosis time (`Library.in_force`).
+
+    *Why:*
+    - Counting agreements and contradictions per item (decision 15) makes one required contradiction decisive and explains itself item by item. A similarity score barely moves for one opposite reading.
+    - Fixed weights, and ties kept rather than broken by an arbitrary order, mean nothing in the score is tuned on dev, and a top-1 can't be won by alphabetical luck.
+
+70. **Diagnosis cases on dev (Raj's decision).**
+    - **A case** is a detected dev run of one of the 12 known faults (not 3, 9 or 15).
+      - It's diagnosed at the notification + 10 samples (provisional) and + 20 samples (revised).
+      - A reading past the run end is left out.
+      - Undetected runs aren't cases; detection is reported separately (PROTOCOL, denominator).
+    - **False-alert cases:** every notification on a normal dev run is diagnosed too, and the right answer is a decline. The share declined is reported.
+    - **Leave-one-out on dev:**
+      - The entries for faults 2 and 11 are removed. Their cases are correct when they're declined.
+      - Family accuracy (the top entry's family equals the case's family) is reported alongside.
+    - **Entry to fault:** goes through `eval/entry_provenance.yaml` and the provenance files, in `eval/` only.
+
+    *Why:* the cases are what an operator would see: an alert, then a diagnosis at +30 and +60 min. False alerts get diagnosed too, so declining them is part of the job. Removing two entries shows whether the matcher declines a mechanism it doesn't know, or forces a label on it.
+
+71. **Entry tests (Raj's decision).**
+    - **Authoring runs only, never dev.**
+    - **Self:**
+      - On each of the entry's own detected authoring runs, at both diagnosis times, it has no required contradictions.
+      - It's first or tied for first.
+    - **Specificity:** on every other entry's detected authoring runs, at both diagnosis times, it never ranks strictly above that run's own entry.
+    - **Regression:**
+      - Approving a new entry needs every approved entry's tests to pass on the larger library.
+      - A failure revises the new entry.
+      - An old entry gets an r2, through the normal approval, only if it's shown to be too broad.
+      - Approved entries stay in force meanwhile.
+    - **Record:** `eval/entry_tests.py` writes a `*_entry_tests.json` run record with `config.entry = entry_id@r<k>` and `metrics.passed`, which `eval/approve_entry.py`'s entry_tests gate reads (decision 67).
+
+    *Why:*
+    - Decision 24 needs tested entries.
+    - Testing on authoring runs keeps dev an honest check, so no entry is tuned on dev.
+    - Ties are allowed because physical twins (a step and a random variation of the same disturbance) can be honestly ambiguous. They show up in the dev table, not as a failed approval.
+
+72. **Baselines and paired comparisons (Raj's decision).**
+    - **Random floor:**
+      - The analytic chance values over the N entries in force: top-1 = 1/N, top-3 = 3/N.
+      - Family accuracy = the case family's entry count / N.
+      - No decline.
+    - **Forest inputs:**
+      - One-hot decision 68 features, on the same cases and diagnosis times.
+      - One forest per diagnosis time.
+    - **Training sets:**
+      - **Forest-5** trains on the detected authoring runs of the 12 faults, at most 5 per fault (the entries' own data budget).
+      - **The ceiling forest** trains on the detected runs of the `forest_ceiling` pool.
+    - **Hyperparameters, fixed now, no tuning:** 500 trees, `max_features` sqrt, `min_samples_leaf` 1, `class_weight` balanced, bootstrap on, and a fixed seed recorded here (value to be set by Raj before the forests run in S6). Arrays only, no pickles; the forests never ship.
+    - **Decline thresholds:**
+      - There's one per diagnosis time (provisional and revised), for the matcher and for each forest.
+      - Each is set on dev by the 95% rule: accept 95% of known-fault dev cases.
+      - A forest declines when its top class probability is below its threshold.
+    - **Leave-one-out:**
+      - Both forests are retrained without the left-out faults' classes.
+      - Their leave-one-out cases are correct when they're declined.
+    - **Paired comparisons, matcher against each baseline:**
+      - The headline is a paired bootstrap of the top-1 difference, by run number (decision 49, rule 3), with the same draws for both methods.
+      - McNemar may be shown alongside, not as the headline.
+      - This settles the McNemar question carried since week 1.
+
+    *Why:*
+    - The forest gets the same evidence, the same cases and the same data budget as the entries, so it's a fair comparison. The ceiling forest shows what more labels could buy.
+    - Fixed hyperparameters keep the baseline from being tuned on dev.
+    - Cases sharing a run number aren't independent, and McNemar assumes they are. Fractional tie credit also isn't 0/1 correctness, which McNemar needs.

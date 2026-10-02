@@ -15,8 +15,8 @@ Confirm these before the protocol commit.
 | Notification window (alarm comparison) | first 2 h after onset |
 | Detector selection | decided on the 100 selection runs, not dev: DPCA replaces static PCA only if its selection score (mean detection rate over the 12 selection faults, at its own calibrated n, G and q) is more than 3 points (0.03) higher; otherwise static PCA stays (decision 63) |
 | Diagnosis times | provisional at alert + 30 min, revised at + 60 min |
-| Matcher candidates (top-k) | smallest k with at least 95% candidate recall on dev |
-| Decline thresholds (matcher, forest) | accept 95% of known-fault dev cases (not authoring runs) |
+| Matcher candidates (top-k) | smallest k with at least 95% candidate recall on dev (tied blocks counted fractionally, decision 69) |
+| Decline thresholds (matcher, forest) | one per diagnosis time (provisional, revised) for the matcher and each forest; each accepts 95% of known-fault dev cases (not authoring runs; decision 72) |
 | LLM keep rule | at least 5 points better than the matcher on one of top-1, family accuracy or unknowns declined (on average and in every repeat), and no more than 2 points worse on any of them (on average across repeats) |
 | LLM repeats | 5; headline cases are a seeded subsample of 10 test runs per fault |
 
@@ -102,15 +102,17 @@ The loop map is `library/loops.yaml`, taken from the control code that generated
 - **Excluded (near-undetectable):** faults 3, 9, 15, reported separately
 - **Families:** feed composition (1, 2, 8), feed supply (6, 7), feed temperature (10), reactor cooling (4, 11, 14), condenser cooling (5, 12), reaction kinetics (13)
 - **Leave-one-out on test:** remove the entry for faults 1, 4, 5 and 13, one at a time. Correct means a decline, or a family-level answer flagged "mechanism not in library." Dev leave-one-out uses faults 2 and 11.
+- **Leave-one-out for the matcher and the forests (decisions 70, 72):** they can't flag a family-level answer, so their leave-one-out cases are correct only when declined. Family accuracy (the top entry's family equals the case's family) is reported alongside. Both forests are retrained without the left-out faults' classes.
+- **Dev cases (decision 70):** a detected dev run of a known fault, diagnosed at the notification + 10 samples (provisional) and + 20 (revised); a reading past the run end is left out. Every notification on a normal dev run is also diagnosed, and the right answer is a decline; the share declined is reported.
 - **If the cut line removes the entries for 7, 8, 10 and 12:** 7, 8 and 12 are scored like leave-one-out (a decline, or a family-level answer flagged "mechanism not in library"). 10 has no family entry, so it needs a strict decline. They are reported separately from 16–20.
 
 **Denominator:** fault runs where the detector alerted after onset. End-to-end accuracy (alerted and correctly diagnosed, divided by all fault runs) is also reported.
 
 ### Methods
 All methods run on the same cases with the same features.
-- Random (floor)
-- Random forest on 5 labelled runs per fault, and on all labelled runs (ceiling)
-- Signature matcher
+- Random (floor): the analytic chance values over the N entries in force, top-1 = 1/N, top-3 = 3/N, family accuracy = the case family's entry count / N, no decline (decision 72)
+- Random forest on the detected authoring runs (at most 5 per fault), and on the detected `forest_ceiling` runs (ceiling): one-hot decision 68 features, one forest per diagnosis time, hyperparameters fixed in decision 72 with no tuning
+- Signature matcher (decision 69): fewer required contradictions first, then fit; ties kept as blocks with fractional credit
 - Agent: matcher candidates plus one LLM call
 - LLM only: whole library, no matcher candidates (1 repeat, diagnostic)
 
@@ -122,7 +124,7 @@ Headline results use no work-order history (C0).
 - Per-entry results: picked when right, picked when wrong, number of cases
 - Confidence check: accuracy per stated confidence level, on dev and on test
 - LLM variance: bootstrap interval over run numbers (as in Detection metrics), spread across repeats, per-case agreement, with unstable cases listed
-- Paired comparisons: McNemar's test on per-case correctness
+- Paired comparisons (decision 72): the headline is a paired bootstrap of the top-1 difference by run number (as in Intervals, the same draws for both methods). McNemar's test on per-case correctness may be shown alongside, not as the headline: cases sharing a run number aren't independent.
 
 ## LLM measurement
 - **Model:** a pinned, versioned model ID and generation settings, recorded in every diagnosis record.
@@ -134,6 +136,7 @@ Headline results use no work-order history (C0).
 - Every tag, asset, entry and number in the output traces back to the evidence, and every stated direction matches it.
 - Every recommended action comes from a cited entry's action ID. Anything else is an unverified suggestion and can't be approved.
 - Every cited revision was in force at diagnosis time. Drafts are never cited.
+- An entry is approved only after its entry tests pass on authoring runs, never dev (decision 71): on its own runs, no required contradiction and first or tied first at both diagnosis times; on every other entry's runs, never strictly above that run's entry. A new entry's approval needs every approved entry's tests to pass on the larger library.
 - An output that fails is not shown as a diagnosis. The deterministic evidence is shown instead, and the failure is counted.
 
 | Measure | Target |

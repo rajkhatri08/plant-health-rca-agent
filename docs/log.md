@@ -2025,3 +2025,34 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Record decisions 69–72 and the PROTOCOL mirrors,** with answers to S1's six points (leave-one-out correctness, McNemar, the forest under leave-one-out, decline thresholds per time, the random floor's family accuracy, the wording).
   - Confirm the conventions above, and the zero-weight case.
 - **Next (Raj):** implement `score`, `rank`, `credit` and `decline`, then `pytest -q tests/test_matcher.py`.
+
+### 2026-10-02: week 5 session 2 (close), matcher implemented, decisions 69–72 recorded
+- **Raj:** implemented `score`, `rank`, `credit` and `decline` in `app/diagnosis/matcher.py` (with guidance from the Claude.ai chat). 40 of 41 matcher tests passed. The one failure was a test typo, which Raj found: `test_match_ranks_only_entries_in_force` compared a sorted list with `[ENTRY, THIRD]`, which should be `[THIRD, ENTRY]`.
+- **Claude's review of the matcher (as reviewer):** it follows decision 69 and the conventions.
+  - Scope by diagnosis time; weights 2 and 1; unknown counted in the total only.
+  - Fit as an exact fraction; blocks keyed on (required contradictions, fit) and ordered by ref.
+  - The credit formula as specified.
+  - Decline on an empty ranking, a required contradiction in the top block (rank puts the fewest first, so then every entry has one), or a fit strictly below the threshold.
+  - `score` also raises on a zero total, which the new schema rule now prevents.
+  - No issues found.
+- **Changed:**
+  - **`tests/test_matcher.py`:** the typo fixed (test only; the matcher untouched).
+  - **`app/library/schema.py`:** a signature must list at least one location or provisional item, so every entry can be scored at +30 min (Raj's answer to the zero-weight case).
+  - **`tests/test_library.py`:** that refusal added to the invalid-revision cases; two new valid cases (a location item only, a provisional item only, with the required item in revised). The five real entries still load.
+  - **`docs/decisions.md`:** a new "Week 5 decisions" section with decisions 69–72, from Raj's S1 text and his answers to the six points. Claude's conventions are marked confirmed.
+  - **`eval/PROTOCOL.md`:** the mirrors.
+    - Pre-registered values: top-k counts tied blocks fractionally, and there's one decline threshold per diagnosis time for the matcher and each forest.
+    - Cases: leave-one-out for the matcher and the forests (correct only when declined, family accuracy alongside, forests retrained without the left-out classes), plus the dev cases and false-alert cases.
+    - Methods: the random floor's analytic values; the forests' training sets and fixed hyperparameters; the matcher's ranking.
+    - Metrics: the paired bootstrap as the headline, with McNemar alongside.
+    - Governance: entry tests before approval.
+- **Tests:** `pytest -q` gives 1350 passed, 3 deselected (+26 matcher, +3 schema). The one warning is the old `httpx2` deprecation notice from the test client.
+- **Claude's readings, to confirm:**
+  - **Leave-one-out scope.** Answer 1 ("correct when declined") is recorded for the matcher and the forests, which can't flag a family-level answer. PROTOCOL's rule for the agent on test is left as it was: a decline, or a family-level answer flagged "mechanism not in library". So are decision 42's cut-line scoring and the LLM keep rule's "unknowns declined". If answer 1 was meant for every method, those lines change too.
+  - **The forest seed:** the S1 text says the seed is recorded in the decision, but gives no value. Decision 72 says "value to be set by Raj before the forests run in S6".
+- **Not changed:** `app/diagnosis/matcher.py`'s module docstring still says decision 69 is "not yet written into docs/decisions.md" and calls the conventions "to confirm", and says the threshold question is "open in S1". These lines are now out of date. It's Raj's file, so it was left as it is.
+- **Not Claude's:** `eval/baselines/alarms.py` still shows a 2-line change from the IDE. Left alone.
+- **Decisions needed:**
+  - The forest seed's value (decision 72), before S6.
+  - Confirm the leave-one-out scope above.
+- **Next:** S3, the case builder (`eval/cases.py`) and the entry-test runner (`eval/entry_tests.py`), then Raj runs the entry tests and approves the five drafts.

@@ -138,6 +138,8 @@ def bad(**changes):
     bad(signature__provisional__tags={"RX-FV-206": {"state": "up", "weight": "required"}}),
     bad(signature={"location": {}, "provisional": {"tags": {                       # nothing required
         "RX-FV-206": {"state": "high", "weight": "supporting"}}}, "revised": {}}),
+    bad(signature={"location": {}, "provisional": {}, "revised": {"tags": {        # nothing at +30 min
+        "RX-FV-206": {"state": "high", "weight": "required"}}}}),
     bad(governance__supersedes=1),                                     # r1 supersedes nothing
     bad(revision=2),                                                   # r2 must supersede r1
     bad(governance__created_at="2026-10-01"),                          # not a full UTC timestamp
@@ -153,6 +155,17 @@ def bad(**changes):
 def test_invalid_revisions_are_refused(doc):
     with pytest.raises(ValidationError):
         schema.Revision.model_validate(yaml.safe_load(yaml.safe_dump(doc)))
+
+
+@pytest.mark.parametrize("signature", [
+    {"location": {"top_group": {"one_of": ["reactor"], "weight": "supporting"}},       # location only
+     "revised": {"tags": {"RX-FV-206": {"state": "high", "weight": "required"}}}},
+    {"provisional": {"masked": {"state": True, "weight": "supporting"}},             # provisional only
+     "revised": {"tags": {"RX-FV-206": {"state": "high", "weight": "required"}}}},
+])
+def test_one_item_at_30_min_is_enough(signature):
+    # decision 69: the +30 min diagnosis needs something in scope, wherever the required item is
+    schema.Revision.model_validate(yaml.safe_load(yaml.safe_dump(revision(signature=signature))))
 
 
 def test_not_applicable_is_allowed_for_failure_mode_only():

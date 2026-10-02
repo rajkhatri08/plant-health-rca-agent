@@ -288,7 +288,7 @@ def test_candidates_need_an_aware_time(library):
 
 def test_match_ranks_only_entries_in_force(library):
     got = m.match(library, features(), "provisional", T0 + timedelta(hours=31))
-    assert sorted(x.entry_id for block in got for x in block) == [ENTRY, THIRD]
+    assert sorted(x.entry_id for block in got for x in block) == [THIRD, ENTRY]
     assert all(x.ref.endswith("@r1") for block in got for x in block)
 
 
