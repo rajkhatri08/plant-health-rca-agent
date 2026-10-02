@@ -1,0 +1,144 @@
+{
+  "name": "authoring",
+  "time": "2026-10-02T04:21:55+00:00",
+  "commit": "1a447637e3f9bccb2161dafc904d0796bde21955",
+  "dirty": false,
+  "config": {
+    "faults": [
+      2,
+      7,
+      8,
+      10,
+      11,
+      12,
+      14
+    ],
+    "pool": "authoring",
+    "runs": [
+      94,
+      176,
+      178,
+      206,
+      301
+    ],
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+    "normals_record": "eval/runs/20261001T182856Z_evidence_normals.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "readings": {
+      "provisional": 10,
+      "revised": 20
+    }
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {
+    "fault_02": {
+      "path": "eval/provenance/fault_02.yaml",
+      "sha256": "7946d3522f3b2075902858d9d6df13a606cff912382805b41ed4156a0b9e9b4e"
+    },
+    "fault_07": {
+      "path": "eval/provenance/fault_07.yaml",
+      "sha256": "b2fbd795a79deedbbe2a0600448dae18fbdabfe4896f2c1e7c19673c8b22471f"
+    },
+    "fault_08": {
+      "path": "eval/provenance/fault_08.yaml",
+      "sha256": "31e267ea7aefe46e9faf0fcc7c8f2f6ed9da9c329e703c21a77b25e091758235"
+    },
+    "fault_10": {
+      "path": "eval/provenance/fault_10.yaml",
+      "sha256": "3c9ab04f18f414200513d724b867ec1cda5ad818d3c0331bada6dce0d2987362"
+    },
+    "fault_11": {
+      "path": "eval/provenance/fault_11.yaml",
+      "sha256": "5deebab0ecae5eff5e1826b79e6ef5c2fa5923a63aed63d649606332515c7900"
+    },
+    "fault_12": {
+      "path": "eval/provenance/fault_12.yaml",
+      "sha256": "fb727fd53a04c458d5babe9e9124c9c002e9b1e73e9c7f4d41b516c7b1dc7998"
+    },
+    "fault_14": {
+      "path": "eval/provenance/fault_14.yaml",
+      "sha256": "58e7dc51a7a11d00c3dfd36f3e1420d6db14c2e29d231288d910c8322713d2d0"
+    }
+  },
+  "metrics": {
+    "fault_02": {
+      "detected": 5,
+      "notification_samples": [
+        35,
+        33,
+        35,
+        34,
+        33
+      ]
+    },
+    "fault_07": {
+      "detected": 5,
+      "notification_samples": [
+        23,
+        23,
+        23,
+        23,
+        23
+      ]
+    },
+    "fault_08": {
+      "detected": 5,
+      "notification_samples": [
+        51,
+        41,
+        37,
+        55,
+        60
+      ]
+    },
+    "fault_10": {
+      "detected": 2,
+      "notification_samples": [
+        84,
+        0,
+        0,
+        66,
+        0
+      ]
+    },
+    "fault_11": {
+      "detected": 5,
+      "notification_samples": [
+        36,
+        33,
+        25,
+        28,
+        33
+      ]
+    },
+    "fault_12": {
+      "detected": 5,
+      "notification_samples": [
+        44,
+        32,
+        36,
+        26,
+        26
+      ]
+    },
+    "fault_14": {
+      "detected": 5,
+      "notification_samples": [
+        25,
+        23,
+        23,
+        25,
+        23
+      ]
+    }
+  }
+}

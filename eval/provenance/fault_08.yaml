@@ -1,0 +1,1193 @@
+# Builder side (LEAKAGE wall 3): authoring evidence for one fault. Never copy
+# run numbers or fault numbers into library/.
+fault: 8
+family: feed composition
+pool: authoring
+runs:
+- 94
+- 176
+- 178
+- 206
+- 301
+commit: 1a447637e3f9bccb2161dafc904d0796bde21955
+dirty: false
+record: eval/runs/20261002T042155Z_authoring.json
+inputs:
+  calibration_record: eval/runs/20260927T150527Z_calibrate_pca.json
+  watch_record: eval/runs/20260929T065812Z_calibrate_watch.json
+  normals_record: eval/runs/20261001T182856Z_evidence_normals.json
+summary:
+  detected: 5
+  runs: 5
+  location:
+    top_group:
+      compressor: 2
+      stripper: 3
+    top_tags:
+      ST-PI-602:
+        in top 3: 5
+      RX-PI-202:
+        in top 3: 5
+      SP-PI-403:
+        in top 3: 5
+  provisional:
+    tags:
+      FD-FI-101:
+        high: 4
+        low: 1
+      FD-FI-102:
+        normal: 5
+      FD-FI-103:
+        normal: 5
+      FD-FI-104:
+        normal: 5
+      FD-FV-105:
+        high: 4
+        low: 1
+      FD-FV-106:
+        normal: 5
+      FD-FV-107:
+        normal: 5
+      FD-FV-108:
+        normal: 5
+      RX-FI-201:
+        normal: 5
+      RX-PI-202:
+        high: 4
+        low: 1
+      RX-LI-203:
+        normal: 5
+      RX-TI-204:
+        normal: 5
+      RX-TI-205:
+        normal: 5
+      RX-FV-206:
+        normal: 5
+      CD-TI-301:
+        normal: 5
+      CD-FV-302:
+        normal: 5
+      SP-TI-401:
+        high: 1
+        low: 1
+        normal: 3
+      SP-LI-402:
+        normal: 5
+      SP-PI-403:
+        high: 4
+        low: 1
+      SP-FI-404:
+        normal: 5
+      SP-FV-405:
+        normal: 5
+      SP-FI-406:
+        low: 1
+        normal: 4
+      SP-FV-407:
+        low: 1
+        normal: 4
+      CP-FI-501:
+        normal: 5
+      CP-JI-502:
+        high: 1
+        low: 2
+        normal: 2
+      CP-FV-503:
+        normal: 5
+      ST-LI-601:
+        normal: 5
+      ST-PI-602:
+        high: 4
+        low: 1
+      ST-FI-603:
+        normal: 5
+      ST-TI-604:
+        normal: 5
+      ST-FI-605:
+        normal: 5
+      ST-FV-606:
+        normal: 5
+      ST-FV-607:
+        normal: 5
+    loops:
+      FD-FIC-101:
+        lost: 5
+      FD-FIC-102:
+        held: 5
+      FD-FIC-103:
+        held: 5
+      FD-FIC-104:
+        held: 5
+      RX-AIC-211:
+        lost: 5
+      RX-AIC-214:
+        held: 5
+      RX-AIC-215:
+        held: 5
+      RX-LIC-203:
+        held: 5
+      RX-TIC-204:
+        held: 5
+      RX-TIC-205:
+        held: 5
+      SP-LIC-402:
+        held: 5
+      SP-AIC-412:
+        held: 4
+        lost: 1
+      SP-FIC-406:
+        held: 4
+        lost: 1
+      CP-FIC-501:
+        held: 5
+      ST-LIC-601:
+        held: 5
+      ST-AIC-612:
+        held: 5
+      ST-TIC-604:
+        held: 5
+      ST-FIC-605:
+        held: 5
+      ST-FIC-603:
+        held: 5
+    analyzers:
+      RX-AI-211:
+        high: 1
+        low: 4
+      RX-AI-212:
+        normal: 5
+      RX-AI-213:
+        high: 4
+        low: 1
+      RX-AI-214:
+        normal: 5
+      RX-AI-215:
+        normal: 5
+      RX-AI-216:
+        normal: 5
+      SP-AI-411:
+        high: 1
+        low: 4
+      SP-AI-412:
+        low: 1
+        normal: 4
+      SP-AI-413:
+        high: 4
+        low: 1
+      SP-AI-414:
+        normal: 5
+      SP-AI-415:
+        normal: 5
+      SP-AI-416:
+        normal: 5
+      SP-AI-417:
+        normal: 5
+      SP-AI-418:
+        normal: 5
+      ST-AI-611:
+        normal: 5
+      ST-AI-612:
+        normal: 5
+      ST-AI-613:
+        normal: 5
+      ST-AI-614:
+        normal: 5
+      ST-AI-615:
+        normal: 5
+    masked:
+      'False': 5
+  revised:
+    tags:
+      FD-FI-101:
+        high: 4
+        low: 1
+      FD-FI-102:
+        normal: 5
+      FD-FI-103:
+        normal: 5
+      FD-FI-104:
+        low: 2
+        normal: 3
+      FD-FV-105:
+        high: 4
+        low: 1
+      FD-FV-106:
+        normal: 5
+      FD-FV-107:
+        normal: 5
+      FD-FV-108:
+        normal: 5
+      RX-FI-201:
+        normal: 5
+      RX-PI-202:
+        high: 4
+        low: 1
+      RX-LI-203:
+        normal: 5
+      RX-TI-204:
+        normal: 5
+      RX-TI-205:
+        normal: 5
+      RX-FV-206:
+        normal: 5
+      CD-TI-301:
+        low: 2
+        normal: 3
+      CD-FV-302:
+        normal: 5
+      SP-TI-401:
+        high: 1
+        low: 4
+      SP-LI-402:
+        normal: 5
+      SP-PI-403:
+        high: 4
+        low: 1
+      SP-FI-404:
+        normal: 5
+      SP-FV-405:
+        normal: 5
+      SP-FI-406:
+        low: 1
+        normal: 4
+      SP-FV-407:
+        high: 1
+        low: 1
+        normal: 3
+      CP-FI-501:
+        normal: 5
+      CP-JI-502:
+        high: 1
+        low: 2
+        normal: 2
+      CP-FV-503:
+        high: 1
+        low: 1
+        normal: 3
+      ST-LI-601:
+        normal: 5
+      ST-PI-602:
+        high: 4
+        low: 1
+      ST-FI-603:
+        normal: 5
+      ST-TI-604:
+        normal: 5
+      ST-FI-605:
+        normal: 5
+      ST-FV-606:
+        normal: 5
+      ST-FV-607:
+        normal: 5
+    loops:
+      FD-FIC-101:
+        lost: 5
+      FD-FIC-102:
+        held: 5
+      FD-FIC-103:
+        held: 5
+      FD-FIC-104:
+        held: 3
+        lost: 2
+      RX-AIC-211:
+        lost: 5
+      RX-AIC-214:
+        held: 5
+      RX-AIC-215:
+        held: 5
+      RX-LIC-203:
+        held: 5
+      RX-TIC-204:
+        held: 5
+      RX-TIC-205:
+        held: 5
+      SP-LIC-402:
+        held: 5
+      SP-AIC-412:
+        compensating: 1
+        held: 3
+        lost: 1
+      SP-FIC-406:
+        compensating: 1
+        held: 3
+        lost: 1
+      CP-FIC-501:
+        compensating: 2
+        held: 3
+      ST-LIC-601:
+        held: 5
+      ST-AIC-612:
+        held: 5
+      ST-TIC-604:
+        held: 5
+      ST-FIC-605:
+        held: 5
+      ST-FIC-603:
+        held: 5
+    analyzers:
+      RX-AI-211:
+        high: 1
+        low: 4
+      RX-AI-212:
+        low: 1
+        normal: 4
+      RX-AI-213:
+        high: 4
+        low: 1
+      RX-AI-214:
+        normal: 5
+      RX-AI-215:
+        normal: 5
+      RX-AI-216:
+        low: 1
+        normal: 4
+      SP-AI-411:
+        high: 1
+        low: 4
+      SP-AI-412:
+        low: 1
+        normal: 4
+      SP-AI-413:
+        high: 4
+        low: 1
+      SP-AI-414:
+        normal: 5
+      SP-AI-415:
+        normal: 5
+      SP-AI-416:
+        low: 1
+        normal: 4
+      SP-AI-417:
+        low: 4
+        normal: 1
+      SP-AI-418:
+        low: 2
+        normal: 3
+      ST-AI-611:
+        normal: 5
+      ST-AI-612:
+        normal: 5
+      ST-AI-613:
+        normal: 5
+      ST-AI-614:
+        normal: 5
+      ST-AI-615:
+        normal: 5
+    masked:
+      'False': 5
+per_run:
+- run: 94
+  detected: true
+  notification_sample: 51
+  delay_min: 93.0
+  features:
+    location:
+      top_group: stripper
+      top_tags:
+      - ST-PI-602
+      - RX-PI-202
+      - SP-PI-403
+    provisional:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: normal
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: low
+        SP-FV-407: low
+        CP-FI-501: normal
+        CP-JI-502: low
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: lost
+        SP-FIC-406: lost
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: low
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: normal
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+    revised:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: low
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: low
+        CD-FV-302: normal
+        SP-TI-401: low
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: low
+        SP-FV-407: low
+        CP-FI-501: normal
+        CP-JI-502: low
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: lost
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: lost
+        SP-FIC-406: lost
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: low
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: low
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: low
+        SP-AI-417: low
+        SP-AI-418: low
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+- run: 176
+  detected: true
+  notification_sample: 41
+  delay_min: 63.0
+  features:
+    location:
+      top_group: stripper
+      top_tags:
+      - ST-PI-602
+      - RX-PI-202
+      - SP-PI-403
+    provisional:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: normal
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: normal
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: normal
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: normal
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+    revised:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: low
+        CD-FV-302: normal
+        SP-TI-401: low
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: normal
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: normal
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: low
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+- run: 178
+  detected: true
+  notification_sample: 37
+  delay_min: 51.0
+  features:
+    location:
+      top_group: compressor
+      top_tags:
+      - ST-PI-602
+      - RX-PI-202
+      - SP-PI-403
+    provisional:
+      tags:
+        FD-FI-101: low
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: low
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: low
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: high
+        SP-LI-402: normal
+        SP-PI-403: low
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: high
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: low
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: high
+        RX-AI-212: normal
+        RX-AI-213: low
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: high
+        SP-AI-412: normal
+        SP-AI-413: low
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: normal
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+    revised:
+      tags:
+        FD-FI-101: low
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: low
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: low
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: high
+        SP-LI-402: normal
+        SP-PI-403: low
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: high
+        CP-FI-501: normal
+        CP-JI-502: high
+        CP-FV-503: low
+        ST-LI-601: normal
+        ST-PI-602: low
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: compensating
+        SP-FIC-406: compensating
+        CP-FIC-501: compensating
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: high
+        RX-AI-212: normal
+        RX-AI-213: low
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: high
+        SP-AI-412: normal
+        SP-AI-413: low
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: normal
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+- run: 206
+  detected: true
+  notification_sample: 55
+  delay_min: 105.0
+  features:
+    location:
+      top_group: compressor
+      top_tags:
+      - ST-PI-602
+      - RX-PI-202
+      - SP-PI-403
+    provisional:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: low
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: normal
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: normal
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: normal
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+    revised:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: low
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: normal
+        CP-FV-503: high
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: compensating
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: low
+        SP-AI-411: low
+        SP-AI-412: normal
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: low
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+- run: 301
+  detected: true
+  notification_sample: 60
+  delay_min: 120.0
+  features:
+    location:
+      top_group: stripper
+      top_tags:
+      - RX-PI-202
+      - ST-PI-602
+      - SP-PI-403
+    provisional:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: normal
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: normal
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: low
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: held
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: normal
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: normal
+        SP-AI-418: normal
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
+    revised:
+      tags:
+        FD-FI-101: high
+        FD-FI-102: normal
+        FD-FI-103: normal
+        FD-FI-104: low
+        FD-FV-105: high
+        FD-FV-106: normal
+        FD-FV-107: normal
+        FD-FV-108: normal
+        RX-FI-201: normal
+        RX-PI-202: high
+        RX-LI-203: normal
+        RX-TI-204: normal
+        RX-TI-205: normal
+        RX-FV-206: normal
+        CD-TI-301: normal
+        CD-FV-302: normal
+        SP-TI-401: low
+        SP-LI-402: normal
+        SP-PI-403: high
+        SP-FI-404: normal
+        SP-FV-405: normal
+        SP-FI-406: normal
+        SP-FV-407: normal
+        CP-FI-501: normal
+        CP-JI-502: low
+        CP-FV-503: normal
+        ST-LI-601: normal
+        ST-PI-602: high
+        ST-FI-603: normal
+        ST-TI-604: normal
+        ST-FI-605: normal
+        ST-FV-606: normal
+        ST-FV-607: normal
+      loops:
+        FD-FIC-101: lost
+        FD-FIC-102: held
+        FD-FIC-103: held
+        FD-FIC-104: lost
+        RX-AIC-211: lost
+        RX-AIC-214: held
+        RX-AIC-215: held
+        RX-LIC-203: held
+        RX-TIC-204: held
+        RX-TIC-205: held
+        SP-LIC-402: held
+        SP-AIC-412: held
+        SP-FIC-406: held
+        CP-FIC-501: held
+        ST-LIC-601: held
+        ST-AIC-612: held
+        ST-TIC-604: held
+        ST-FIC-605: held
+        ST-FIC-603: held
+      analyzers:
+        RX-AI-211: low
+        RX-AI-212: normal
+        RX-AI-213: high
+        RX-AI-214: normal
+        RX-AI-215: normal
+        RX-AI-216: normal
+        SP-AI-411: low
+        SP-AI-412: normal
+        SP-AI-413: high
+        SP-AI-414: normal
+        SP-AI-415: normal
+        SP-AI-416: normal
+        SP-AI-417: low
+        SP-AI-418: low
+        ST-AI-611: normal
+        ST-AI-612: normal
+        ST-AI-613: normal
+        ST-AI-614: normal
+        ST-AI-615: normal
+      masked: false
