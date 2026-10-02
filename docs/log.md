@@ -2146,3 +2146,68 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Thin evidence,** as flagged at kickoff: faults 2, 8 and 10 may be detected on few of their 5 authoring runs. A fault with 0 detected can't get an entry, and its entry tests would fail (no detected run). If that happens, it goes under Decisions needed; no other runs are swapped in.
 - **Decisions needed:** none new. Still open from S2: the leave-one-out scope for the agent.
 - **Next (Raj), after review and commit, on a clean tree:** `python -m eval.authoring --faults 2 7 8 10 11 12 14`, then commit the seven provenance files and the record. Then S5: the seven r1 drafts.
+
+### 2026-10-02: week 5 session 5, seven r1 drafts and Claude's reviews
+- **Raj:**
+  - Ran the second authoring batch (record `20261002T042155Z_authoring.json`, clean, commit 1a447637).
+  - Wrote seven r1 drafts (with guidance from the Claude.ai chat, reviewed himself) and keyed them in `eval/entry_provenance.yaml` (3840707, 6296665). Each passed `--check` on schema, leak scan, provenance and preconditions.
+  - The chat simulated decision 71's tests for all 12 entries and found no self or specificity failures.
+  - Entry tests passed for `reactor-cooling-water-warm-supply@r1` (record committed). Approvals wait for the 24-hour gap.
+
+  | Entry | Provenance | Authoring runs detected |
+  |---|---|---|
+  | `mixed-feed-inert-rise` | `fault_02.yaml` | 5 of 5 |
+  | `mixed-feed-supply-loss` | `fault_07.yaml` | 5 of 5 |
+  | `mixed-feed-composition-wander` | `fault_08.yaml` | 5 of 5 |
+  | `mixed-feed-temperature-wander` | `fault_10.yaml` | 2 of 5 (late: 138 and 192 min) |
+  | `reactor-cooling-water-temperature-wander` | `fault_11.yaml` | 5 of 5 |
+  | `condenser-cooling-water-temperature-wander` | `fault_12.yaml` | 5 of 5 |
+  | `reactor-cooling-valve-sticking` | `fault_14.yaml` | 5 of 5 |
+- **Claude's review (as reviewer, never approver):**
+  - **`--check` re-run on the seven:** schema, leak scan, provenance and preconditions pass. entry_tests fails (no record yet) and so does gap_24h (created 04:27 UTC on 2 October), as expected.
+  - **Every signature item checked against the authoring evidence (76 items):**
+    - Every required item agrees on every detected run.
+    - Every supporting item agrees on at least half: five at 4 of 5, the rest on all.
+  - **Decision 71 run with the real code, read-only:** `eval/entry_tests.py`'s `rankings`, `self_failures` and `specificity_failures` were called on all 12 r1 drafts in one library, from the committed provenance files. No record was written; that's Raj's run.
+    - **Result:** 0 failures over 112 rankings (56 detected runs × 2 diagnosis times). This confirms the chat's simulation with the runner itself.
+    - **It also covers every sequential order:** two entries' relative rank depends only on their own scores, and first among 12 implies first among fewer.
+  - **Ties:** 99 of the 112 rankings have a single entry first.
+    - The ratio shift ties with the composition wander on all of the ratio shift's runs, at both times (10), and on one of the wander's runs at each time (2).
+    - The condenser temperature wander ties with the condenser warm supply once (provisional).
+    - Decision 71 allows these. On dev they would cap the ratio shift's top-1 near ½ if the pattern holds.
+  - **The description claims were checked against the evidence for each of the seven:**
+    - six match (notes in the review files)
+    - one doesn't (below)
+  - **Wrote `library/entries/<entry>/r1.review-claude.yaml` for six:**
+    - `mixed-feed-inert-rise`
+    - `mixed-feed-supply-loss`
+    - `mixed-feed-composition-wander`
+    - `reactor-cooling-water-temperature-wander`
+    - `condenser-cooling-water-temperature-wander`
+    - `reactor-cooling-valve-sticking`
+
+    No fault numbers, run numbers, counts or provenance file names; the leak scan passes; the store loads all 11 reviews.
+  - **Non-blocking notes (in the files):**
+    - **inert rise:** `related_entries` is empty although the family has two siblings.
+    - **valve sticking:** "cycle" and "together" describe timing the v1 features can't show (decision 68, no dynamics), so a diagnosis mustn't cite the cycle as observed evidence.
+- **Blocking, no review written: `mixed-feed-temperature-wander` r1.**
+  1. **A claim the evidence contradicts:** "its controller works the steam valve to hold it". On both detected runs, at both readings:
+     - the stripper temperature is out (low)
+     - its loop is lost
+     - the steam valve and steam flow stay inside their normal bands (the steam flow loop is held)
+
+     The evidence shows the temperature not held and no visible steam-valve action.
+  2. **Provenance in agent-visible text:** "this entry was written from only two detected runs out of five". Decision 67 keeps a signature's provenance in `eval/`, never `library/`. The description is served to the agent (`agent_view` strips only `sources`), so this would reach prompts and reveal the authoring design.
+  3. **A wrong mechanism:** "too small to cross the alarm limits". Detection here is the PCA alert, not alarm limits. "Often not detected" is what the evidence shows.
+  - **Revisions are never edited,** so the fix is an r2 (supersedes 1) before any approval; r1 then stays a draft. The thin-evidence caveat can live in the provenance file and the review instead.
+  - The signature itself agrees with its two runs. Its `one_of` (high or low) on the stripper temperature is physical reasoning; the evidence shows low only.
+- **Tests:** no code changed. The library, leak-scan and sources tests pass. The full suite was last 1403 passed, 4 deselected (S4).
+- **Unsure about:**
+  - **The week 4 review notes** (five files in `library/`) contain authoring counts such as "5 of 5 detected runs". Reviews aren't served to the agent (`agent_view` returns the revision only), but decision 67 says provenance stays out of `library/`. The new six avoid counts. Raj's call whether the old notes matter; they can't be edited, only followed by a new review file.
+- **Decisions needed:**
+  - `mixed-feed-temperature-wander`: an r2 that fixes the three points above, before its entry tests and approval.
+  - Carried: the leave-one-out scope for the agent (from S2).
+- **Next (Raj):**
+  - Approvals in sequence once the gaps open: the first five from about 19:00 UTC on 2 October, the second batch from about 04:30 UTC on 3 October.
+  - For each, run `python -m eval.entry_tests <entry> 1`, commit the record, run `python -m eval.approve_entry <entry> 1 --approver raj-review`, and commit the approval.
+  - The temperature wander waits for its r2.

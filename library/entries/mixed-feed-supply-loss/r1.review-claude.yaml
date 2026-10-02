@@ -1,0 +1,11 @@
+entry_id: mixed-feed-supply-loss
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-02T04:32:50Z'
+note: 'Reviewed as reviewer, not approver. Schema valid, leak scan clean, preconditions present (eval/approve_entry.py
+  --check passes those gates and provenance). Every required signature item agrees on every detected authoring run,
+  and every supporting item on at least half of them. Decision 71''s self and specificity tests were checked with
+  all twelve drafts in one library: no failures. The description''s claims match the evidence: the mixed feed valve
+  high while its flow is low, the flow loop lost, both reactor-feed reactant analyzers low, reactor feed rate, level
+  and pressure low, and many loops lost at both readings. The contrast with the reactant-1 supply loss holds. Nothing
+  blocking.'

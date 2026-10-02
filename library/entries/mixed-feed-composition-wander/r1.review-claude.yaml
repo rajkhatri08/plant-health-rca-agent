@@ -1,0 +1,12 @@
+entry_id: mixed-feed-composition-wander
+revision: 1
+reviewer: claude
+reviewed_at: '2026-10-02T04:32:50Z'
+note: 'Reviewed as reviewer, not approver. Schema valid, leak scan clean, preconditions present (eval/approve_entry.py
+  --check passes those gates and provenance). Every required signature item agrees on every detected authoring run,
+  and every supporting item on at least half of them. Decision 71''s self and specificity tests were checked with
+  all twelve drafts in one library: no failures. The description''s claims match the evidence: the reactor-feed
+  analyzers and the reactant-1 feed move in different directions across runs, which one_of covers; the reactant-1
+  composition and flow loops are lost; the gas-loop pressures move. Its stated tie with the reactant ratio shift
+  is real: the two tie for first on every authoring run of that entry, at both diagnosis times. Decision 71 allows
+  it, and the dev table will show what it costs. Nothing blocking.'
