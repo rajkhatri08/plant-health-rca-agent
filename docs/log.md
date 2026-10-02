@@ -1993,3 +1993,35 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Thin authoring evidence.** Faults 2, 8 and 10 may be detected on few of their 5 authoring runs. If any has 0 of 5, it goes under Decisions needed; no other runs are swapped in.
   - **Answer 1 and step vs random twins:** under "never strictly above", a twin pair that always ties passes both entries' tests, so the approval gate doesn't separate them. The dev table will show how often they tie.
 - **Decisions needed:** decisions 69–72 in S1.
+
+### 2026-10-02: week 5 session 2, shared item verdicts, matcher stubs and tests
+- **Note on S1:** commit f3932a8's message names decisions 69–72, but it only adds the S0 entry here. `docs/decisions.md` still ends at 68, and PROTOCOL is unchanged (it still says McNemar). S2 is built from Raj's pasted decision 69 text, which the matcher's docstring quotes and marks "not yet written into docs/decisions.md".
+- **Changed:**
+  - **`app/diagnosis/items.py` (new, Claude):** one definition of agree, contradict and unknown for a signature item against `features.extract()`'s dict (one engine, decision 19).
+    - **unknown:** the item's reading is missing (past the end of the run), or an analyzer is `not_yet_available` and the item doesn't accept that.
+    - Items keep the gate's order and names; each carries its scope (location, provisional, revised) and weight.
+  - **`eval/approve_entry.py`:** `_items` is removed. `agreement()` now counts `verdict == agree` from `app/diagnosis/items.py`. Behaviour is unchanged: unknown and contradict both count against an item, as a missing reading did before. `--check` on two real drafts gives the same gate results as before (schema and provenance pass, entry_tests fails).
+  - **`app/diagnosis/matcher.py` (new; stubs for Raj, plus wiring):**
+    - Constants `WEIGHTS` (required 2, supporting 1) and `SCOPES` (+30 min: location and provisional; +60 min: everything).
+    - The `Score` type.
+    - Stubs that raise `NotImplementedError`: `score`, `rank`, `credit`, `decline`.
+    - Wiring by Claude: `candidates` (the revisions in force via `Library.in_force`, by entry_id) and `match` (candidates, then score, then rank; refuses an unknown diagnosis time).
+  - **Conventions in the docstring (Claude's, to confirm):**
+    - fit is an exact `Fraction`, so ties are exact.
+    - A ranking is a list of tied blocks ordered by ref.
+    - Top-k credit for a block covering ranks a..b (m entries) is 1 if k ≥ b, 0 if k < a, else (k − a + 1)/m.
+    - "Below the threshold" is strict, and an empty ranking declines.
+    - The threshold is an argument, so per-time or shared thresholds both fit.
+- **Tests: `tests/test_matcher.py`, 41 tests:**
+  - **Passing now (15):** the item order, scopes and weights; exact match; contradictions; `one_of`; a missing reading is unknown; analyzer `not_yet_available`; the gate uses the shared items, with unknown counting against an item; the decision 69 constants; candidates as-of (none, a withdrawn entry in force before its r2, a draft never, a later approval); a naive time refused; `match` refusing an unknown time; the wall for `app/diagnosis`.
+  - **Failing with `NotImplementedError` until Raj implements (26):** scores by hand (exact match 8/8 and 10/10; a required contradiction 1/2 and 1/5; a supporting contradiction 6/8; `one_of`; unknown supporting 7/8 and required 7/9; a missing revised reading 4/5); fit is exact; ranking (contradictions first, ties as one block, empty); credit (8 cases, a three-way tie at first, a block lower down); decline (every entry with a required contradiction, the threshold strict, empty); `match` returns only entries in force.
+  - **`pytest -q`:** 26 failed, 1321 passed, 3 deselected (1306 before, plus the 15 new passing tests). All 26 failures are the matcher stubs' `NotImplementedError`; nothing else fails. There's one warning, which doesn't come from the matcher, approval or library tests.
+- **The idea (for Raj):** a similarity score (an embedding or a cosine) rewards how much two patterns overlap. A single opposite reading, such as a valve high where the entry needs it low, barely moves it, so a near-mirror-image fault can look like a close neighbour. Counting agreements and contradictions per listed item makes one required contradiction decisive (it ranks the entry below every entry without one). The score also explains itself, item by item, which the faithfulness check and the reviewer can trace (decision 15).
+- **Unsure about:**
+  - **An entry with nothing listed in scope** (only revised items) would divide by zero at +30 min. None of the five drafts does this; decision 69 doesn't say. Raj's call: refuse it in the schema, or define fit for it.
+  - **The credit formula for top-k** is my reading of "the same way".
+  - **Not Claude's:** `eval/baselines/alarms.py` has a 2-line change from the IDE again. Left alone.
+- **Decisions needed:**
+  - **Record decisions 69–72 and the PROTOCOL mirrors,** with answers to S1's six points (leave-one-out correctness, McNemar, the forest under leave-one-out, decline thresholds per time, the random floor's family accuracy, the wording).
+  - Confirm the conventions above, and the zero-weight case.
+- **Next (Raj):** implement `score`, `rank`, `credit` and `decline`, then `pytest -q tests/test_matcher.py`.

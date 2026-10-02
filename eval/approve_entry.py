@@ -44,6 +44,7 @@ from pathlib import Path
 
 import yaml
 
+from app.diagnosis import items as sig_items
 from app.library import schema, store
 from eval import leak_scan, run_record
 
@@ -97,30 +98,14 @@ def authoring_record_for(path, repo_root):
 
 # ---------- does the signature agree with the authoring runs? ----------
 
-def _items(rev):
-    """(name, weight, test) for every listed item; test(features of one run) -> bool."""
-    sig = rev.signature
-    if sig.location.top_group:
-        e = sig.location.top_group
-        yield "location.top_group", e.weight, lambda f, e=e: f["location"]["top_group"] in e.one_of
-    if sig.location.top_tags:
-        e = sig.location.top_tags
-        yield "location.top_tags", e.weight, lambda f, e=e: bool(set(e.any_of) & set(f["location"]["top_tags"]))
-    for name in ("provisional", "revised"):
-        r = getattr(sig, name)
-        for kind in ("tags", "loops", "analyzers"):
-            for key, e in getattr(r, kind).items():
-                yield (f"{name}.{kind}.{key}", e.weight,
-                       lambda f, n=name, k=kind, key=key, e=e: n in f and f[n][k][key] in e.accepted())
-        if r.masked:
-            yield f"{name}.masked", r.masked.weight, lambda f, n=name, e=r.masked: n in f and f[n]["masked"] == e.state
-
-
 def agreement(rev, provenance) -> list:
-    """[{item, weight, agreed, of}] over the provenance's detected runs."""
+    """[{item, weight, agreed, of}] over the provenance's detected runs. The verdicts are
+    the matcher's (app/diagnosis/items.py); only agree counts, so unknown and contradict
+    both count against an item here."""
     runs = [r["features"] for r in provenance["per_run"] if r["detected"]]
-    return [{"item": name, "weight": weight, "agreed": sum(test(f) for f in runs), "of": len(runs)}
-            for name, weight, test in _items(rev)]
+    return [{"item": it.name, "weight": it.weight,
+             "agreed": sum(it.verdict(f) == sig_items.AGREE for f in runs), "of": len(runs)}
+            for it in sig_items.items(rev.signature)]
 
 
 def disagreements(rev, provenance) -> list:
