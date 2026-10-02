@@ -10,3 +10,10 @@ entries:
   reactant-1-feed-supply-loss: eval/provenance/fault_06.yaml
   mixed-feed-reactant-ratio-shift: eval/provenance/fault_01.yaml
   reaction-rate-drift: eval/provenance/fault_13.yaml
+  mixed-feed-inert-rise: eval/provenance/fault_02.yaml
+  mixed-feed-supply-loss: eval/provenance/fault_07.yaml
+  mixed-feed-composition-wander: eval/provenance/fault_08.yaml
+  mixed-feed-temperature-wander: eval/provenance/fault_10.yaml
+  reactor-cooling-water-temperature-wander: eval/provenance/fault_11.yaml
+  condenser-cooling-water-temperature-wander: eval/provenance/fault_12.yaml
+  reactor-cooling-valve-sticking: eval/provenance/fault_14.yaml

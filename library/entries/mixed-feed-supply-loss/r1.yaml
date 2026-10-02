@@ -1,0 +1,85 @@
+entry_id: mixed-feed-supply-loss
+revision: 1
+event_type: process
+family: feed supply
+title: Mixed feed supply lost
+description: >-
+  The supply of the mixed feed (reactants 1 and 2) drops. Its flow controller opens
+  the feed valve, but the flow keeps falling. Less of both reactants reaches the
+  reactor, so both fall in the reactor feed, and the effect spreads through the
+  whole plant: the reactor feed rate, level and pressure fall, and many controllers
+  lose their setpoints. Unlike a reactant-1 supply loss, it's the mixed feed flow
+  that falls, and both reactants drop together.
+withdrawn: false
+
+equipment:
+  group: feed
+  equipment_class: unverified
+  tags: [FD-FI-104, FD-FV-108, RX-AI-211, RX-AI-213]
+  loops: [FD-FIC-104]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [feed], weight: required}
+    top_tags: {any_of: [FD-FI-104], weight: supporting}
+  provisional:
+    tags:
+      FD-FI-104: {state: low, weight: required}
+      FD-FV-108: {state: high, weight: required}
+      RX-FI-201: {state: low, weight: supporting}
+      RX-PI-202: {state: low, weight: supporting}
+    loops:
+      FD-FIC-104: {state: lost, weight: required}
+    analyzers:
+      RX-AI-211: {state: low, weight: required}
+      RX-AI-213: {state: low, weight: required}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      FD-FV-108: {state: high, weight: required}
+      FD-FI-104: {one_of: [low, both], weight: supporting}
+    loops:
+      FD-FIC-104: {state: lost, weight: required}
+    analyzers:
+      RX-AI-213: {state: low, weight: required}
+
+actions:
+- action_id: check-mixed-feed-supply
+  kind: check
+  text: Check the mixed feed supply, including its header pressure and upstream isolation valves, and ask the upstream unit or supplier whether delivery has dropped.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  - Any field check follows the site's permit-to-work procedure.
+  approval_required: true
+- action_id: confirm-mixed-feed-valve-position
+  kind: confirm
+  text: Confirm the mixed feed valve position and flow. A widely open valve with a falling flow means the supply is limiting, not the valve.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-mixed-feed-supply-loss
+  kind: escalate
+  text: Escalate to the shift supervisor, because with the mixed feed short the reactor level, pressure and production all fall.
+  safety_preconditions:
+  - The shift supervisor decides any response, including any rate change, under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: [reactant-1-feed-supply-loss]
+  loops: [FD-FIC-104]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-02T04:27:23Z
+  effective_from: 2026-10-02T04:27:23Z
+  review_due: 2027-10-02T04:27:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

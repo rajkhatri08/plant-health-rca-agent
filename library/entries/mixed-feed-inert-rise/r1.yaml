@@ -1,0 +1,82 @@
+entry_id: mixed-feed-inert-rise
+revision: 1
+event_type: process
+family: feed composition
+title: More inert in the mixed feed
+description: >-
+  The mixed feed carries more inert than normal. The inert doesn't react, so it
+  builds up in the gas loop until the purge removes it: the purge composition
+  controller opens the purge valve, and the purge flow rises. The reactor feed and
+  purge gas analyzers both show more inert, and the pressures around the gas loop
+  creep up. The purge is where this fault is handled, so that's where it shows
+  first.
+withdrawn: false
+
+equipment:
+  group: feed
+  equipment_class: unverified
+  tags: [FD-FI-104, SP-FI-406, SP-FV-407, RX-AI-212, SP-AI-412]
+  loops: [SP-AIC-412, SP-FIC-406]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [separator, feed], weight: supporting}
+    top_tags: {any_of: [SP-FI-406, SP-FV-407], weight: supporting}
+  provisional:
+    tags:
+      SP-FI-406: {state: high, weight: required}
+      SP-FV-407: {state: high, weight: required}
+    loops:
+      SP-FIC-406: {state: lost, weight: supporting}
+      SP-AIC-412: {state: lost, weight: supporting}
+    analyzers:
+      RX-AI-212: {state: high, weight: required}
+      SP-AI-412: {state: high, weight: required}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      SP-FI-406: {state: high, weight: required}
+      RX-PI-202: {state: high, weight: supporting}
+    analyzers:
+      RX-AI-212: {state: high, weight: required}
+      SP-AI-412: {state: high, weight: supporting}
+
+actions:
+- action_id: check-mixed-feed-inert-content
+  kind: check
+  text: Ask for a laboratory sample or the supplier's certificate of the mixed feed to check its inert content.
+  safety_preconditions:
+  - Sampling follows the site's approved sampling procedure.
+  approval_required: true
+- action_id: confirm-purge-valve-headroom
+  kind: confirm
+  text: Confirm the purge valve position and flow, and how much travel the purge valve has left.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-purge-near-limit
+  kind: escalate
+  text: If the purge valve approaches fully open or the reactor pressure keeps rising, escalate to the shift supervisor.
+  safety_preconditions:
+  - The shift supervisor decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: []
+  loops: [SP-AIC-412, SP-FIC-406]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-02T04:27:23Z
+  effective_from: 2026-10-02T04:27:23Z
+  review_due: 2027-10-02T04:27:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

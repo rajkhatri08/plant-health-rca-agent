@@ -1,0 +1,76 @@
+entry_id: condenser-cooling-water-temperature-wander
+revision: 1
+event_type: process
+family: condenser cooling
+title: Condenser cooling water temperature varying randomly
+description: >-
+  The temperature of the cooling water reaching the condenser varies randomly. The
+  condenser outlet and the separator temperatures swing, usually both ways, and the
+  disturbance reaches the reactor through the recycle gas, where the cooling water
+  outlet temperature loop loses its setpoint. Unlike a steady warm supply, the
+  temperatures move in both directions rather than only up.
+withdrawn: false
+
+equipment:
+  group: condenser
+  equipment_class: unverified
+  tags: [CD-TI-301, CD-FV-302, SP-TI-401]
+  loops: [ST-FIC-603, RX-TIC-205]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [condenser], weight: required}
+    top_tags: {any_of: [SP-PI-403, SP-TI-401, CD-TI-301], weight: supporting}
+  provisional:
+    tags:
+      CD-TI-301: {one_of: [both, high, low], weight: required}
+      SP-TI-401: {one_of: [both, high, low], weight: required}
+    loops:
+      RX-TIC-205: {state: lost, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      CD-TI-301: {one_of: [both, high, low], weight: required}
+      RX-TI-205: {one_of: [both, low], weight: supporting}
+    loops:
+      RX-TIC-205: {state: lost, weight: supporting}
+
+actions:
+- action_id: check-condenser-cooling-water-supply-variation
+  kind: check
+  text: Check the cooling water supply temperature to the condenser for variation, and ask the utilities operator about the cooling water system.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: confirm-separator-temperature-variation
+  kind: confirm
+  text: Confirm the separator temperature variation and how much the condenser cooling water valve is moving.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-separator-temperature-variation
+  kind: escalate
+  text: If the separator temperature variation grows, escalate to the shift supervisor.
+  safety_preconditions:
+  - The shift supervisor decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: [condenser-cooling-water-warm-supply]
+  loops: [ST-FIC-603, RX-TIC-205]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-02T04:27:23Z
+  effective_from: 2026-10-02T04:27:23Z
+  review_due: 2027-10-02T04:27:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

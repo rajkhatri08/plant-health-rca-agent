@@ -1,0 +1,80 @@
+entry_id: mixed-feed-composition-wander
+revision: 1
+event_type: process
+family: feed composition
+title: Mixed feed composition varying randomly
+description: >-
+  The composition of the mixed feed varies randomly instead of shifting once. The
+  reactor feed analyzers swing, the reactant-1 composition controller chases them by
+  moving the reactant-1 feed, and the pressures around the gas loop move with it.
+  The direction changes from case to case, so this entry accepts high or low
+  readings. It looks like a reactant ratio shift when the swing goes the same way,
+  and the two can tie.
+withdrawn: false
+
+equipment:
+  group: feed
+  equipment_class: unverified
+  tags: [FD-FI-104, FD-FI-101, RX-AI-211, RX-AI-213]
+  loops: [FD-FIC-101, RX-AIC-211]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [compressor, stripper], weight: supporting}
+    top_tags: {any_of: [ST-PI-602, RX-PI-202, SP-PI-403], weight: required}
+  provisional:
+    tags:
+      FD-FI-101: {one_of: [high, low], weight: supporting}
+      RX-PI-202: {one_of: [high, low], weight: supporting}
+    loops:
+      FD-FIC-101: {state: lost, weight: required}
+      RX-AIC-211: {state: lost, weight: required}
+    analyzers:
+      RX-AI-211: {one_of: [high, low], weight: required}
+      RX-AI-213: {one_of: [high, low], weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    loops:
+      FD-FIC-101: {state: lost, weight: supporting}
+    analyzers:
+      RX-AI-211: {one_of: [high, low], weight: supporting}
+
+actions:
+- action_id: check-mixed-feed-composition-trend
+  kind: check
+  text: Ask for repeated laboratory samples of the mixed feed to see whether its composition is varying.
+  safety_preconditions:
+  - Sampling follows the site's approved sampling procedure.
+  approval_required: true
+- action_id: confirm-composition-analyzer-health
+  kind: confirm
+  text: Confirm that the reactor feed analyzers are healthy, with recent calibration and no analyzer alarms, so the variation is real.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-feed-quality
+  kind: escalate
+  text: If the mixed feed composition keeps varying, escalate to the process engineer, who can take it up with the supplier.
+  safety_preconditions:
+  - The process engineer decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: [mixed-feed-reactant-ratio-shift]
+  loops: [FD-FIC-101, RX-AIC-211]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-02T04:27:23Z
+  effective_from: 2026-10-02T04:27:23Z
+  review_due: 2027-10-02T04:27:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

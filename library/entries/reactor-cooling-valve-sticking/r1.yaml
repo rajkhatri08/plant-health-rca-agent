@@ -1,0 +1,80 @@
+entry_id: reactor-cooling-valve-sticking
+revision: 1
+event_type: process
+family: reactor cooling
+title: Reactor cooling water valve sticking
+description: >-
+  The reactor cooling water valve sticks: it doesn't move until the controller
+  pushes hard enough, then jumps. The loop falls into a cycle, so the valve
+  position, the cooling water outlet temperature and the reactor temperature all
+  swing both ways together, and both temperature loops lose their setpoints. That
+  shared cycle on all three is what sets it apart from a varying cooling water
+  supply, where the outlet temperature loop keeps compensating.
+withdrawn: false
+
+equipment:
+  group: reactor
+  equipment_class: unverified
+  tags: [RX-FV-206, RX-TI-204, RX-TI-205]
+  loops: [RX-TIC-204, RX-TIC-205]
+
+iso14224:
+  failure_mode: unverified
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [reactor], weight: required}
+    top_tags: {any_of: [RX-TI-205, RX-FV-206, RX-TI-204], weight: supporting}
+  provisional:
+    tags:
+      RX-TI-205: {state: both, weight: required}
+      RX-FV-206: {state: both, weight: required}
+      RX-TI-204: {state: both, weight: required}
+    loops:
+      RX-TIC-205: {state: lost, weight: supporting}
+      RX-TIC-204: {state: lost, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      RX-FV-206: {state: both, weight: required}
+      RX-TI-205: {state: both, weight: supporting}
+    loops:
+      RX-TIC-205: {state: lost, weight: supporting}
+
+actions:
+- action_id: check-reactor-cooling-valve-response
+  kind: check
+  text: Ask instrument maintenance to check the reactor cooling water valve for sticking, comparing its commanded and actual positions and checking its positioner.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  - Any field work follows the site's permit-to-work procedure.
+  approval_required: true
+- action_id: confirm-reactor-temperature-cycle
+  kind: confirm
+  text: Confirm that the reactor temperature, the cooling water outlet temperature and the valve position are cycling together.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-reactor-cooling-valve
+  kind: escalate
+  text: Escalate to the shift supervisor and instrument maintenance, because a sticking valve needs repair.
+  safety_preconditions:
+  - Any change to the controller's mode or tuning needs the shift supervisor's approval under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: [reactor-cooling-water-temperature-wander]
+  loops: [RX-TIC-204, RX-TIC-205]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-02T04:27:23Z
+  effective_from: 2026-10-02T04:27:23Z
+  review_due: 2027-10-02T04:27:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null

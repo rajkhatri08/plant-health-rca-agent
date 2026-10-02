@@ -1,0 +1,79 @@
+entry_id: reactor-cooling-water-temperature-wander
+revision: 1
+event_type: process
+family: reactor cooling
+title: Reactor cooling water temperature varying randomly
+description: >-
+  The temperature of the cooling water reaching the reactor varies randomly. The
+  reactor temperature controller keeps moving the cooling water valve, which swings
+  both ways, and the reactor temperature itself moves out of its normal band. Unlike
+  a steady warm supply, it isn't masked: the reactor temperature shows it, and its
+  controller loses its setpoint within the hour. Unlike a sticking valve, the
+  cooling water outlet temperature loop keeps compensating.
+withdrawn: false
+
+equipment:
+  group: reactor
+  equipment_class: unverified
+  tags: [RX-FV-206, RX-TI-204, RX-TI-205]
+  loops: [RX-TIC-204, RX-TIC-205]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [reactor], weight: required}
+    top_tags: {any_of: [RX-FV-206, RX-TI-204, RX-TI-205], weight: supporting}
+  provisional:
+    tags:
+      RX-FV-206: {one_of: [both, high, low], weight: required}
+      RX-TI-204: {one_of: [both, high, low], weight: supporting}
+    loops:
+      RX-TIC-205: {state: compensating, weight: supporting}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      RX-FV-206: {state: both, weight: required}
+      RX-TI-204: {one_of: [both, high, low], weight: required}
+    loops:
+      RX-TIC-204: {state: lost, weight: required}
+      RX-TIC-205: {state: compensating, weight: supporting}
+    masked: {state: false, weight: supporting}
+
+actions:
+- action_id: check-reactor-cooling-water-supply-variation
+  kind: check
+  text: Check the cooling water supply temperature to the reactor for variation, and ask the utilities operator about the cooling water system.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: confirm-reactor-temperature-variation
+  kind: confirm
+  text: Confirm that the reactor temperature variation stays within its operating limits.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-reactor-temperature-variation
+  kind: escalate
+  text: If the reactor temperature variation grows, escalate to the shift supervisor.
+  safety_preconditions:
+  - The shift supervisor decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: [reactor-cooling-water-warm-supply]
+  loops: [RX-TIC-204, RX-TIC-205]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-02T04:27:23Z
+  effective_from: 2026-10-02T04:27:23Z
+  review_due: 2027-10-02T04:27:23Z
+  change_note: First revision, written from the authoring evidence.
+  supersedes: null
