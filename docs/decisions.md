@@ -629,3 +629,15 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
     - The forest gets the same evidence, the same cases and the same data budget as the entries, so it's a fair comparison. The ceiling forest shows what more labels could buy.
     - Fixed hyperparameters keep the baseline from being tuned on dev.
     - Cases sharing a run number aren't independent, and McNemar assumes they are. Fractional tie credit also isn't 0/1 correctness, which McNemar needs.
+
+73. **The LangGraph spike's pass criteria (Raj's decision, 3 October 2026, before any spike code).**
+    - **The spike:** a toy graph in `spikes/langgraph/`, outside `app/`, with no LLM call and toy nodes, against a 3-hour timebox (PLAN, end-of-week-5 checkpoint).
+    - **The criteria:**
+      1. **Fixed graph:** the node order is in code. Nothing chooses the route except explicit, tested conditions (decline vs propose).
+      2. **Approval pause and resume:** the graph stops before the action step and saves its state. It continues only with an explicit approve; a reject ends without the action.
+      3. **State saved and reloaded:** after a new Python process starts, the graph resumes from the saved checkpoint with identical state.
+      4. **Re-entry at +60 min:** a second pass for the same episode takes `as_of` from the saved state, never from the clock, and produces the revised reading.
+      5. **Exactly once:** the action's side effect (writing one record) happens once, even if resume is called twice or the process stops after the side effect and before the next checkpoint. An idempotency key makes this hold.
+    - **The verdict rule:** all five pass within the timebox, or week 6 uses plain Python with a small state machine. Either way, the verdict is recorded as a decision.
+
+    *Why:* decision 17 keeps LangGraph only for real features: a fixed graph, an approval pause, saved state, +60 re-entry with an injected as-of time, and side effects that run once. Fixing the criteria before the spike keeps the verdict from being fitted to whatever the spike happens to show.

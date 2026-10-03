@@ -2384,3 +2384,49 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Week 5's "Done when" is met:** the matcher vs forest vs random table on dev exists, from a run record.
 - **Also recorded:** decision 72 now names the bootstrap seed 20261001. It wasn't in the committed file yet, so Claude added the line on Raj's confirmation.
 - **To commit:** the run record (untracked), `docs/decisions.md` and this entry.
+
+### 2026-10-03: week 5 session 8, part 1: decision 73 and the LangGraph spike harness (stubs for Raj)
+- **Changed:**
+  - **`docs/decisions.md`, decision 73 (Raj's pass criteria), recorded before any spike code:**
+    - fixed graph
+    - approval pause and resume
+    - state reloaded in a new process
+    - re-entry at +60 min with as_of from the saved state
+    - exactly once with an idempotency key
+    - The verdict rule: all five within the 3-hour box, or week 6 uses plain Python with a small state machine. Either way the verdict becomes a decision.
+  - **`requirements.txt`:** `langgraph==1.2.12` and `langgraph-checkpoint-sqlite==3.1.1` (direct), plus their 26 new dependencies from pip freeze. Not in `requirements-app.txt`.
+    - Installed into the project's `.venv` to pin them. Every installed package is pinned at its installed version, and a dry-run install resolves.
+    - **New dependencies worth knowing about:**
+      - `langsmith`: tracing, off unless switched on; the harness refuses to run if it is.
+      - `sqlite-vec`: a vector-search extension. Unused; CLAUDE.md's no-vector-search rule for the library stands.
+      - `httpx2`: the test client now finds it, so the old "install httpx2" deprecation warning is gone from the suite. That's the carried `httpx2` item, for tests only.
+  - **`spikes/langgraph/` (new, outside `app/` and `eval/`, no LLM call, toy data only):**
+    - **`toy.py`:** two toy entries and a toy historian. The reading appears at +30 min; RX-TI-204 is added at +60 min; an `unknown…` episode reads RX-FV-206 "low", which matches nothing.
+    - **`records.py`:** `RecordStore`, a SQLite table keyed by the idempotency key; `insert_once` writes once (`INSERT OR IGNORE`).
+    - **`nodes.py` (stubs for Raj, raising `NotImplementedError`):** `evidence`, `match`, `route`, `decline`, `propose`, `approval` (with `interrupt()`), `after_approval`, `act`. The docstrings set the contract: no clock; as_of = notified_at + 30 or 60 min; nothing before `interrupt()` that mustn't run twice; act writes only through `insert_once`.
+    - **`graph.py` (the harness, Claude's):**
+      - `State`.
+      - `build()`: the fixed wiring, START → evidence → match → (route) decline → END, or propose → approval → (after_approval) act → END or END. It refuses to build with tracing on.
+      - The SQLite checkpointer.
+      - `start`, `decide` (approve or reject only), `re_enter` (sets only the stage and clears the last proposal; refused while waiting or before start), `retry` (re-runs the step a crash interrupted), `snapshot`, `waiting`.
+    - **`cli.py`:** each step as its own Python process (`start`, `decide`, `reenter`, `retry`, `state`, `records`), printing JSON.
+    - **`test_spike.py` (23), grouped by criterion:**
+      1. the wiring (nodes and edges, conditional where expected); `route` and `after_approval`; decline ends with no proposal or record; an agreeing entry is proposed with its key
+      2. pauses before act; approve acts once with the right payload; reject ends with no record; only approve or reject (in the harness and in the node)
+      3. a new process reads back identical state, and another resumes it to the action
+      4. provisional as_of = +30 min; re-entry gives as_of = +60 min from the saved notified_at, the revised reading and a new action key, also in a new process; refusals
+      5. the store writes a key once; a second resume leaves one record; a crash after the write and before the checkpoint leaves one record after a retry in a new process
+      - Plus the tracing guard, and that `app/` and `eval/` never mention `spikes`.
+      - Times are in 2020, so a node reading the clock would fail criterion 4.
+- **Tests:**
+  - **`pytest -q spikes/langgraph`:** 18 failed (all `NotImplementedError` from the stubs, two of them inside the CLI subprocesses) and 5 passed (wiring, store, tracing guard, verdict check, the outside-`app/` check).
+  - **A feasibility check:** with a straightforward node implementation in Claude's scratchpad (deleted afterwards), all 23 pass, including the crash retry and the second resume. So the criteria are reachable with this harness. The implementation remains Raj's.
+  - **CI:** `pytest -q` collects only `tests/`, so the spike's tests don't run there (the stubs would fail it).
+  - **Main suite:** 1462 passed, 4 deselected, no warnings.
+- **The idea (for Raj):**
+  - **Saved state:** a LangGraph node is a plain function from state to changes. After each step, the checkpointer saves the whole state under the episode's thread_id. That saved state is what lets a new process carry on, and what lets the +60 min pass take its time from the state instead of the clock.
+  - **The pause:** `interrupt()` stops the graph mid-node and saves it. Resuming runs that node again from the top with the human's answer.
+  - **Exactly once:** this comes from the idempotency key in the side effect, not from LangGraph. A crash after the write and before the checkpoint makes LangGraph run act again; the store makes the second write a no-op.
+- **Timebox:** Raj's 3 hours start with the node implementation. The harness and tests are Claude's.
+- **Decisions needed:** none new. The verdict (decision 74) comes after Raj's implementation. Carried: the leave-one-out scope for the agent (from S2).
+- **Next (Raj):** implement the eight nodes in `spikes/langgraph/nodes.py`, then run `pytest -q spikes/langgraph`, timing it against the 3 hours.
