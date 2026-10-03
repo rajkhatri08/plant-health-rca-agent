@@ -25,8 +25,9 @@ numbers) and a cases run record holding each file's SHA-256. Readers find cases 
 record. Prints only counts and paths. Refuses a dirty tree unless --allow-dirty (checked
 before any loading), and never overwrites.
 
-Normal dev runs (decision 70's false-alert cases) aren't built here yet: they need every
-notification, not the first after onset. That comes with the dev table (S7).
+score_normal gives decision 70's false-alert cases on normal runs: every notification
+after the warm-up, with its features. The dev diagnosis table (eval/diag_table.py) uses it;
+the command line here builds faulty runs only.
 """
 
 import argparse
@@ -105,30 +106,51 @@ def publications_from_held(series, interval):
     return [(s, float(x[s - 1])) for s in range(1, len(x) + 1) if s % interval == phase]
 
 
-def score_pool(inp: Inputs, runs) -> list:
-    """Per run, by run number: {run, detected, notification_sample, delay_min} and, when
-    detected, the features at the first notification after onset."""
+def _prepare(inp: Inputs, runs):
+    """The alert tracks, group and tag RBC and column indices for a set of runs."""
     model, lim = inp.model, inp.lim
-    warmup, n = lim["warmup"], lim["n"]
     scored = drv.score_runs(model, runs)
-    tracks = drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), n, lim["gap"], warmup)
+    tracks = drv.tracks(scored, (lim["t2_lim"], lim["spe_lim"]), lim["n"], lim["gap"], lim["warmup"])
     by_group, by_tag = cw.rbc_runs(model, lim, runs, inp.names)
     fast_cols = tagmap.column_indices(runs.columns, model.tags)
     an_cols = dict(zip(inp.plant.analyzers, tagmap.column_indices(runs.columns, inp.plant.analyzers)))
+    return tracks, by_group, by_tag, fast_cols, an_cols
+
+
+def _features_at(inp: Inputs, x, t, k, by_group, by_tag, fast_cols, an_cols):
+    pubs = {tag: publications_from_held(x[:, c], inp.interval[tag]) for tag, c in an_cols.items()}
+    return features.extract(inp.plant, x[:, fast_cols], pubs, inp.bands, t, inp.lim["n"],
+                            by_group[k] / inp.w_group, by_tag[k] / inp.w_tag, inp.names)
+
+
+def score_pool(inp: Inputs, runs) -> list:
+    """Per run, by run number: {run, detected, notification_sample, delay_min} and, when
+    detected, the features at the first notification after onset."""
+    tracks, by_group, by_tag, fast_cols, an_cols = _prepare(inp, runs)
     per_run = []
     for k in sorted(runs.runs):
-        x = runs.runs[k]
-        det = metrics.detection(tracks[k], ONSET, warmup=warmup)
+        det = metrics.detection(tracks[k], ONSET, warmup=inp.lim["warmup"])
         row = {"run": int(k), "detected": bool(det.detected),
                "notification_sample": int(det.sample) if det.detected else None,
                "delay_min": float(det.delay_min) if det.detected else None}
         if det.detected:
-            pubs = {t: publications_from_held(x[:, c], inp.interval[t]) for t, c in an_cols.items()}
-            row["features"] = features.extract(
-                inp.plant, x[:, fast_cols], pubs, inp.bands, det.sample, n,
-                by_group[k] / inp.w_group, by_tag[k] / inp.w_tag, inp.names)
+            row["features"] = _features_at(inp, runs.runs[k], det.sample, k, by_group, by_tag, fast_cols, an_cols)
         per_run.append(row)
     return per_run
+
+
+def score_normal(inp: Inputs, runs) -> list:
+    """Decision 70's false-alert cases. Per normal run, by run number: {run, notifications:
+    [{sample, features}, ...]} for every notification after the warm-up (a normal run has no
+    onset, so every one is a false alert), each with its features as at a real alert."""
+    tracks, by_group, by_tag, fast_cols, an_cols = _prepare(inp, runs)
+    out = []
+    for k in sorted(runs.runs):
+        notes = metrics.notifications(tracks[k], inp.lim["warmup"])
+        out.append({"run": int(k), "notifications": [
+            {"sample": int(t), "features": _features_at(inp, runs.runs[k], t, k, by_group, by_tag, fast_cols, an_cols)}
+            for t in notes]})
+    return out
 
 
 def check_request(pool, faults):

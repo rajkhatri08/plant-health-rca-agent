@@ -2278,3 +2278,79 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Next (Raj):**
   1. Implement the six metric stubs, then `pytest -q tests/test_diag_metrics.py`.
   2. On a clean tree: `python -m eval.time_cases --fault 1 --runs 20`, to see the projected time for the full `forest_ceiling` build before starting it.
+
+### 2026-10-03: week 5 session 6 (close), metrics implemented, temperature-wander r2
+- **Raj:**
+  - Implemented the six diagnosis metrics in `eval/diag_metrics.py` (with guidance from the Claude.ai chat); all 21 tests pass (a44568e).
+  - Confirmed Claude's metric conventions: decision 69's credit rule; a declined known case gets no top-k or family credit; candidate recall ignores the decline; family credit for a tied top block is the share of the block in the family.
+  - Confirmed the forest's scope per diagnosis time, mirroring the matcher's (decision 69).
+- **Claude's look at the metrics (as reviewer):** they follow the docstring.
+  - Credit goes through `app.diagnosis.matcher.credit` itself, so the matcher and the metrics share one rule.
+  - The bootstrap checks that both methods hold the same (run, fault) cases and uses `metrics.paired_bootstrap_ci`'s single draw.
+  - **One edge for S7:** a resample whose drawn run numbers hold no known-fault case would raise, through `_top1_rate`. On dev that can't happen while every run number has at least one detected fault run; the S7 driver should check that before bootstrapping.
+- **`mixed-feed-temperature-wander` r2 (Raj, 5169180):**
+  - The description now says the stripper temperature moves out of its band and its controller can't hold the setpoint; that the direction can be either way; and that the effect is often small and hard to confirm.
+  - The authoring-run count and "alarm limits" are gone.
+  - The confirm action now asks for the steam valve position instead of assuming the valve moves.
+  - The signature is identical to r1's.
+  - **`--check`:** schema, leak scan, provenance and preconditions pass. The 24-hour gap opens at 08:06:39 UTC on 4 October, then entry tests and approval follow. r1 stays in force until r2 is approved.
+- **The sentinel test** (`tests/test_convert.py::test_sentinel_never_appears`): recorded as a one-off (1 failure, then 5 of 5 passes alone; the converter is untouched). If it fails again, capture its full output. Claude can't read that file.
+- **Tests:** `pytest -q tests/test_diag_metrics.py` gives 21 passed. No code changed this step.
+- **Decisions needed:** none new. Carried: the leave-one-out scope for the agent (from S2).
+- **Next (Raj):**
+  - `python -m eval.time_cases --fault 1 --runs 20` on a clean tree, for the projected time of the full `forest_ceiling` build.
+  - r2's entry tests and approval after 08:06 UTC on 4 October.
+  - Then S7, the dev diagnosis table.
+
+### 2026-10-03: week 5 session 7, the dev diagnosis table (code only, nothing run on data)
+- **Raj (S6 close):** the cost check projects about 1 minute for the full `forest_ceiling` build.
+- **Changed:**
+  - **`eval/cases.py`:**
+    - The scoring setup is now shared by `_prepare` and `_features_at`.
+    - New `score_normal`: decision 70's false-alert cases, every notification after the warm-up on a normal run, each with its features.
+    - `score_pool`'s output is unchanged (the golden pin and the case-builder tests pass).
+  - **`eval/diag_table.py` (new, Claude):** `python -m eval.diag_table`.
+    - **Cases,** built in memory through `cases.score_pool` and `cases.score_normal`, in one run:
+      - dev known-fault cases (12 known faults) and dev false-alert cases (normal dev runs)
+      - training cases from the authoring pool (forest-5) and `forest_ceiling` (ceiling)
+      - A case exists at a diagnosis time only if its reading does.
+    - **Library:** every entry in force at the run's time; all 12 known faults must have one.
+    - **Rules, per diagnosis time, on the full library's dev known-fault cases:**
+      - **`threshold_95`:** the highest observed top score that accepts at least ceil(0.95 × N) of the N cases. Ties at the threshold are accepted, and decline is strictly below.
+        - A matcher case with a required contradiction everywhere can't be accepted.
+        - If that alone keeps acceptance under 95%, the threshold is the lowest eligible score and is flagged `short`.
+        - One threshold for the matcher and one per forest.
+      - **`choose_k`:** the smallest k with at least 95% matcher candidate recall.
+    - **Methods:** the matcher; forest-5 and the ceiling forest (fitted per time, decision 72); the analytic random floor.
+    - **Metrics (Raj's `diag_metrics`):**
+      - top-1, top-3, family accuracy, wrongly declined, candidate recall at k, and the decline share on false-alert cases
+      - per entry (`per_entry`, Claude's): cases, picked when right, picked when wrong, over known-fault cases with ties fractional
+    - **Leave-one-out on faults 2 and 11:** `mixed-feed-inert-rise` and `reactor-cooling-water-temperature-wander` are taken from the entry key, removed from the matcher's library, and dropped from both forests, which are retrained. The main thresholds are kept (decision 70). The results give the decline share (correct) and family accuracy, and the random floor over the remaining 10 entries.
+    - **Paired bootstrap** of the top-1 difference, the matcher against each forest, by run number: B = 2000, seed `dev_table.BOOTSTRAP_SEED` (20261001), a fresh generator per comparison.
+    - **Outputs:** one `diag_table` run record (the library references, input records, both seeds, counts, thresholds, k, every metric, leave-one-out, the bootstrap), and `data/tables/<stamp>_diag_table.md`.
+    - **Refusals:** a dirty tree, a known fault with no entry in force, and an existing table, all before loading.
+- **Tests, `tests/test_diag_table.py` (15):**
+  - **`threshold_95`:** the 19th of 20; ties accepted; ineligible cases making it short; forest probabilities; refusals.
+  - **`choose_k`:** the smallest k; ties fractional.
+  - **`per_entry`:** fractional and skipping declines.
+  - **End to end, with patched loaders and a throwaway repo holding the real library and entry key:**
+    - only dev, authoring and `forest_ceiling` runs of the 12 known faults are read, plus normal dev
+    - the record and table: seeds, 12 library references, both times, all four methods, thresholds accepted or short, the random top-1 of 1/12, the paired keys, per-entry totals
+    - leave-one-out: the two entries named, the forests at 10 classes against 12, case counts
+    - false alerts only from the spiked normal run
+    - the three refusals
+  - On the synthetic runs the numbers mean nothing: dev and training share the same synthetic runs, and the faults differ only by step size.
+  - **`pytest -q`:** 1462 passed, 4 deselected; the sentinel test passed this time.
+- **Not run:** `eval.diag_table` on data.
+- **The idea (for Raj):** every method sees the same cases at the same diagnosis times. The two settings each method needs (when to decline, how many candidates to hand on) are fixed on dev by pre-written rules, not tuned. Leave-one-out then asks the question the unknown-fault test will ask on test: does the method say "I don't know" when the right entry isn't in the library?
+- **Claude's readings, to confirm:**
+  - **`threshold_95`'s mechanics:** the highest observed score accepting at least ceil(0.95 × N); ties accepted; `short` when required contradictions alone exceed 5%.
+  - **Per-entry results count known-fault cases only.** A pick on a false-alert case isn't charged to an entry; the false-alert decline share covers it.
+  - **Forests are scored at the matcher's k for recall.** It's the matcher's rule, reported for comparison.
+  - **The bootstrap seed** reuses the detection table's (20261001); decision 72 doesn't name one.
+  - **The library is "in force at the run's time".** So if the run happens before `mixed-feed-temperature-wander@r2` is approved (from 08:06 UTC on 4 October), r1 is scored. The record names the revisions.
+- **Decisions needed:** confirm the readings above. Carried: the leave-one-out scope for the agent (from S2).
+- **Next (Raj), on a clean tree after review and commit:**
+  - Ideally after r2's entry tests and approval: `python -m eval.diag_table`.
+  - Then review the table (week 5's "Done when") and record the result in this log.
+  - `docs/log.md` currently has uncommitted changes, and the run refuses a dirty tree.
