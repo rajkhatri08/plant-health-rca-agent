@@ -1,0 +1,82 @@
+{
+  "name": "entry_tests",
+  "time": "2026-10-03T07:28:10+00:00",
+  "commit": "b9c42aadd197d365916f81090a7205feedb41522",
+  "dirty": false,
+  "config": {
+    "entry": "mixed-feed-temperature-wander@r1",
+    "as_of": "2026-10-03T07:28:10Z",
+    "library": {
+      "condenser-cooling-water-warm-supply": "condenser-cooling-water-warm-supply@r1",
+      "mixed-feed-composition-wander": "mixed-feed-composition-wander@r1",
+      "mixed-feed-inert-rise": "mixed-feed-inert-rise@r1",
+      "mixed-feed-reactant-ratio-shift": "mixed-feed-reactant-ratio-shift@r1",
+      "mixed-feed-supply-loss": "mixed-feed-supply-loss@r1",
+      "mixed-feed-temperature-wander": "mixed-feed-temperature-wander@r1",
+      "reactant-1-feed-supply-loss": "reactant-1-feed-supply-loss@r1",
+      "reaction-rate-drift": "reaction-rate-drift@r1",
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "revision_sha256": {
+      "condenser-cooling-water-warm-supply": "a255a2eb58fcb63b61e45f0a226560324c07176e3bc9df6c0b8f7b4c4ec23c6f",
+      "mixed-feed-composition-wander": "855c93b938151d8f7f9b6faf6a2d4567f9b7ea8ff7ebd7891de1294b656a274c",
+      "mixed-feed-inert-rise": "478925ea553acb83e41010df33dc0f4302a974e80786d26ca2643420ed6c9214",
+      "mixed-feed-reactant-ratio-shift": "dcf379e5d1ac8fcdab535dddbb8a000c6a529915361ed0c19f8c784036a4717e",
+      "mixed-feed-supply-loss": "4f2b9220e317f8e1557d746c7fba0f7ccb8e78919b0f3475a262669d5cbbe3a8",
+      "mixed-feed-temperature-wander": "95ac46d5c1cdc85f3b9c1ac6fbbfbc29de775cc19d1ba1fbf0c7914e935c46cb",
+      "reactant-1-feed-supply-loss": "2fbd60e8299085c4e00e1f25dff32a82aac57a0c22f3192c68c39a5485c2ea36",
+      "reaction-rate-drift": "564771b83dc1757449e23139bc880b6494cb6a9880e80ad71eb02c96f47b880e",
+      "reactor-cooling-water-warm-supply": "ec0f427513039f962355cbeed704aaf0300877f5bb5921c43fb6c5e37c92bfe9"
+    },
+    "provenance": {
+      "condenser-cooling-water-warm-supply": "eval/provenance/fault_05.yaml",
+      "mixed-feed-composition-wander": "eval/provenance/fault_08.yaml",
+      "mixed-feed-inert-rise": "eval/provenance/fault_02.yaml",
+      "mixed-feed-reactant-ratio-shift": "eval/provenance/fault_01.yaml",
+      "mixed-feed-supply-loss": "eval/provenance/fault_07.yaml",
+      "mixed-feed-temperature-wander": "eval/provenance/fault_10.yaml",
+      "reactant-1-feed-supply-loss": "eval/provenance/fault_06.yaml",
+      "reaction-rate-drift": "eval/provenance/fault_13.yaml",
+      "reactor-cooling-water-warm-supply": "eval/provenance/fault_04.yaml"
+    },
+    "provenance_sha256": {
+      "condenser-cooling-water-warm-supply": "3f898d59308442b50373a5b99b4f2aa9ab0e508f7932b1797792590a79a9ed9e",
+      "mixed-feed-composition-wander": "31e267ea7aefe46e9faf0fcc7c8f2f6ed9da9c329e703c21a77b25e091758235",
+      "mixed-feed-inert-rise": "7946d3522f3b2075902858d9d6df13a606cff912382805b41ed4156a0b9e9b4e",
+      "mixed-feed-reactant-ratio-shift": "da789bf517d9daf1e39bdf9be0fdd377a17b9d581fe60ac8796f8b6ee71a01a8",
+      "mixed-feed-supply-loss": "b2fbd795a79deedbbe2a0600448dae18fbdabfe4896f2c1e7c19673c8b22471f",
+      "mixed-feed-temperature-wander": "3c9ab04f18f414200513d724b867ec1cda5ad818d3c0331bada6dce0d2987362",
+      "reactant-1-feed-supply-loss": "c2b36599d332855a9004d97f22fac7911efe9eaa83fe5e7fddf009f3a7a72c13",
+      "reaction-rate-drift": "29fdc2cbe61469059ccf7d36f658d6752fafa2e650722449e08d950aad6119ab",
+      "reactor-cooling-water-warm-supply": "a900f0d8f8cbfdd8f099b6bca800e7e11c2e6e50156730009d78f655946854e7"
+    }
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "passed": true,
+    "entries": 9,
+    "runs": {
+      "condenser-cooling-water-warm-supply": 5,
+      "mixed-feed-composition-wander": 5,
+      "mixed-feed-inert-rise": 5,
+      "mixed-feed-reactant-ratio-shift": 5,
+      "mixed-feed-supply-loss": 5,
+      "mixed-feed-temperature-wander": 2,
+      "reactant-1-feed-supply-loss": 5,
+      "reaction-rate-drift": 4,
+      "reactor-cooling-water-warm-supply": 5
+    },
+    "self_failures": 0,
+    "specificity_failures": 0,
+    "regression_failures": 0
+  }
+}
