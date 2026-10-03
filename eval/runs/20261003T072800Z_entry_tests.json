@@ -1,0 +1,47 @@
+{
+  "name": "entry_tests",
+  "time": "2026-10-03T07:28:00+00:00",
+  "commit": "a6f5bb2d0d6c4ee2293a576e8da66b0459a87ca2",
+  "dirty": false,
+  "config": {
+    "entry": "reactant-1-feed-supply-loss@r1",
+    "as_of": "2026-10-03T07:28:00Z",
+    "library": {
+      "reactant-1-feed-supply-loss": "reactant-1-feed-supply-loss@r1",
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "revision_sha256": {
+      "reactant-1-feed-supply-loss": "2fbd60e8299085c4e00e1f25dff32a82aac57a0c22f3192c68c39a5485c2ea36",
+      "reactor-cooling-water-warm-supply": "ec0f427513039f962355cbeed704aaf0300877f5bb5921c43fb6c5e37c92bfe9"
+    },
+    "provenance": {
+      "reactant-1-feed-supply-loss": "eval/provenance/fault_06.yaml",
+      "reactor-cooling-water-warm-supply": "eval/provenance/fault_04.yaml"
+    },
+    "provenance_sha256": {
+      "reactant-1-feed-supply-loss": "c2b36599d332855a9004d97f22fac7911efe9eaa83fe5e7fddf009f3a7a72c13",
+      "reactor-cooling-water-warm-supply": "a900f0d8f8cbfdd8f099b6bca800e7e11c2e6e50156730009d78f655946854e7"
+    }
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {},
+  "metrics": {
+    "passed": true,
+    "entries": 2,
+    "runs": {
+      "reactant-1-feed-supply-loss": 5,
+      "reactor-cooling-water-warm-supply": 5
+    },
+    "self_failures": 0,
+    "specificity_failures": 0,
+    "regression_failures": 0
+  }
+}
