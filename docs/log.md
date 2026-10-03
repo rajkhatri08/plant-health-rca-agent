@@ -2430,3 +2430,74 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Timebox:** Raj's 3 hours start with the node implementation. The harness and tests are Claude's.
 - **Decisions needed:** none new. The verdict (decision 74) comes after Raj's implementation. Carried: the leave-one-out scope for the agent (from S2).
 - **Next (Raj):** implement the eight nodes in `spikes/langgraph/nodes.py`, then run `pytest -q spikes/langgraph`, timing it against the 3 hours.
+
+### 2026-10-03: week 5 session 8 (close), spike verdict: LangGraph (decision 74)
+- **Raj:** implemented the eight spike nodes (with guidance from the Claude.ai chat; 9488746). All 23 tests in `spikes/langgraph` pass, covering decision 73's five criteria, well inside the 3-hour box. Claude re-ran them: 23 passed.
+- **Decision 74 recorded:** LangGraph for week 6, with:
+  - the SqliteSaver checkpointer
+  - `interrupt()` for approval
+  - as_of from the saved state
+  - idempotency keys on every side effect
+
+  Exactly-once comes from the idempotency key, not from LangGraph: LangGraph re-runs a step that didn't reach its checkpoint, and only the key makes the repeat harmless. The cut-line fallback (plain Python) isn't needed.
+- **Changed:** docs only (`docs/decisions.md` decision 74, this entry, the week summary below, `docs/PLAN.md`).
+- **Tests:** `pytest -q spikes/langgraph` gives 23 passed. The main suite was last 1462 passed, 4 deselected (S8 part 1).
+- **Decisions needed:** none new.
+
+### 2026-10-03: week 5 summary
+- **Done when: met.** The matcher vs forest vs random table on dev exists, from a run record (`eval/runs/20261003T083029Z_diag_table.json`). The end-of-week-5 checkpoint is decided: week 6 uses LangGraph (decision 74).
+- **Decisions 69–74** (each fixed before the results it governs):
+  - 69: matcher scoring (agree, contradict and unknown; weights 2 and 1; ranked by required contradictions, then fit; ties kept with fractional credit; decline)
+  - 70: diagnosis cases on dev, false-alert cases, and leave-one-out with the main thresholds
+  - 71: entry tests on authoring runs (self, specificity, regression) and sequential approval
+  - 72: the baselines (the analytic random floor; forests with fixed hyperparameters and seed 20261002), and the paired bootstrap as the headline comparison (seed 20261001)
+  - 73: the spike's pass criteria
+  - 74: the verdict, LangGraph
+- **Built:**
+  - **S0–S1:** the kickoff, decisions 69–72 and the PROTOCOL mirrors (including McNemar replaced as the headline).
+  - **S2:**
+    - shared item verdicts (`app/diagnosis/items.py`), used by the matcher and the approval gate
+    - the matcher (`app/diagnosis/matcher.py`, Raj's scoring)
+    - the schema rule that every entry can be scored at +30 min
+  - **S3:** the case builder (`eval/cases.py`, authoring's scoring path moved there unchanged and pinned) and the entry-test runner (`eval/entry_tests.py`).
+  - **S4:** `eval/authoring.py --faults` for the other seven faults.
+  - **S5:**
+    - seven more r1 drafts (Raj), reviewed; six cleared, one blocked on its text
+    - decision 71's tests run on all 12 together: no failures
+  - **Between S5 and S6:** all 12 entries approved in sequence, each against every earlier approval. The temperature wander's r2 (description fixed) waits for its gap.
+  - **S6:**
+    - the diagnosis metrics (`eval/diag_metrics.py`, Raj's)
+    - the forest scaffolding and random floor (`eval/baselines/forest.py`)
+    - the cost check (`eval/time_cases.py`; about 1 minute projected for the full `forest_ceiling` build)
+    - scikit-learn pinned
+  - **S7:** false-alert cases (`cases.score_normal`) and the dev diagnosis table (`eval/diag_table.py`).
+  - **S8:** decision 73; the LangGraph spike (`spikes/langgraph/`, harness Claude's, nodes Raj's); langgraph pinned; decision 74.
+  - **Tests:** 1306 → 1462 in `tests/`, plus 23 in `spikes/langgraph` (outside CI).
+- **Headline numbers, from `eval/runs/20261003T083029Z_diag_table.json` (589 dev known-fault cases; provisional, +30 min):**
+  - **Top-1:** matcher 77.4%, forest-5 87.6%, ceiling 92.7%, random 8.3%. Matcher minus forest-5 is −10.2 points (−13.5 to −7.0).
+  - **Top-3:** 93.0 against 94.3 (forest-5). Recall at k = 2: 96.4 against 96.7.
+  - **False alerts declined (47 cases):** matcher 85.1%, forest-5 63.8%, ceiling 66.0%.
+  - **Leave-one-out declined (100 cases):** 87%, 47% and 80%.
+  - **The matcher's threshold is short at both times:** it wrongly declines 6.3% (+30 min) and 9.3% (+60 min).
+- **Findings, in plain terms:**
+  1. The forest names the exact fault more often. The matcher is far safer at saying it doesn't know, on false alerts and on mechanisms not in the library.
+  2. Some required items that held on all five authoring runs don't hold on every dev run. That's why the matcher's threshold is short.
+  3. Two broad either-direction entries (`reaction-rate-drift`, `mixed-feed-composition-wander`) attract wrong picks (32 and 25).
+  4. No entry is revised on these dev results. Any later change must come from authoring evidence and be logged as dev-informed. The sealed test run gives the final numbers.
+  5. LangGraph does what decision 17 asked of it, and exactly-once is the side effect's job.
+- **Process lessons:**
+  - **Two of Claude's tests failed on real repo state, not on code:**
+    - `git log --follow` confused near-identical approval files (now `--no-renames`)
+    - two authoring runs in one second collided on a record name (now an explicit `now`)
+    - The full suite found both. Run it after every change, not only the new tests.
+  - **Commit messages and the tree can disagree.** The S0–S1 commit said decisions 69–72, but they weren't in the file; decision 72's bootstrap seed was in the same state at S7. Checking the file before building on it caught both.
+- **Carried to week 6 (open):**
+  - **`mixed-feed-temperature-wander@r2`:** entry tests and approval after 08:06 UTC on 4 October.
+  - **The leave-one-out scope for the agent** (from S2): confirm that the agent keeps PROTOCOL's rule (a decline, or a family-level answer flagged "mechanism not in library") while the matcher and forests are correct only on a decline.
+  - **Runtime needs for the agent:**
+    - bundle `pca_v3` with the evidence normals, so the features can run in `app/`
+    - langgraph into `requirements-app.txt` when `app/` imports it
+  - **The published-number check** (Must, Metrics): still needs the paper's component count, agreement band and theoretical 99% limits.
+  - **Parked:** ISO 14224 category names; source licences "to confirm"; the r2 notes (inert-rise `related_entries`; the valve-sticking "cycle" wording); the week 4 review notes with authoring counts in `library/`.
+  - **One-offs to watch:** the converter's sentinel test (capture its output if it fails again).
+- **Week 6 (2–8 Nov in the plan, starting early):** the diagnosis flow in LangGraph: one LLM call, structured output, the faithfulness check, declines, the approval pause; RCA eval on dev; a small safety set.

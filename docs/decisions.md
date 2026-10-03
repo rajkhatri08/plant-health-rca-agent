@@ -641,3 +641,16 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
     - **The verdict rule:** all five pass within the timebox, or week 6 uses plain Python with a small state machine. Either way, the verdict is recorded as a decision.
 
     *Why:* decision 17 keeps LangGraph only for real features: a fixed graph, an approval pause, saved state, +60 re-entry with an injected as-of time, and side effects that run once. Fixing the criteria before the spike keeps the verdict from being fitted to whatever the spike happens to show.
+
+74. **The spike's verdict: LangGraph for week 6 (Raj's decision, 3 October 2026).**
+    - **The result:** all 23 tests in `spikes/langgraph` pass, covering all five of decision 73's criteria, well inside the 3-hour timebox. The harness is Claude's (9488746, 83da9b2), the nodes Raj's.
+    - **Week 6's diagnosis flow uses LangGraph, with:**
+      - **the SqliteSaver checkpointer:** state saved after every step under the episode's thread_id, so a new process resumes it
+      - **`interrupt()` for approval:** the graph pauses before any action and continues only on an explicit approve; a reject ends it
+      - **as_of from the saved state:** the notification time is stored once; each pass's as_of is that time plus 30 or 60 min, never the clock (decision 11)
+      - **an idempotency key on every side effect,** written through a store that refuses a second write with the same key
+    - **Exactly once comes from the idempotency key, not from LangGraph.** LangGraph re-runs a step that didn't reach its checkpoint, after a crash or on resume, so a side effect can run again. Only the key makes the second write a no-op.
+    - **Unchanged by this:** nodes stay plain functions; the graph is fixed in code, with branches only at explicit, tested conditions; approvals go only through the approval step; a separate append-only diagnosis record (decision 17); LangChain only for the model wrapper, tool definitions and prompt templates (CLAUDE.md).
+    - **The cut-line fallback** (plain Python with a small state machine, PLAN cut line 2) isn't needed for week 6.
+
+    *Why:* decision 17 asked LangGraph to earn its place with real features. The spike showed each one working on a toy graph: a fixed route, a pause for approval, state that survives a restart, re-entry at +60 min with an injected as-of time, and side effects that run once. It also showed where LangGraph's guarantees stop: exactly-once is the side effect's job.
