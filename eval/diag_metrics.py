@@ -26,6 +26,9 @@ Conventions (Claude's readings, to confirm):
 from dataclasses import dataclass
 from fractions import Fraction
 
+from types import SimpleNamespace
+
+from app.diagnosis import matcher
 from eval import metrics
 
 
@@ -39,34 +42,69 @@ class Case:
     declined: bool
 
 
+def _credit(ranking, right, k) -> Fraction:
+    """Decision 69's credit for the right entry among tied blocks of entry_ids, through
+    app.diagnosis.matcher.credit itself (one engine): it only reads each item's entry_id."""
+    blocks = [tuple(SimpleNamespace(entry_id=e) for e in block) for block in ranking]
+    return matcher.credit(blocks, right, k)
+
+
+def _known(cases):
+    """The known-fault cases: those with a right entry."""
+    return [c for c in cases if c.right is not None]
+
+
+def _top1_rate(cases) -> Fraction:
+    known = _known(cases)
+    if not known:
+        raise ValueError("no known-fault cases")
+    return topk_credit(known, 1) / len(known)
+
+
 def topk_credit(cases, k) -> Fraction:
     """Top-k credit summed over the known-fault cases (right is not None). Declined cases
     count 0. top-1 is k = 1; the rate is this sum over the number of known-fault cases."""
-    raise NotImplementedError
+    return sum((Fraction(0) if c.declined else _credit(c.ranking, c.right, k)
+                for c in _known(cases)), Fraction(0))          # a decline isn't an answer
 
 
 def family_credit(cases, family_of) -> Fraction:
     """Family credit summed over the cases with a family (known-fault and leave-one-out):
     the share of the top block whose family (family_of[entry_id]) is the case's family.
     Declined cases count 0."""
-    raise NotImplementedError
+    total = Fraction(0)
+    for c in cases:
+        if c.family is None or c.declined or not c.ranking:
+            continue                                        # false alerts, declines: no credit
+        top = c.ranking[0]
+        total += Fraction(sum(family_of[e] == c.family for e in top), len(top))
+    return total
 
 
 def wrongly_declined(cases) -> Fraction:
     """The share of known-fault cases that were declined."""
-    raise NotImplementedError
+    known = _known(cases)
+    if not known:
+        raise ValueError("no known-fault cases")
+    return Fraction(sum(c.declined for c in known), len(known))
 
 
 def decline_share(cases) -> Fraction:
     """The share of cases whose right answer is a decline (right is None: false-alert and
     leave-one-out cases) that were declined."""
-    raise NotImplementedError
+    should = [c for c in cases if c.right is None]         # false-alert and leave-one-out cases
+    if not should:
+        raise ValueError("no cases whose right answer is a decline")
+    return Fraction(sum(c.declined for c in should), len(should))
 
 
 def candidate_recall(cases, k) -> Fraction:
     """The share of known-fault cases whose right entry is in the top k, ties counted
     fractionally, whether or not the case was declined."""
-    raise NotImplementedError
+    known = _known(cases)
+    if not known:
+        raise ValueError("no known-fault cases")
+    return sum((_credit(c.ranking, c.right, k) for c in known), Fraction(0)) / len(known)
 
 
 def paired_top1_bootstrap(cases_a, cases_b, rng, n=metrics.BOOTSTRAP_N, level=0.95) -> tuple:
@@ -75,4 +113,10 @@ def paired_top1_bootstrap(cases_a, cases_b, rng, n=metrics.BOOTSTRAP_N, level=0.
     rule 3). Each resample draws run numbers with replacement and brings every case with a
     drawn number, for both methods (metrics.paired_bootstrap_ci does the draw). A and B
     must hold the same cases: the same (run, fault) pairs."""
-    raise NotImplementedError
+    key = lambda c: (c.run, c.fault)
+    if sorted(map(key, cases_a)) != sorted(map(key, cases_b)):
+        raise ValueError("A and B must hold the same cases: the same (run, fault) pairs")
+    diff = _top1_rate(cases_a) - _top1_rate(cases_b)
+    lo, hi = metrics.paired_bootstrap_ci(cases_a, cases_b, lambda cs: float(_top1_rate(cs)),
+                                         rng, n=n, level=level)   # one run-number draw for both
+    return diff, lo, hi
