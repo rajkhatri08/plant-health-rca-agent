@@ -2354,3 +2354,33 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Ideally after r2's entry tests and approval: `python -m eval.diag_table`.
   - Then review the table (week 5's "Done when") and record the result in this log.
   - `docs/log.md` currently has uncommitted changes, and the run refuses a dirty tree.
+- **Result (Raj's run, `eval/runs/20261003T083029Z_diag_table.json`; commit 3eacd9e1, clean; table in `data/tables/`).** The figures below were checked against the record.
+  - **The library:** the 12 entries in force at 08:30 UTC on 3 October, with `mixed-feed-temperature-wander` at r1 (r2 changes only the description).
+  - **Cases:** 589 dev known-fault cases at both times; 47 false-alert cases at +30 min and 45 at +60 min. Top-k = 2 at both times.
+  - **Provisional (+30 min, the headline):**
+
+    | Method | Top-1 | Top-3 | Family | Wrongly declined | Recall at k = 2 | False alerts declined |
+    |---|---|---|---|---|---|---|
+    | matcher | 77.4 | 93.0 | 88.1 | 6.3 | 96.4 | 85.1 |
+    | forest-5 | 87.6 | 94.3 | 94.9 | 4.9 | 96.7 | 63.8 |
+    | ceiling | 92.7 | 94.8 | 95.1 | 4.9 | 99.4 | 66.0 |
+    | random | 8.3 | 25.0 | 19.7 | 0.0 | — | 0.0 |
+
+    - **Paired top-1 difference, by run number:** matcher minus forest-5 is −10.2 points (−13.5 to −7.0); matcher minus ceiling is −15.3 (−18.7 to −12.0).
+    - **Leave-one-out (100 cases), declined (correct):** matcher 87%, forest-5 47%, ceiling 80%. Family accuracy: 5%, 48% and 16%.
+  - **Revised (+60 min):**
+    - **Top-1:** matcher 78.8, forest-5 90.8, ceiling 94.7.
+    - **False alerts declined:** 86.7, 51.1 and 64.4.
+    - **Leave-one-out declined:** 91%, 36% and 87%.
+    - **Paired top-1 difference:** matcher minus forest-5 is −12.1 points (−15.8 to −8.5).
+  - **The matcher's threshold is short at both times.** It accepts 93.7% and 90.7% of known-fault cases, so it wrongly declines 6.3% and 9.3%. On those cases even the right entry has a required contradiction: some required items that held on all five authoring runs don't hold on every dev run. The forests' thresholds reach 95% (95.1% accepted).
+  - **Attractors (matcher, picked when wrong, +30 min):** `reaction-rate-drift` 32 and `mixed-feed-composition-wander` 25, the two broad either-direction entries. Next: `condenser-cooling-water-temperature-wander` 15.5.
+  - **Forest-5 trained on 56 cases** (the detected authoring runs at each time); the ceiling forest on 5,209.
+- **Reading (Raj):**
+  - The forest names the exact fault more often.
+  - The matcher is far safer at saying it doesn't know: it declines more false alerts and more left-out mechanisms than either forest.
+  - **No entry is revised on these dev results.** Any later change to an entry must come from authoring evidence and be logged as dev-informed.
+  - The sealed test run gives the final numbers.
+- **Week 5's "Done when" is met:** the matcher vs forest vs random table on dev exists, from a run record.
+- **Also recorded:** decision 72 now names the bootstrap seed 20261001. It wasn't in the committed file yet, so Claude added the line on Raj's confirmation.
+- **To commit:** the run record (untracked), `docs/decisions.md` and this entry.

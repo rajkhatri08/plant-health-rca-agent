@@ -622,6 +622,7 @@ Decisions 69–72 were fixed before any diagnosis result existed on dev.
     - **Paired comparisons, matcher against each baseline:**
       - The headline is a paired bootstrap of the top-1 difference, by run number (decision 49, rule 3), with the same draws for both methods.
       - McNemar may be shown alongside, not as the headline.
+      - B = 2000, bootstrap seed 20261001 (the detection table's), with a fresh generator per comparison (Raj, 3 October 2026, confirming Claude's S7 reading).
       - This settles the McNemar question carried since week 1.
 
     *Why:*

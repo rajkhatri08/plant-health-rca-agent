@@ -188,6 +188,7 @@ def point_tracks(points, n_per_point, gap, warmup) -> np.ndarray:
 
 
         out[:, j] = alerting.group(alerting.persist(p[:, j], n), gap, warmup)
+
     return out
 
 
