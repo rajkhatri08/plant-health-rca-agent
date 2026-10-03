@@ -1,0 +1,12 @@
+entry_id: reactant-1-feed-supply-loss
+revision: 1
+approver: raj-review
+approved_at: '2026-10-03T07:28:01Z'
+checks:
+- schema
+- leak_scan
+- provenance
+- preconditions
+- entry_tests
+- gap_24h
+independent: false
