@@ -5,6 +5,7 @@ drivers on the calibration fixture, then the loaders serve only the authoring po
 
 import hashlib
 import json
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pytest
@@ -245,10 +246,11 @@ def test_second_faults_write_only_their_own_files(ready):
 
 
 def test_second_batch_leaves_the_first_five_untouched(ready):
-    author(ready)
+    t = datetime(2026, 10, 2, 4, 0, tzinfo=timezone.utc)
+    author(ready, now=t)
     commit(ready["repo"])
     first = {p.name: run_record.sha256(p) for p in ready["prov"].iterdir()}
-    author(ready, faults=authoring.SECOND_FAULTS)
+    author(ready, faults=authoring.SECOND_FAULTS, now=t + timedelta(minutes=1))   # its own record
     assert {p.name: run_record.sha256(p) for p in ready["prov"].iterdir() if p.name in first} == first
     assert len(list(ready["prov"].iterdir())) == 12
     records = sorted((ready["repo"] / "eval" / "runs").glob("*_authoring.json"))

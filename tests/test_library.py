@@ -387,17 +387,38 @@ def test_committed_files_pass_the_leak_scan():
 
 def test_committed_revision_files_are_never_edited():
     # Decision 67: every file under library/entries/ is written once. In git, each one has
-    # exactly one commit that touched it.
+    # exactly one commit that touched it. --no-renames, not --follow: approval files are
+    # near-identical across entries, and --follow took a new one for a copy of another
+    # entry's and counted that file's history too (found in week 5 S6).
     entries = REPO / "library" / "entries"
     files = [p for p in entries.rglob("*.yaml")]
     try:
         for p in files:
-            log = subprocess.run(["git", "-C", str(REPO), "log", "--format=%H", "--follow", "--",
-                                  str(p.relative_to(REPO))], capture_output=True, text=True, check=True)
-            commits = log.stdout.split()
+            commits = commits_touching(REPO, p.relative_to(REPO))
             assert len(commits) <= 1, f"{p.relative_to(REPO)} was edited after it was committed"
     except (OSError, subprocess.CalledProcessError):
         pytest.skip("git history not available")
+
+
+def commits_touching(repo, rel):
+    log = subprocess.run(["git", "-C", str(repo), "log", "--format=%H", "--no-renames", "--", str(rel)],
+                         capture_output=True, text=True, check=True)
+    return log.stdout.split()
+
+
+def test_commit_count_sees_edits_but_not_look_alike_files(git_repo):
+    # the case that tripped --follow: a new file nearly identical to another one
+    def git(*args):
+        subprocess.run(["git", "-C", str(git_repo), *args], check=True, capture_output=True)
+    a, b = git_repo / "a.yaml", git_repo / "b.yaml"
+    a.write_text(yaml.safe_dump(approval(ENTRY)))
+    git("add", "-A"); git("commit", "-q", "-m", "a")
+    b.write_text(yaml.safe_dump(approval(OTHER)))
+    git("add", "-A"); git("commit", "-q", "-m", "b")
+    assert len(commits_touching(git_repo, "b.yaml")) == 1            # a look-alike isn't an edit
+    a.write_text(yaml.safe_dump(approval(ENTRY, approver="sam")))
+    git("add", "-A"); git("commit", "-q", "-m", "edit a")
+    assert len(commits_touching(git_repo, "a.yaml")) == 2            # a real edit is caught
 
 # ---------- decision 68 amendment: one_of for tags and analyzers ----------
 

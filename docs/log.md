@@ -2211,3 +2211,70 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Approvals in sequence once the gaps open: the first five from about 19:00 UTC on 2 October, the second batch from about 04:30 UTC on 3 October.
   - For each, run `python -m eval.entry_tests <entry> 1`, commit the record, run `python -m eval.approve_entry <entry> 1 --approver raj-review`, and commit the approval.
   - The temperature wander waits for its r2.
+
+### 2026-10-03: week 5 session 6, diagnosis-metric stubs, forest scaffolding, cost check (code only, nothing run on data)
+- **Raj:** all 12 entries are approved and in force (pushed, 3925ecb).
+- **Checked first:**
+  - **Sequential approval held (decision 71).** The 12 entry-test records (07:27:59–07:28:15 UTC on 3 October) ran against libraries of 1, 2, … 12 entries, each after the previous approval. All passed, all clean.
+  - **`mixed-feed-temperature-wander@r1` is approved without the r2 that S5 called blocking.** Its description still says the controller "works the steam valve" (the evidence shows the valve inside its band), still carries the authoring-run count ("two detected runs out of five"), and still names alarm limits. It's in force and agent-visible. The leak scan doesn't catch this kind of text.
+  - Approving it was Raj's call as approver; it's raised again under Decisions needed.
+- **Changed:**
+  - **`eval/diag_metrics.py` (new; stubs for Raj, raising `NotImplementedError`):**
+    - **`Case`:** run, fault (0 for a false alert), family, right entry (None when the right answer is a decline), ranking as tied blocks of entry_ids, and declined.
+    - **`topk_credit`** (summed over known-fault cases), **`family_credit`**, **`wrongly_declined`**, **`decline_share`** (false-alert and leave-one-out cases), **`candidate_recall`**, and **`paired_top1_bootstrap`** (difference and interval, by run number, through `metrics.paired_bootstrap_ci`).
+    - **Conventions in the docstring (Claude's readings, to confirm):**
+      - credit is decision 69's rule on entry_ids
+      - a declined known case gets no top-k or family credit
+      - candidate recall ignores the decline
+      - family credit for a tied top block is the share of the block in the family
+      - results are exact fractions, and an empty denominator raises
+  - **`eval/baselines/forest.py` (new, Claude):**
+    - **Settings:** decision 72's `HYPERPARAMS` and `SEED = 20261002`.
+    - **Columns:** one-hot, from the register, loop map and decision 68's vocabulary (never from data), in the matcher's scope per diagnosis time (Claude's reading). A missing reading is all zeros, and a value with no column is refused.
+    - **Functions:** `fit` (never saved: no pickle, joblib or file writes); `rankings` (tied blocks by equal probability, like the matcher's); `top_probability`; `declines` (strictly below the threshold); `drop_classes` (leave-one-out); `random_floor` (1/N, min(3, N)/N, mean family size / N).
+  - **`eval/time_cases.py` (new, Claude):** `python -m eval.time_cases [--fault 1] [--runs 20]`.
+    - Loads one fault's `forest_ceiling` pool and scores the first N runs through `cases.score_pool`.
+    - Times the inputs, the load and the scoring separately, and projects 12 × (load + 445 × seconds per run).
+    - Writes nothing (no case files, no record) and prints only seconds and counts.
+  - **`requirements.txt`:**
+    - `scikit-learn==1.9.1` (direct), plus its dependencies from pip freeze: `scipy==1.18.1`, `joblib==1.6.0`, `threadpoolctl==3.7.0`, `narwhals==2.26.0`, `cloudpickle==3.1.2`.
+    - Not in `requirements-app.txt`. A dry-run install of the file resolves.
+    - To pin them, Claude installed scikit-learn 1.9.1 into the project's `.venv` (an environment change, not a repo change).
+    - cloudpickle comes with scikit-learn; nothing here pickles, and a test forbids it in `forest.py`.
+  - **`eval/authoring.py`:** `run` takes `now=` (as `cases.run` does), for the test fix below.
+- **Two test bugs of Claude's, found by the full suite and fixed:**
+  - **`test_committed_revision_files_are_never_edited` (week 4 S6)** failed on Raj's committed approvals.
+    - **Cause:** `git log --follow` took a new approval file for a 63% copy of another entry's and counted that file's history too. Every file under `library/entries/` has exactly one commit.
+    - **Fix:** `--no-renames`, and a throwaway-repo test that a look-alike file counts 1 and a real edit counts 2.
+  - **`test_second_batch_leaves_the_first_five_untouched` (S4)** depended on timing: two authoring runs in the same second got the same record name. It now passes distinct `now` values.
+- **Tests:**
+  - **`tests/test_diag_metrics.py` (21, all failing with `NotImplementedError` until Raj implements):**
+    - top-k sums with ties, the matcher's rule, declines counting 0, cases whose answer is a decline ignored, a missing entry, exactness
+    - family credit (top-block share, leave-one-out counted, false alerts skipped, declines 0)
+    - wrongly declined; decline share
+    - candidate recall ignoring declines
+    - empty denominators
+    - the paired bootstrap: same method 0; always against never 1; resampling by run number, not case; seeded; the same cases required
+    - The expected values were checked against a throwaway implementation in Claude's scratchpad, deleted afterwards (all 21 agreed).
+  - **`tests/test_forest.py` (15):**
+    - decision 72's settings; no pickles or file writes
+    - scikit-learn pinned for eval only
+    - the vocabulary; columns per scope; one-hot encoding; a missing reading as zeros; the provisional forest ignoring revised; refusals
+    - deterministic fits; rankings and ties; declines strict; leave-one-out; two classes needed; the random floor
+  - **`tests/test_time_cases.py` (7):** the projection arithmetic; only the batch of one `forest_ceiling` fault is scored; nothing written; each phase timed; refusals before loading.
+  - **`tests/test_library.py` (+1):** the look-alike test above.
+  - **`pytest -q`:** 1425 passed, 22 failed, 4 deselected. 21 failures are the metric stubs.
+    - The 22nd is `tests/test_convert.py::test_sentinel_never_appears`, failing once. It passed in the two full runs before and in 5 of 5 runs alone, and the converter is untouched. The failing output shows checksums, so it looks like a checksum that happened to contain the sentinel digits.
+    - Claude wasn't permitted to read that test file, so the cause isn't confirmed.
+- **Not run:** `eval.time_cases` and `eval.cases` on data.
+- **Unsure about:**
+  - **The forest's scope per diagnosis time** mirrors the matcher's (decision 69). Decision 72 says only "the same cases and diagnosis times".
+  - **The projection** assumes every fault's pool loads like the timed one, and that missed runs cost about the same as detected ones (they skip the features, so it errs high).
+- **Decisions needed:**
+  - **`mixed-feed-temperature-wander@r1` is in force with the three S5 problems.** An r2 through the normal approval (with entry tests), or keep r1 and record why?
+  - Confirm the metric conventions above and the forest's scope.
+  - The flaky sentinel test: Raj to look (Claude can't read it).
+  - Carried: the leave-one-out scope for the agent (from S2).
+- **Next (Raj):**
+  1. Implement the six metric stubs, then `pytest -q tests/test_diag_metrics.py`.
+  2. On a clean tree: `python -m eval.time_cases --fault 1 --runs 20`, to see the projected time for the full `forest_ceiling` build before starting it.

@@ -99,7 +99,7 @@ def check_faults(faults):
 
 def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw.DEFAULT_OUT,
         normals_path=evidence_normals.DEFAULT_OUT, *, faults=FAULTS, out_dir=DEFAULT_DIR,
-        allow_dirty=False, repo_root=None):
+        allow_dirty=False, repo_root=None, now=None):
     faults = check_faults(faults)
     out_dir = Path(out_dir)
     paths = {f: out_dir / f"fault_{f:02d}.yaml" for f in faults}
@@ -110,7 +110,7 @@ def run(model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT, watch_path=cw
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)    # before any loading
     inp = cases.load_inputs(model_path, limits_path, watch_path, normals_path, repo_root)
 
-    now = datetime.now(timezone.utc)
+    now = now or datetime.now(timezone.utc)
     record_rel = (run_record.RUNS_DIR / f"{now.strftime('%Y%m%dT%H%M%SZ')}_authoring.json").as_posix()
     docs, summary_metrics = {}, {}
     for f in faults:
