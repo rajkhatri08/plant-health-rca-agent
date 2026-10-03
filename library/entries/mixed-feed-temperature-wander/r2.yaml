@@ -1,0 +1,78 @@
+entry_id: mixed-feed-temperature-wander
+revision: 2
+event_type: process
+family: feed temperature
+title: Mixed feed temperature varying randomly
+description: >-
+  The temperature of the mixed feed varies randomly. The mixed feed enters the
+  stripper, so the stripper temperature moves out of its normal band and its
+  temperature controller can't hold the setpoint. Because the variation is random,
+  the stripper temperature can go out in either direction. The effect is often
+  small, so this mechanism can be hard to confirm from the plant data alone.
+withdrawn: false
+
+equipment:
+  group: stripper
+  equipment_class: unverified
+  tags: [FD-FI-104, ST-TI-604, ST-FV-607]
+  loops: [ST-TIC-604]
+
+iso14224:
+  failure_mode: not_applicable
+  failure_mechanism: unverified
+  cause_category: unverified
+  detection_method: unverified
+
+signature:
+  location:
+    top_group: {one_of: [stripper], weight: required}
+    top_tags: {any_of: [ST-TI-604, ST-FV-607], weight: supporting}
+  provisional:
+    tags:
+      ST-TI-604: {one_of: [high, low, both], weight: required}
+    loops:
+      ST-TIC-604: {state: lost, weight: required}
+    masked: {state: false, weight: supporting}
+  revised:
+    tags:
+      ST-TI-604: {one_of: [high, low, both], weight: supporting}
+    loops:
+      ST-TIC-604: {state: lost, weight: supporting}
+
+actions:
+- action_id: check-mixed-feed-temperature
+  kind: check
+  text: Check the mixed feed temperature upstream of the stripper, for example at the battery limit or the upstream exchanger, for variation.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  - Any field check follows the site's permit-to-work procedure.
+  approval_required: true
+- action_id: confirm-stripper-temperature-control
+  kind: confirm
+  text: Confirm the stripper temperature trend and the stripper steam valve position.
+  safety_preconditions:
+  - Observation only; no change to controller modes or setpoints.
+  approval_required: true
+- action_id: escalate-stripper-temperature-control
+  kind: escalate
+  text: If the stripper temperature can't be held, escalate to the shift supervisor.
+  safety_preconditions:
+  - The shift supervisor decides any response under the site's operating procedures.
+  approval_required: true
+
+links:
+  related_entries: []
+  loops: [ST-TIC-604]
+
+sources: [src-001, src-004]
+
+governance:
+  author: raj
+  created_at: 2026-10-03T08:06:39Z
+  effective_from: 2026-10-03T08:06:39Z
+  review_due: 2027-10-03T08:06:39Z
+  change_note: >-
+    Revision 2 rewrites the description to keep only what the authoring evidence
+    supports, and removes evaluation details that don't belong in agent-visible
+    text. The signature and actions are unchanged in substance.
+  supersedes: 1
