@@ -158,13 +158,14 @@ Headline results use no work-order history (C0).
 ## LLM measurement
 - **Model:** a pinned, versioned model ID and generation settings, recorded in every diagnosis record.
   - **The model and settings (decision 76):** `gemini-3.1-flash-lite`, paid tier, standard; temperature 0; structured output against the JSON schema; max output tokens 1024; thinking at the lowest level the model allows.
-  - **The thinking setting:** the exact value comes from the S3 smoke call and is recorded in decision 76 before any evaluation call.
+  - **The thinking setting:** `thinking_level: "minimal"`, accepted by the API in the S3 smoke call on 4 October 2026, with 0 thinking tokens reported (decision 76).
+  - **No automatic function calling:** every request disables it and sends no tools (decision 76).
 - **Cache (decision 76):** the key is the SHA-256 of the model ID, the settings, the schema version, the prompt text and the repeat index. Each repeat is one real call, and reruns are free.
 - **Budget (decision 76):**
   - A hard cap per run, in rupees.
   - Before each call, the worst case (input tokens plus max output tokens) is checked.
   - If that would cross the cap, the run stops and writes a run record marked incomplete, with no table.
-- **API errors (decision 76):** retried up to 2 times with backoff, under the same cache key. After that, the error is recorded, scores as no diagnosis, and is reported separately.
+- **API errors (decision 76):** retried up to 2 times with backoff, under the same cache key. After that, the error is recorded, scores as no diagnosis, and is reported separately. Only rate limits (429), server errors (5xx) and transport errors are retried. Any other client error (4xx) is recorded at once.
 - **Completeness:** every case gets a recorded status. A run with a missing case is incomplete and not reported. The call budget is written down before a run starts. A table is reported only when every planned call has a result or a recorded error.
 - **Latency:** end to end (alert to diagnosis available) and by step: median, 95th percentile and maximum. Cold starts reported separately.
 - **Cost:** per diagnosis, over every call in the episode, from token counts × the published price on a stated date. Projected per plant per month at the measured alert rate.

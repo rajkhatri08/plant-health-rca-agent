@@ -708,6 +708,8 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
       - ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite shows only `thinking_level: "high"` as an example.
       - The thinking table lists only `gemini-3.1-flash-lite-image` (default minimal; levels minimal and high) and no `thinking_budget`.
       - So the S3 smoke call requests `thinking_level: "minimal"`; if the API refuses it, `"low"`. The accepted setting and the reported thinking-token count are recorded here before any evaluation call.
+      - **Recorded (Raj's smoke call, 4 October 2026):** `thinking_level: "minimal"` was accepted, with 0 thinking tokens reported. The API served `gemini-3.1-flash-lite`. The call used 15 input and 5 output tokens, cost Rs 0.00108 and took 1721 ms, and its JSON parsed. **The setting is `minimal`.**
+    - **No automatic function calling:** every request disables the SDK's automatic function calling and sends no tools, so the SDK can never call a function on its own.
     - **Prices:** read on 4 October 2026 from ai.google.dev/gemini-api/docs/pricing: $0.25 per 1M input tokens and $1.50 per 1M output tokens, where output includes thinking tokens. INR 96.33 per USD on 4 October 2026.
     - **Cache key:** the SHA-256 of the model ID, the settings, the schema version, the prompt text and the repeat index.
     - **Repeats:** 5 for the evaluation subset; 1 for tuning and for the LLM-only diagnostic.
@@ -718,12 +720,14 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
     - **API errors:**
       - Retried up to 2 times with backoff, under the same cache key.
       - Then recorded as an error, which scores as no diagnosis and is reported separately.
+      - **Clarified (Raj, 4 October 2026):** only rate limits (429), server errors (5xx) and transport errors are retried. Any other client error (4xx) is recorded at once, because a retry can't change it. The SDK's own retries are off, so every attempt is counted.
     - **Completeness:** a table is reported only when every planned call has a result or a recorded error.
     - **Provider (Raj, 4 October 2026):**
       - The official `google-genai` SDK, called directly through one provider adapter.
       - LangChain leaves the stack: prompts are plain Python templates and tools are our own functions, and `langchain-core` remains only as LangGraph's dependency.
       - This supersedes the LangChain line in "Tools and workflow" and in decision 74 (CLAUDE.md, Stack).
       - `google-genai` and `python-dotenv` are approved, pinned in `requirements.txt` only, never in `requirements-app.txt`.
+      - **Where it lives (confirmed by Raj, 4 October 2026):** the Gemini client and the smoke command are builder side (`eval/gemini.py`). The provider-neutral adapter (settings, prices, cache key, fake, cached and replay clients, the budget meter) is in `app/agent/llm.py`. The deployed API never imports an SDK.
 
     *Why:*
     - A pinned model, fixed settings and a dated price make the numbers reproducible and the cost checkable.

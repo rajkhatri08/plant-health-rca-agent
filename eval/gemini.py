@@ -13,7 +13,8 @@ GeminiClient:
   stored, printed, logged or put in a result. A missing key is refused before anything
   else happens.
 - Settings are decision 76's: temperature 0, max output tokens 1024, structured output
-  (JSON against the schema), and the thinking level.
+  (JSON against the schema), and the thinking level (minimal, accepted in the smoke call).
+  Every request disables the SDK's automatic function calling and sends no tools.
 - Errors: the SDK's own retries are off, so every attempt is ours to count. A rate limit
   (429), a server error (5xx) or a transport error is retried up to RETRIES = 2 times with
   backoff (1 s, then 2 s), then raised as LLMError. Any other client error (4xx, for example
@@ -64,9 +65,12 @@ class GeminiClient:
         t, s = self._types, self.settings
         thinking = (t.ThinkingConfig(thinking_level=s.thinking_level.upper())
                     if s.thinking_level else None)
-        return t.GenerateContentConfig(temperature=s.temperature, max_output_tokens=s.max_output_tokens,
-                                       response_mime_type="application/json",
-                                       response_json_schema=schema.json_schema, thinking_config=thinking)
+        return t.GenerateContentConfig(
+            temperature=s.temperature, max_output_tokens=s.max_output_tokens,
+            response_mime_type="application/json", response_json_schema=schema.json_schema,
+            thinking_config=thinking,
+            # Decision 76: the SDK must never call a function on its own, and no tools are sent.
+            automatic_function_calling=t.AutomaticFunctionCallingConfig(disable=True), tools=None)
 
     def _retryable(self, e):
         if isinstance(e, self._errors.APIError):

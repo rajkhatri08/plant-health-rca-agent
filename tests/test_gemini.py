@@ -85,6 +85,19 @@ def test_the_request_carries_decision_76s_settings(keyed):
     assert r.key == llm.cache_key(llm.SETTINGS, "t-1", "prompt", 0)
 
 
+def test_every_request_disables_automatic_function_calling(keyed):
+    # Decision 76: the SDK can never call a function on its own, on any attempt, any repeat.
+    sdk = FakeSDK([APIError(503), response(), response()])
+    c = client(sdk)
+    c.complete("p", SCHEMA, repeat=0)                              # one retry, then an answer
+    c.complete("q", SCHEMA, repeat=1)
+    assert len(sdk.calls) == 3
+    for call in sdk.calls:
+        cfg = call["config"]
+        assert cfg.automatic_function_calling is not None and cfg.automatic_function_calling.disable is True
+        assert not cfg.tools and cfg.tool_config is None
+
+
 def test_tokens_thinking_and_version_are_reported(keyed):
     r = client(FakeSDK([response(prompt=40, out=9, thoughts=5)])).complete("p", SCHEMA, repeat=0)
     assert (r.tokens_in, r.tokens_out, r.tokens_thinking) == (40, 9, 5)

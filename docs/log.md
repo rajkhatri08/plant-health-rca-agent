@@ -2727,3 +2727,52 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Put the key in `.env` as `GEMINI_API_KEY=…` (it's gitignored and denied to Claude Code).
   - Run `python -m eval.gemini --smoke`, about Rs 0.01. If `minimal` is refused, run `--thinking-level low`.
   - Paste the output (it never contains the key) so the accepted setting goes into decision 76.
+
+### 2026-10-04: week 6 session 3 (close) and session 4, the smoke result, no AFC; output schema and faithfulness stub
+- **S3 close:**
+  - **Raj's smoke call:** `gemini-3.1-flash-lite` (served under the same name), with `thinking_level` minimal accepted and 0 thinking tokens. 15 input and 5 output tokens, Rs 0.00108, 1721 ms, JSON parsed.
+  - **Recorded in decision 76 and PROTOCOL (LLM measurement):**
+    - the thinking setting is `minimal`
+    - every request disables automatic function calling and sends no tools
+    - only rate limits, server errors and transport errors are retried, and any other 4xx is recorded at once (Raj's clarification)
+    - the Gemini client and the smoke command live builder side (`eval/gemini.py`) (confirmed)
+  - **`eval/gemini.py`:** the request config carries `automatic_function_calling=AutomaticFunctionCallingConfig(disable=True)` and `tools=None`. A new test checks every request, retries and later repeats included. The cache key is unchanged: AFC isn't a setting the model's answer depends on.
+- **S4 (Claude's scaffolding; `check()` and the prompt are Raj's):**
+  - **`app/agent/schema.py`:**
+    - **`Output` (Pydantic, strict, frozen),** with decision 75's fields: decision, entry_ref, family (the library's six), confidence, cited_evidence [{item, state}], action_ids, rationale ≤ 600 characters.
+    - **Rules by decision:** propose needs entry_ref, family and at least 2 citations. Decline and not_in_library have no entry_ref and no actions. not_in_library needs a family; decline has none. No repeated action IDs, and no extra fields.
+    - **`JSON_SCHEMA`:** the flat form sent to the provider (no `$ref`), kept in step with the model by test.
+    - **`parse_output()`** raises `OutputError`. `output_schema()` gives the versioned `llm.OutputSchema` (`diagnosis-1`, part of the cache key).
+    - **Citation items** use the matcher's item names (`app/diagnosis/items.py`), with the state as text.
+  - **`app/agent/faithfulness.py`:** `Failure(code, detail)`, the five codes (citation, entry, action, family, rationale), `passed()`, and `check(output, features, candidates, library, as_of)`, a stub raising `NotImplementedError`. The docstring sets each check's contract. The graph (S5) handles a failure; this module only judges.
+  - **Leak scan:** `app/agent/schema.py` joins the agent-visible scan, since its JSON schema is sent with every call. The prompts folder is scanned whatever its files' suffixes, and its modules may import no LangChain and nothing from the builder side. A planted label in a prompts folder is caught.
+- **Tests:**
+  - `tests/test_agent_schema.py`: 29, passing.
+  - `tests/test_faithfulness.py`: 38 in all. 3 pass now: the codes, the Failure guard, and the fixture's assumptions about the committed library. 35 fail with the stub's `NotImplementedError` (checked: 35 of 35, nothing else) until Raj implements `check()`:
+    - **Passes:** a faithful proposal; every citation form at +60; a decline; not_in_library with a candidate's family; tag and loop IDs' digits in the rationale; no actions.
+    - **Citation:** 9 unfaithful forms (wrong state, unknown tag, the revised reading at +30, other group, not a top tag, loop, masked, analyzer, bad item name), and a decline's citations checked too.
+    - **Entry:** not a candidate, a superseded revision, not yet in force, unknown refs.
+    - **Action:** another entry's action, an invented one.
+    - **Family:** wrong for propose; not a candidate's for not_in_library.
+    - **Rationale:** a label, the benchmark's name, a raw name; four bare numbers.
+    - **All five at once,** and no clock read.
+  - `tests/test_leak_scan.py`: 3 new tests, plus the schema in the agent-visible scan. `tests/test_gemini.py`: 1 new test (no AFC).
+  - **`pytest -q`:** 1616 passed and 35 failed, all from the faithfulness stub. CI will be red until `check()` is in, as with the matcher stubs in week 5.
+- **The idea (for Raj):**
+  - **Why two forms of the schema:** the provider's JSON schema keeps the answer well formed (fields, enums, lengths), but it can't express "entry_ref is required only when proposing", so Pydantic re-checks everything after the call.
+  - **Why the schema check isn't enough:** it says nothing about whether the answer is true to the evidence. That's the faithfulness check: an output can be perfectly shaped and still cite a state that wasn't observed, or an action the entry doesn't have.
+- **Unsure about:**
+  - **Digits in the rationale beyond tag and loop IDs:**
+    - Entry and action IDs hold digits (`reactant-1-feed-supply-loss`, `check-reactant-1-supply`, refs like `@r2`), and so does the entry text the LLM is shown ("Reactant-1 feed").
+    - As written, a rationale that names those fails check 5.
+    - My recommendation: allow digits inside any ID the LLM was shown (tags, loops, candidate entry IDs, refs, action IDs) and inside words of the shown entry text, and refuse every other number.
+    - No test covers this yet. It's your call before you implement.
+  - **The nullable fields in `JSON_SCHEMA`:** `entry_ref` and `family` use `type: ["string", "null"]`, and `family`'s enum includes null. I haven't confirmed that `gemini-3.1-flash-lite` accepts this form. A one-call check (about Rs 0.005) would settle it before S6's dry run; otherwise the first tuning call shows it.
+  - **The conventions in `schema.py` (to confirm):** entry_ref null and no actions unless propose, and no family on a decline.
+  - **How an invalid answer is scored:** an answer that isn't JSON or breaks the schema never reaches `check()`. I'd score it like a faithfulness failure: no diagnosis, the evidence shown, counted separately as "schema". S5 needs your decision.
+  - **Not Claude's:** `eval/baselines/alarms.py` still has the IDE's one-line change.
+- **Decisions needed:** the four points above (the rationale's digits; whether to spend one call on the schema; the conventions; scoring an invalid answer).
+- **Next (Raj):**
+  - Implement `faithfulness.check()`, then run `pytest -q tests/test_faithfulness.py`.
+  - Write the prompt template in `app/agent/prompts/` (plain Python, no LangChain; scanned by `tests/test_leak_scan.py`). Claude reviews both.
+  - S5 also leak-checks every rendered prompt at runtime, before any call.

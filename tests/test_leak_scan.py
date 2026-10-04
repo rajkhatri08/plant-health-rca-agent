@@ -11,7 +11,9 @@ REPO = Path(__file__).resolve().parents[1]
 
 RAW_ONLY = [re.compile(r"(?:xmeas|xmv)", re.IGNORECASE)]
 
-AGENT_VISIBLE = ["library", "app/agent/prompts"]
+# app/agent/schema.py is agent-visible too: its JSON schema is sent with every call (week 6 S4).
+AGENT_VISIBLE = ["library", "app/agent/prompts", "app/agent/schema.py"]
+PROMPTS = REPO / "app" / "agent" / "prompts"
 # What the API and the web page serve or are built from: the API source, the replay stream, the bundle
 # text files and web/ (binary .npz is skipped: random bytes can spell a short word).
 SERVED = ["app/api.py", "app/replay", "app/bundles", "web"]
@@ -37,6 +39,38 @@ def scan(dirs, patterns, suffixes=None):
 
 def test_agent_visible_text_is_clean():
     assert scan(AGENT_VISIBLE, PATTERNS) == []
+
+
+def test_the_prompts_folder_is_scanned_whatever_its_files_are_called():
+    # Every file under app/agent/prompts/ is scanned, any suffix, so a template kept as .txt,
+    # .md or .py is covered alike (the next-but-one test plants a leak to prove the scanner
+    # finds it).
+    assert PROMPTS.is_dir()
+    hits = []
+    for p in sorted(PROMPTS.rglob("*")):
+        if p.is_file() and "__pycache__" not in p.parts:
+            hits += find_leaks(p.read_text(errors="ignore"))
+    assert hits == []
+
+
+def test_prompts_are_plain_python_templates():
+    # Decision 76: LangChain is out of the stack; prompts are plain Python templates. Prompt
+    # modules import nothing from the builder side and nothing of LangChain.
+    from tests.test_walls import imported_top_modules
+    for p in sorted(PROMPTS.rglob("*.py")):
+        mods = imported_top_modules(p.read_text())
+        assert not {"eval", "ingest", "dataset", "langchain", "langchain_core"} & mods, p.name
+        assert "langchain" not in p.read_text().lower(), p.name
+
+
+def test_the_scan_would_catch_a_leak_in_a_prompt(tmp_path, monkeypatch):
+    # The scanner over a prompts folder holding a planted label finds it.
+    folder = tmp_path / "app" / "agent" / "prompts"
+    folder.mkdir(parents=True)
+    (folder / "diagnosis.txt").write_text("You are diagnosing fault 13 on the plant.")
+    import tests.test_leak_scan as me
+    monkeypatch.setattr(me, "REPO", tmp_path)
+    assert me.scan(["app/agent/prompts"], PATTERNS) == ["app/agent/prompts/diagnosis.txt: fault 13"]
 
 
 def test_app_has_no_raw_names():
