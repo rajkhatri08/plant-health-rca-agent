@@ -18,6 +18,8 @@ Clients:
                     loudly instead of calling anything)
 - MeteredClient     wraps the real client with a BudgetMeter: the worst case is checked
                     before each call, and the actual cost is charged after it
+- PacedClient       a minimum interval between the starts of two real API calls (for rate
+                    limits); inside the cache, so hits aren't paced
 
 The cache key is the SHA-256 of the model ID, the settings, the schema version, the prompt
 text and the repeat index (decision 76), as canonical JSON.
@@ -280,6 +282,27 @@ class ReplayClient:
             raise CacheMiss(f"no precomputed answer for this prompt (key {key[:12]}…); the demo never "
                             "calls the model, so the prompt must match a precomputed one")
         return hit
+
+
+class PacedClient:
+    """Paces real API calls: at least min_interval seconds between the starts of two calls
+    through it. Put it inside the cache (CachedClient(MeteredClient(PacedClient(provider))))
+    so cache hits are never paced. It paces calls, not attempts: the provider's own retries
+    and backoff (decision 76) happen within one call. clock and sleep are injectable for tests."""
+
+    def __init__(self, inner, min_interval, *, clock=time.monotonic, sleep=time.sleep):
+        if isinstance(min_interval, bool) or not isinstance(min_interval, (int, float)) or min_interval < 0:
+            raise ValueError(f"min_interval must be a number of seconds >= 0, got {min_interval!r}")
+        self.inner, self.settings, self.min_interval = inner, inner.settings, float(min_interval)
+        self._clock, self._sleep, self._last_start = clock, sleep, None
+
+    def complete(self, prompt, schema, *, repeat):
+        if self._last_start is not None and self.min_interval > 0:
+            wait = self._last_start + self.min_interval - self._clock()
+            if wait > 0:
+                self._sleep(wait)
+        self._last_start = self._clock()
+        return self.inner.complete(prompt, schema, repeat=repeat)
 
 
 def timed(fn):

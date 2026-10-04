@@ -2969,3 +2969,47 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Unsure about:** nothing new.
 - **Decisions needed:** none.
 - **Next (Raj):** on a clean tree, run `python -m eval.agent_table --dry-run --library-as-of 2026-10-05T00:00:00+00:00`. It reads dev data only and spends nothing. Paste its counts and projection. The tuning run (`--tuning --budget 50`) comes after.
+
+### 2026-10-04: week 6, --table on a known-only run
+- **Raj's runs:**
+  - the dry run (1330a36: all passes complete, projection within both caps)
+  - the tuning run (b210f52: 68 of 68 passes, Rs 5.42; `eval/runs/20261004T154913Z_agent_run.json`)
+- **The failure:**
+  - `--table` on the tuning record stopped with "no cases whose right answer is a decline".
+  - The cause was in Claude's table step, not the metrics: the keep rule's "unknowns declined" called `diag_metrics.decline_share` on the leave-one-out rows, and the tuning subset has none by design (decision 77). Raj's `summary()` and the matcher summary already returned None for an empty denominator.
+- **Changed (`eval/agent_table.py`):**
+  - The keep rule is read only when every repeat has leave-one-out rows; the result then carries `"applicable": True`.
+  - Otherwise it's `{"applicable": False, "reason": "not applicable (no unknown cases)", "keep": None, "better_on": [], "worse_on": []}`, and the Markdown says so.
+  - Everything else is reported as before, None where a denominator is empty: top-1, top-3, family, wrongly declined, failures, schema, errors, confidence, agreement, misses, the secondary, latency and cost, the paired bootstrap, and the matcher on the same cases.
+- **Tests (`tests/test_agent_table.py`):**
+  - **New, the table from a known-only (tuning) run:**
+    - The keep rule is not applicable, in the record and in the Markdown for both stages.
+    - The false-alert and leave-one-out declines are None for the agent and the matcher.
+    - Top-1, top-3, family and wrongly declined are present, and the matcher has the same known count.
+    - Confidence, agreement, misses, the secondary, latency and cost, and the paired bootstrap are all present.
+  - **The evaluation-run table test now checks** that the keep rule is applicable with a boolean verdict, and that exactly one Markdown file was written (its old `glob(...)` check was always true).
+  - **`pytest -q`:** 1794 passed, 4 deselected.
+- **Unsure about:** nothing.
+- **Decisions needed:** none.
+- **Next (Raj):** rerun `python -m eval.agent_table --table eval/runs/20261004T154913Z_agent_run.json` on a clean tree.
+
+### 2026-10-04: week 6, the tuning run's results; pacing for the paid runs
+- **Raj's tuning run (b210f52; read from its table):**
+  - 68 passes; 60 proposed, of which 59 right, against the matcher's top-1 credit of 59.5 on the same passes.
+  - 0 faithfulness failures.
+  - 4 schema failures, all "decline has no family": the model filled family on a decline. Raj fixed the prompt with explicit field rules by decision (f23108a).
+  - 2 errors, both "ClientError 429 RESOURCE_EXHAUSTED" after 3 attempts.
+- **The `--table` fix for known-only runs** is the previous entry's: unknown-case metrics are None and the keep rule is "not applicable (no unknown cases)", with its test. It was already in the working tree, so nothing was redone.
+- **Changed:**
+  - **`app/agent/llm.py`, `PacedClient(inner, min_interval, clock=, sleep=)`:** at least min_interval seconds between the starts of two calls through it. It paces calls, not attempts: the provider's retries and backoff (decision 76, unchanged) happen within one call. A negative or non-numeric interval is refused.
+  - **`eval/agent_table.py`:**
+    - **`paid_stack()`** builds the paid runs' client as `CachedClient(MeteredClient(PacedClient(GeminiClient)))`. A cache hit returns before the meter or the pacer is asked, and the meter refuses before the pacer waits.
+    - **`--min-interval <s>`** (default 0) is recorded as `min_interval_s` in the agent_run record's config; a negative or boolean value is refused.
+  - **`CLAUDE.md`:** the flag.
+- **Tests:**
+  - **`tests/test_llm.py`, 8 new tests, on a fake clock:** starts at least min_interval apart, counting the call's own duration; no wait when calls are already far enough apart; no wait at 0; cache hits never paced while the next real call is; bad intervals refused (4).
+  - **`tests/test_agent_table.py`, 5 new tests:** the stack order and that only real calls are paced; the record's `min_interval_s`, with a default of 0; bad values refused (2); the command line passes it through.
+  - **`pytest -q`:** 1807 passed, 4 deselected.
+- **Unsure about:** the value to use. A 429 means the project's requests-per-minute limit was hit. At R requests per minute, `--min-interval 60/R` keeps every call under it (for example 2 s at 30 per minute). The limit for `gemini-3.1-flash-lite` on Raj's tier is shown in the AI Studio console; I haven't seen it.
+- **Decisions needed:** none.
+- **Next (Raj):** rerun `--table` on the tuning record. Then choose `--min-interval` from your tier's limit before the evaluation run.

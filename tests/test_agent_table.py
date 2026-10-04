@@ -205,9 +205,40 @@ def test_the_table_from_a_complete_run(env, tmp_path):
     rec = json.loads(table_record.read_text())
     assert rec["name"] == "agent_table" and set(results) == {"provisional", "revised"}
     for st in results:
-        assert set(results[st]["agent"]) == {"0", "1"} and "keep" in results[st]["keep_rule"]
+        assert set(results[st]["agent"]) == {"0", "1"} and results[st]["keep_rule"]["applicable"] is True
+        assert isinstance(results[st]["keep_rule"]["keep"], bool)
         assert set(results[st]["paired"]) == {"0", "1"}
-    assert (env["tables"]).glob("*_agent_table.md")
+    assert len(list(env["tables"].glob("*_agent_table.md"))) == 1
+
+
+def test_the_table_from_a_known_only_run(env, tmp_path):
+    # The tuning subset has known cases only (decision 77): the unknown-case metrics have no
+    # denominator, so they're None and the keep rule is not applicable; everything else is reported.
+    (m, record), _ = go(env, "tuning", budget=50, client=fake_client(tmp_path))
+    from tests.test_approve_entry import commit
+    commit(env["repo"])
+    results, table_record = at.table(record, repo_root=env["repo"], tables_dir=env["tables"], n_boot=20,
+                                     out=lambda s: None)
+    assert json.loads(table_record.read_text())["name"] == "agent_table"
+    for st, r in results.items():
+        kr = r["keep_rule"]
+        assert kr["applicable"] is False and kr["keep"] is None and kr["reason"] == at.NO_UNKNOWNS
+        a = r["agent"]["0"]
+        assert a["false_alert_declined"] is None and a["loo_declined"] is None
+        assert a["false_alerts"] == 0 and a["loo"] == 0
+        assert a["known"] > 0 and a["top1"] is not None and a["top3"] is not None and a["family"] is not None
+        assert a["wrongly_declined"] is not None
+        assert {"failed_check", "schema", "errors"} <= set(a)
+        mt = r["matcher"]
+        assert mt["known"] == a["known"] and mt["top1"] is not None
+        assert mt["false_alert_declined"] is None and mt["loo_declined"] is None
+        assert set(r["paired"]) == {"0"}
+        assert {"high", "medium", "low"} == set(r["confidence"]) and r["agreement"]["cases"] > 0
+        assert set(r["misses"]) == {"gate", "retrieval", "reasoning"}
+        assert r["not_in_library"]["cases"] == 0
+        assert r["latency_cost"]["calls"] >= 0 and "cost_inr" in r["latency_cost"]
+    (md,) = env["tables"].glob("*_agent_table.md")
+    assert md.read_text().count("Keep rule: not applicable (no unknown cases).") == 2
 
 
 def test_the_evaluation_run_defaults_to_its_rs_450_cap(env, tmp_path):
@@ -215,3 +246,45 @@ def test_the_evaluation_run_defaults_to_its_rs_450_cap(env, tmp_path):
     assert at.DEFAULT_BUDGETS == {"evaluation": 450}
     (m, record), _ = go(env, "evaluation", client=fake_client(tmp_path), prompt_hash="test")
     assert json.loads(record.read_text())["config"]["budget_inr"] == 450
+
+
+# ---------- pacing in the paid runs ----------
+
+def test_the_paid_stack_paces_real_calls_only(tmp_path):
+    from tests.test_llm import FakeClock, timed_fake
+    clock = FakeClock()
+    fake, starts = timed_fake(clock, takes=0.25)
+    c = at.paid_stack(fake, 1, 2.0, cache_dir=tmp_path / "cache", clock=clock.now, sleep=clock.sleep)
+    from app.agent import schema
+    s = schema.output_schema()
+    c.complete("p", s, repeat=0)
+    c.complete("p", s, repeat=0)                              # a cache hit: neither metered nor paced
+    c.complete("q", s, repeat=0)
+    assert starts == [0.0, 2.0] and clock.sleeps == [1.75] and len(fake.calls) == 2
+    assert isinstance(c, llm.CachedClient) and isinstance(c.inner, llm.MeteredClient)
+    assert isinstance(c.inner.inner, llm.PacedClient) and c.inner.inner.min_interval == 2.0
+
+
+def test_the_run_records_its_min_interval(env, tmp_path):
+    (m, record), _ = go(env, "tuning", budget=50, client=fake_client(tmp_path), min_interval=1.5)
+    assert json.loads(record.read_text())["config"]["min_interval_s"] == 1.5
+    from tests.test_approve_entry import commit
+    commit(env["repo"])                                       # the first run's files make the tree dirty
+    (m, record), _ = go(env, "tuning", budget=50, client=fake_client(tmp_path / "b"),
+                        now=at.datetime(2026, 10, 4, 18, 0, tzinfo=at.timezone.utc))
+    assert json.loads(record.read_text())["config"]["min_interval_s"] == 0.0     # the default
+
+
+@pytest.mark.parametrize("bad", [-0.5, True])
+def test_a_bad_min_interval_is_refused(env, tmp_path, bad):
+    with pytest.raises(at.AgentTableError, match="min-interval"):
+        go(env, "tuning", budget=50, client=fake_client(tmp_path), min_interval=bad)
+
+
+def test_the_command_line_takes_min_interval(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(at, "run", lambda mode, **kw: seen.update(mode=mode, **kw))
+    import dotenv
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda **kw: None)
+    assert at.main(["--tuning", "--library-as-of", LIB, "--budget", "50", "--min-interval", "4"]) == 0
+    assert seen["mode"] == "tuning" and seen["min_interval"] == 4.0 and seen["budget"] == 50.0

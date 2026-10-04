@@ -228,3 +228,75 @@ def test_replay_serves_precomputed_answers_and_refuses_a_miss(fake, tmp_path):
     with pytest.raises(llm.CacheMiss):
         replay.complete("p", llm.OutputSchema("t-2", SCHEMA.json_schema), repeat=0)
     assert len(fake.calls) == 1                                      # the replay called nothing
+
+# ---------- pacing (week 6, after the tuning run's 429s) ----------
+
+class FakeClock:
+    """time.monotonic and time.sleep on a counter: sleep advances it, and calls can take time."""
+
+    def __init__(self):
+        self.t, self.sleeps = 0.0, []
+
+    def now(self):
+        return self.t
+
+    def sleep(self, s):
+        self.sleeps.append(s)
+        self.t += s
+
+
+def timed_fake(clock, takes=0.5):
+    """A FakeClient whose every call takes `takes` seconds on the fake clock, recording its start."""
+    starts = []
+
+    def answer(p, s, r):
+        starts.append(clock.t)
+        clock.t += takes
+        return json.dumps({"x": r})
+    return llm.FakeClient(answer), starts
+
+
+def test_paced_calls_start_at_least_min_interval_apart():
+    clock = FakeClock()
+    fake, starts = timed_fake(clock, takes=0.5)
+    c = llm.PacedClient(fake, 2.0, clock=clock.now, sleep=clock.sleep)
+    for r in range(3):
+        c.complete("p", SCHEMA, repeat=r)
+    assert starts == [0.0, 2.0, 4.0]
+    assert clock.sleeps == [1.5, 1.5]                       # the call's own 0.5 s counts toward the gap
+
+
+def test_no_wait_when_calls_are_already_far_enough_apart():
+    clock = FakeClock()
+    fake, starts = timed_fake(clock, takes=3.0)            # slower than the interval
+    c = llm.PacedClient(fake, 2.0, clock=clock.now, sleep=clock.sleep)
+    c.complete("p", SCHEMA, repeat=0)
+    c.complete("p", SCHEMA, repeat=1)
+    assert starts == [0.0, 3.0] and clock.sleeps == []
+
+
+def test_zero_interval_never_waits():
+    clock = FakeClock()
+    fake, starts = timed_fake(clock, takes=0.0)
+    c = llm.PacedClient(fake, 0, clock=clock.now, sleep=clock.sleep)
+    for r in range(3):
+        c.complete("p", SCHEMA, repeat=r)
+    assert clock.sleeps == [] and starts == [0.0, 0.0, 0.0]
+
+
+def test_cache_hits_are_not_paced(tmp_path):
+    clock = FakeClock()
+    fake, starts = timed_fake(clock, takes=0.0)
+    c = llm.CachedClient(llm.PacedClient(fake, 5.0, clock=clock.now, sleep=clock.sleep), tmp_path)
+    c.complete("p", SCHEMA, repeat=0)
+    for _ in range(3):
+        assert c.complete("p", SCHEMA, repeat=0).cached      # hits: no wait, no call
+    assert clock.sleeps == [] and len(fake.calls) == 1
+    c.complete("p", SCHEMA, repeat=1)                         # a real call: paced
+    assert clock.sleeps == [5.0] and starts == [0.0, 5.0]
+
+
+@pytest.mark.parametrize("bad", [-1, "2", True, None])
+def test_min_interval_must_be_non_negative_seconds(bad):
+    with pytest.raises(ValueError):
+        llm.PacedClient(llm.FakeClient(lambda p, s, r: "{}"), bad)
