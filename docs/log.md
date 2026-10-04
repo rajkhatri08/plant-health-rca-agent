@@ -2501,3 +2501,47 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Parked:** ISO 14224 category names; source licences "to confirm"; the r2 notes (inert-rise `related_entries`; the valve-sticking "cycle" wording); the week 4 review notes with authoring counts in `library/`.
   - **One-offs to watch:** the converter's sentinel test (capture its output if it fails again).
 - **Week 6 (2–8 Nov in the plan, starting early):** the diagnosis flow in LangGraph: one LLM call, structured output, the faithfulness check, declines, the approval pause; RCA eval on dev; a small safety set.
+
+### 2026-10-04: week 6 kickoff, plan and Raj's answers
+- **Changed:** docs only (this entry). No code, and nothing run.
+- **Week 6 plan approved.** Each session stops for review and commit, and Raj runs every data job and every paid call on a clean tree. Nothing touches the test split, faults 16–20 or the sealed folder.
+  - S0 kickoff
+  - S1 decisions 75–78 before any agent output
+  - S2 runtime prerequisites (pca_v3 with the evidence normals, analyzers in the replay, as-of tools that cut the stream at as_of, runtime leak scan, langgraph in requirements-app.txt)
+  - S3 the provider adapter (fake, cached, replay-only and Gemini clients; the budget meter)
+  - S4 the output schema, the faithfulness-check stub and tests, the prompt (Raj's)
+  - S5 the graph (harness by Claude, nodes by Raj)
+  - S6 the eval driver, with a fake-client dry run and a cost projection before any spend
+  - S7 the dev agent run (the week's "Done when")
+  - S8 the safety set, the memorization probes, the week close
+  - S9 the demo wiring, if time allows; otherwise week 7
+- **Raj's answers:**
+  1. **Model:** `gemini-3.1-flash-lite`, temperature 0. It's a stable ID with no shutdown date announced, and Google recommends it for new projects because access to the 2.5 models is limited to past users. Price (paid tier, standard, read from ai.google.dev/gemini-api/docs/pricing on 4 October 2026): $0.25 per 1M input tokens and $1.50 per 1M output tokens, with output including thinking tokens. INR rate: 96.33 per USD on 4 October 2026, so Rs 500 is about $5.19.
+  2. **Thinking:** the lowest level `gemini-3.1-flash-lite` allows, or off if it can be off. Claude checks the current Gemini docs in S1, and the exact setting goes in decision 76. The budget meter counts thinking tokens as output.
+  3. **Cache key:** includes the repeat index, so each repeat is one real call and reruns are free.
+  4. **Dev sample:** 5 repeats on a seeded subsample of 10 dev runs per known fault, plus every false-alert and leave-one-out case. The dev budget is Rs 500; another Rs 500 is reserved for the week 7 test run.
+  5. **Candidates:** the matcher's top-k (k = 2). When rank k falls inside a tied block, the whole block is included.
+  6. **LLM gating, option (b):** the LLM is called only when the matcher would propose. The matcher's decline (a hard decline or the fit threshold) is a safety gate the LLM can't override. The LLM re-ranks the top-k candidates and may decline further. So the agent's unknown declines can't fall below the matcher's, and the 6–9% the matcher wrongly declines stay declined (the conservative failure).
+  7. **Library clock, option (b):** a fixed library as-of per run, pinned in the run record and separate from the plant clock. The matcher is re-run on the same revisions (`mixed-feed-temperature-wander` at r2) for the paired comparison.
+  8. **What the LLM sees:** the evidence as categorical states, the candidates in ref order, and each candidate's per-item verdicts. No fit and no rank.
+  9. **A faithfulness failure:** shows the deterministic evidence and scores as "no diagnosis": wrong on known cases, a decline on unknowns. It's always counted and reported separately. No retry.
+  10. **Tuning subset:** a separate seeded tuning subset of 3 dev runs per fault, disjoint from the evaluation subsample. The prompt is frozen by hash before the evaluation run.
+  11. **Keep rule:** applied on dev, with test reporting both. If it fails, the shipped flow keeps the matcher's order, and the LLM may only decline or explain.
+  12. **Leave-one-out:** strict for every method, including the agent: only a decline is correct. The agent's family-level "mechanism not in library" answers are reported separately, with their family accuracy, as a secondary figure. This closes the item carried since week 5 S2.
+  13. **Safety channel, option (a):** one bounded operator-note field per episode, passed into the prompt as untrusted data, with a deterministic emergency screen before the LLM.
+  14. **The faithfulness check:** Raj writes the body (with guidance from the Claude.ai chat); Claude writes the stub and the tests.
+  15. **Provider SDK:** the official `google-genai` SDK, called directly through our adapter, not `langchain-google-genai`. `google-genai` and `python-dotenv` are approved, pinned in `requirements.txt` only and never in `requirements-app.txt`.
+  16. **Stores:** SQLite this week for the checkpoints and the record store. Neon/Postgres stays parked.
+  17. **"Done when":** the dev agent table, with unknown declines (leave-one-out and false alerts) reported against the matcher's 85% and 87%, plus the keep-rule reading. Under answer 6, the agent's declines can't fall below the matcher's, so the substance is whether re-ranking improves top-1.
+- **Tests:** none (docs only). The suite is unchanged: 1462 passed, 4 deselected (last run in week 5 S8).
+- **Unsure about:**
+  - **Hours:** nine sessions will likely go over 15 h, so S9 is the first to move.
+  - **Model drift:** each record also stores the model version the API reports, so a silent change behind the ID would show.
+  - **Look-ahead in the evidence:** `features.extract()` returns the revised reading whenever the data reaches it. The agent's evidence tool must cut the stream at as_of first, or the +30 min pass sees +60 min data. S2 adds this, with a test.
+- **Decisions needed (S1):**
+  - Decisions 75–78 from these answers.
+  - **PROTOCOL mirrors:**
+    - answer 12 replaces Diagnosis → Cases' test leave-one-out rule ("a decline, or a family-level answer…"), and touches decision 42's wording
+    - answers 6, 7 and 9 add agent rules
+    - if PROTOCOL is already tagged, this is a new version
+  - **CLAUDE.md, Stack:** answer 15 calls Gemini through `google-genai` rather than a LangChain model wrapper. Does LangChain stay for prompt templates and tool definitions only, or leave the stack entirely?
