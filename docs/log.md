@@ -2807,3 +2807,65 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Next (Raj):**
   - `python -m eval.gemini --schema-check`, about Rs 0.005. Paste the output.
   - On PASS the nullable form stands. On FAIL (the API refuses the schema, or the answer doesn't validate), S5 changes `JSON_SCHEMA` before any tuning call and bumps `SCHEMA_VERSION`.
+
+### 2026-10-04: week 6 session 5, the graph harness and node stubs (code only; nothing run on data or the API)
+- **S4 close:**
+  - **Raj's fix (8734772):** a name with numbers is allowed with its head ("reactant 1", "reactants 1 and 2"), never a number alone after a function word. The docstring is updated.
+  - **2 new tests** in `tests/test_faithfulness.py` (48 now), on `mixed-feed-supply-loss@r1`, whose text has "reactants 1 and 2": "and 2 tags agree" fails, and "Reactants 1 and 2 shifted" passes.
+  - **The schema check's result isn't recorded:** the message held the template placeholder ("<paste the schema-check output line here, or write "passed">"), not an output. Decision 76 is unchanged until Raj sends the line.
+- **Changed (harness, Claude's):**
+  - **`app/agent/records.py`:**
+    - **The store:** one SQLite table `records(kind, key, payload)` with primary key (kind, key). `insert_once` returns False on a repeat, and triggers refuse every UPDATE and DELETE (append-only, decision 17).
+    - **The kinds and keys:** diagnosis `{episode}:{stage}:diagnosis`, ledger (the call's cache key), approval `{episode}:{stage}:approval`, act `{episode}:{stage}:act`.
+    - **`LedgerClient`** wraps the LLM client: each answer writes its ledger row (tokens, cost, or "0" for a cache hit), once.
+  - **`app/agent/graph.py`:**
+    - **The state** (`State`).
+    - **`Deps`:** tools, library, client, records, render, thresholds, k = 2, schema. `Deps.prompt()` leak-checks every rendered prompt before it can be sent.
+    - **The fixed wiring:** START → evidence → match → (route_after_match) decline | adjudicate → check → (route_after_check) decline | not_in_library | show_evidence | propose → record → (route_after_record) approval | END; approval → (after_approval) act | END.
+    - **`build()`** wraps the client in the ledger and refuses tracing.
+    - **`opaque_id()`:** episode `ep-` and history `h-`, 16 hex characters from a SHA-256.
+    - **`start()`** refuses non-opaque IDs, naive times and a bad repeat, before anything runs.
+    - **The calls:** `decide()` (approve or reject, only when waiting), `re_enter()` (once, not while waiting or mid-step; it clears the pass's fields), `retry()`, `snapshot()`, `waiting()`.
+    - **Two clocks:** as_of is plant time, and library_as_of is fixed per episode in the state (decision 77).
+  - **`app/agent/nodes.py` (stubs for Raj, 17 functions raising `NotImplementedError`):**
+    - **Nodes and routers:** `select_candidates`, `evidence`, `match`, `route_after_match`, `adjudicate` (the one LLM call), `check`, `route_after_check`, `decline`, `not_in_library`, `show_evidence`, `propose`, `record`, `route_after_record`, `approval` (interrupt), `after_approval`, `act`.
+    - **The contracts:** each docstring sets the node's contract and the JSON form of every field it writes.
+    - **The outcomes:** matcher_declined, declined, not_in_library, failed_check (schema or faithfulness), error (an API error after its retries), proposed.
+    - **What propagates:** `BudgetExceeded` and `CacheMiss` are raised out of the graph; the run stops.
+  - **Test scaffolding:**
+    - `tests/agent_helpers.py`: `FakeTools` with hand-built evidence (the H_DRIFT matcher proposal and the H_QUIET hard decline, both checked on the committed library), scripted answers, a test renderer, `open_graph()`.
+    - `tests/agent_cli.py`: each step in its own process.
+- **Tests: `tests/test_agent_graph.py`, 71.**
+  - **23 pass now (the harness):**
+    - the scenarios' matcher outcomes
+    - the exact wiring, and that adjudicate is reachable only from match's conditional branch
+    - tracing refused (3 variables)
+    - thresholds must cover both stages
+    - opaque IDs
+    - start's refusals (5), the bad repeat, decide's refusals (2), re_enter before start
+    - the rendered prompt is leak-checked (and an empty one refused)
+    - the store's once-only and append-only behaviour (triggers), the keys, the ledger (one row per call, a hit costs nothing)
+    - no builder-side or LangChain imports
+  - **48 fail with the stubs' `NotImplementedError`** (46 directly, 2 inside the subprocess, checked):
+    - **The pure pieces:** `select_candidates` (top k, a tie at rank k, empty) and the four routers.
+    - **Criterion 1:** proposed and waiting; actions from the entry, not the model; the LLM sees no fit or rank, with candidates in ref order; the diagnosis record.
+    - **Decision 75's branches:** a hard decline and a below-threshold decline never call the LLM; the LLM declines further; the family-level answer ends without approval; an unfaithful answer shows the evidence and isn't retried; a schema break is counted as "schema"; an API error is an outcome; a budget stop propagates.
+    - **Criterion 2:** approve acts once with the approval record; reject; another verdict refused.
+    - **Criterion 3:** a new process resumes with identical state; the state is plain JSON.
+    - **Criterion 4:** as_of from the state; re-entry at +60 in-process and in a new process; the refusals; starts once.
+    - **Criterion 5:** resume twice; a crash after the act write; a crash after the LLM call (a cache hit on retry, one ledger row, one real call); a crash after the diagnosis write.
+    - **Clocks and IDs:** the library clock isn't the plant clock; the library clock picks r1 or r2; nothing saved or recorded leaks.
+  - **A feasibility check:** with a straightforward node implementation in Claude's scratchpad (deleted afterwards; the stub was restored and checked byte-identical), all 71 pass, so the tests and the harness are consistent. The implementation is Raj's.
+  - **`pytest -q`:** 1691 passed and 48 failed, all node stubs. CI is red until the nodes are in.
+- **The idea (for Raj):**
+  - **Why the graph has a record node every outcome passes through:** decision 17 wants an append-only diagnosis record for every diagnosis, not just the ones a human approves. Routing every ending through one node means a decline, a family-level answer and a failed check are recorded exactly like a proposal.
+  - **Why the LedgerClient sits inside the graph's client:** the LLM call is the one step that costs money. If the process dies after the call and before LangGraph saves the step, LangGraph runs adjudicate again. The cache turns that second call into a free hit, and the ledger's key keeps it from being counted twice.
+- **Unsure about:**
+  - **The emergency screen** (decision 78) isn't in the graph yet. `operator_note` is in the state and reaches the prompt. The screen goes between match and adjudicate in S8, with the pattern list for your approval.
+  - **The keep-rule fallback** (matcher order, the LLM only declines or explains) isn't wired. It's needed only if dev fails the keep rule.
+  - **Thresholds and k come from the caller (`Deps`).** The eval driver (S6) and the demo pass the recorded values.
+  - **The node contracts are mine.** Change any of them while implementing and I'll update the tests.
+- **Decisions needed:** the schema check's output line, for decision 76.
+- **Next (Raj):**
+  - Implement the 17 functions in `app/agent/nodes.py`, then run `pytest -q tests/test_agent_graph.py`.
+  - Run `python -m eval.gemini --schema-check` if it hasn't run yet, and paste its output.

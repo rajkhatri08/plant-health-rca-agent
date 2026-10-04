@@ -281,3 +281,23 @@ def test_an_entry_or_action_id_with_digits_passes(library, evidence, text):
 def test_a_name_with_a_number_not_shown_fails(library, evidence):
     # Neither default candidate's text says "reactant 1", so here it's a stray number.
     assert codes(run(library, evidence, decline("the reactant 1 share"))) == ["rationale"]
+
+
+# ---------- a name with numbers keeps its head (Raj, 8734772) ----------
+
+SUPPLY = "mixed-feed-supply-loss"                 # its shown text has "reactants 1 and 2"
+WITH_SUPPLY = [f"{SUPPLY}@r1", f"{DRIFT}@r1"]
+
+
+def test_the_supply_entry_shows_the_phrase(library):
+    rev = library.get(SUPPLY, AS_OF).stored.revision
+    text = " ".join([rev.title, rev.description, *(a.text for a in rev.actions)])
+    assert "reactants 1 and 2" in text.lower()
+
+
+def test_a_number_alone_after_a_function_word_fails(library, evidence):
+    assert codes(run(library, evidence, decline("and 2 tags agree"), candidates=WITH_SUPPLY)) == ["rationale"]
+
+
+def test_a_name_with_numbers_and_its_head_passes(library, evidence):
+    assert run(library, evidence, decline("Reactants 1 and 2 shifted"), candidates=WITH_SUPPLY) == []
