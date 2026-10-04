@@ -2944,3 +2944,28 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   1. Implement the 8 functions in `eval/agent_metrics.py`, then run `pytest -q tests/test_agent_metrics.py tests/test_agent_table.py`.
   2. Write the prompt template (`app/agent/prompts/diagnosis.py`, plain Python, `render(features, candidates, operator_note)`).
   3. On a clean tree, run `python -m eval.agent_table --dry-run --library-as-of 2026-10-05T00:00:00+00:00`. It reads dev data only and spends nothing. Paste its counts and projection before any paid run.
+
+### 2026-10-04: week 6 session 6 (close), conventions confirmed, the dev budget split
+- **Raj:** implemented `eval/agent_metrics.py` and wrote the prompt template `app/agent/prompts/diagnosis.py` (`render(features, candidates, operator_note)`), both with guidance from the Claude.ai chat (636d1dc).
+- **Recorded (decision 77, with the PROTOCOL rows):**
+  - **The S6 conventions, confirmed before any paid run:**
+    - one run-number draw for every fault
+    - thresholds and k re-derived on the r2 library by the pre-registered rules, with both values in the records
+    - the agent's top-3 (its pick, then the matcher's blocks without it)
+    - the confidence check over valid outputs
+    - miss labels gate, retrieval and reasoning
+    - agreement over (outcome, entry)
+    - the paired bootstrap per repeat
+  - **The dev budget split:** tuning Rs 50 and evaluation Rs 450, within the Rs 500, each a hard cap per run. Decision 76's budget line points to it.
+- **Changed:**
+  - **`eval/agent_table.py`:** `DEFAULT_BUDGETS = {"evaluation": 450}`; tuning still needs `--budget` (Rs 50). The docstring marks the conventions confirmed.
+  - **`eval/agent_metrics.py`:** the docstring's "to confirm" line now reads "confirmed" (Raj's file; that line only).
+  - **`CLAUDE.md`:** the agent evaluation commands show `--budget 50` and the Rs 450 default.
+  - **`tests/test_leak_scan.py`:** `test_prompts_are_plain_python_templates` refused the word "langchain" anywhere in a prompt file, so Raj's docstring ("Plain Python, no LangChain") failed it, and CI was red on 636d1dc. It now refuses only `import`/`from` lines naming langchain, which catches both import forms and passes prose.
+- **Tests:**
+  - A new test that the evaluation run defaults to its Rs 450 cap.
+  - `tests/test_agent_metrics.py` and `tests/test_agent_table.py`: 52 passed against Raj's metrics, the table step end to end included.
+  - **`pytest -q`:** 1793 passed, 4 deselected.
+- **Unsure about:** nothing new.
+- **Decisions needed:** none.
+- **Next (Raj):** on a clean tree, run `python -m eval.agent_table --dry-run --library-as-of 2026-10-05T00:00:00+00:00`. It reads dev data only and spends nothing. Paste its counts and projection. The tuning run (`--tuning --budget 50`) comes after.

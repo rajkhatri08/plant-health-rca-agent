@@ -208,3 +208,10 @@ def test_the_table_from_a_complete_run(env, tmp_path):
         assert set(results[st]["agent"]) == {"0", "1"} and "keep" in results[st]["keep_rule"]
         assert set(results[st]["paired"]) == {"0", "1"}
     assert (env["tables"]).glob("*_agent_table.md")
+
+
+def test_the_evaluation_run_defaults_to_its_rs_450_cap(env, tmp_path):
+    # Decision 77: Rs 50 for tuning (given explicitly) and Rs 450 for the evaluation run.
+    assert at.DEFAULT_BUDGETS == {"evaluation": 450}
+    (m, record), _ = go(env, "evaluation", client=fake_client(tmp_path), prompt_hash="test")
+    assert json.loads(record.read_text())["config"]["budget_inr"] == 450

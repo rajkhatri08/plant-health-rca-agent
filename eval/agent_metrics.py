@@ -27,7 +27,7 @@ Scoring, from decisions 75 and 77 (B1, B2):
 - For the keep rule only, "unknowns declined" is the loo cases alone, and failed_check and
   error there count as not declined.
 
-Conventions (Claude's, to confirm before any paid run):
+Conventions (confirmed by Raj, 4 October 2026; decision 77):
 - The agent's ranking for top-3: the proposed entry first, then the matcher's blocks with
   that entry removed. A case that isn't proposed has no ranking and is declined.
 - Confidence check: over rows with a valid LLM output (outcome declined, not_in_library or

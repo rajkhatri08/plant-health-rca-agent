@@ -60,7 +60,8 @@ def test_prompts_are_plain_python_templates():
     for p in sorted(PROMPTS.rglob("*.py")):
         mods = imported_top_modules(p.read_text())
         assert not {"eval", "ingest", "dataset", "langchain", "langchain_core"} & mods, p.name
-        assert "langchain" not in p.read_text().lower(), p.name
+        # imports only: prose may say "no LangChain"
+        assert not re.search(r"^\s*(?:from|import)\s+langchain", p.read_text(), re.MULTILINE), p.name
 
 
 def test_the_scan_would_catch_a_leak_in_a_prompt(tmp_path, monkeypatch):

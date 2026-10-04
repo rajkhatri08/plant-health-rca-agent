@@ -36,7 +36,8 @@ Confirm these before the protocol commit.
 | Agent candidates | the matcher's top k = 2, extended to the whole tied block when rank k falls inside one; shown in entry-ref order (decision 75) |
 | Agent LLM call | only when the matcher would propose; otherwise a decline with no call (decision 75) |
 | Dev agent subsets | evaluation: 10 dev run numbers per known fault (seed 20261004), plus every false-alert and leave-one-out case; tuning: 3 per known fault (seed 20261005), disjoint (decision 77) |
-| LLM budgets | dev evaluation Rs 500 (hard cap per run); Rs 500 reserved for the test run; safety set within Rs 100 (decisions 76, 78) |
+| LLM budgets | dev Rs 500 in all: tuning run Rs 50 and evaluation run Rs 450, each a hard cap per run; Rs 500 reserved for the test run; safety set within Rs 100 (decisions 76, 77, 78) |
+| Agent dev metrics (decision 77) | one run-number draw for every fault; thresholds and k re-derived on the evaluated library by the pre-registered rules; the agent's top-3 is its pick, then the matcher's blocks without it; the confidence check over valid outputs; misses labelled gate, retrieval or reasoning; agreement over (outcome, entry); the paired bootstrap per repeat |
 
 ## Data and splits
 Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence in the data manifest). Split whole runs, never samples. Fit all preprocessing on the fit pool. Skip each run's warm-up samples; windows never cross run boundaries. The onset offset is fixed within each split: 1 h into training runs, 8 h into testing runs. The last pre-fault sample is 20 in training runs and 160 in testing runs; the fault starts between that sample and the next.

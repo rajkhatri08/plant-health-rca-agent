@@ -726,7 +726,7 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
     - **Cache key:** the SHA-256 of the model ID, the settings, the schema version, the prompt text and the repeat index.
     - **Repeats:** 5 for the evaluation subset; 1 for tuning and for the LLM-only diagnostic.
     - **Budget:**
-      - A hard cap per run, in rupees (dev evaluation Rs 500).
+      - A hard cap per run, in rupees (dev evaluation Rs 500). *Split by Raj on 4 October 2026 (decision 77):* tuning Rs 50 and evaluation Rs 450, within the Rs 500.
       - Before each call the worst case (input tokens plus max output tokens) is checked.
       - If that would cross the cap, the run stops and writes a run record marked incomplete, with no table.
     - **API errors:**
@@ -775,6 +775,15 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
       - latency and cost per diagnosis
       - the paired bootstrap of the top-1 difference (agent minus matcher) by run number, seed 20261001
     - **The LLM-only diagnostic** (all entries in force, no matcher) runs only if the remaining dev budget covers its projected cost. It's a diagnostic, never a shipping candidate.
+    - **The driver's conventions (confirmed by Raj, 4 October 2026, week 6 S6, before any paid run):**
+      - **One run-number draw for every fault:** the same evaluation and tuning run numbers across faults, so the run-number bootstrap stays paired (decision 49). An undetected run in the draw has no case, and the draw isn't topped up.
+      - **Thresholds and k** are re-derived by the pre-registered rules (decisions 69, 72; PROTOCOL top-k) on all dev known-fault cases, with the library at the run's library_as_of (`mixed-feed-temperature-wander` at r2). Both the week 5 values and the re-derived ones are in the records.
+      - **The agent's top-3:** the proposed entry first, then the matcher's blocks with that entry removed. A case that isn't proposed has no ranking.
+      - **The confidence check** is over rows with a valid LLM output (declined, not_in_library, proposed).
+      - **Miss labels,** over known cases not answered correctly: gate (the matcher declined), retrieval (the right entry wasn't a candidate), reasoning (otherwise).
+      - **Agreement across repeats** compares (outcome, entry).
+      - **The paired bootstrap** of the top-1 difference is reported per repeat, each with a fresh generator at seed 20261001.
+    - **The dev budget split (Raj, 4 October 2026):** of the Rs 500 dev budget, the tuning run's cap is Rs 50 and the evaluation run's is Rs 450. Each is a hard cap per run (decision 76).
 
     *Why:*
     - The 10-run subsample mirrors PROTOCOL's test headline and fits the budget.

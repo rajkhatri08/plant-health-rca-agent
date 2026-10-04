@@ -4,7 +4,7 @@ measurement). Builder side: it reads labels and run numbers.
     python -m eval.agent_table --dry-run      --library-as-of 2026-10-05T00:00:00+00:00
     python -m eval.agent_table --project-cost --library-as-of …
     python -m eval.agent_table --tuning       --library-as-of … --budget 50
-    python -m eval.agent_table --evaluation   --library-as-of … --prompt-sha256 <hash> [--budget 500]
+    python -m eval.agent_table --evaluation   --library-as-of … --prompt-sha256 <hash> [--budget 450]
     python -m eval.agent_table --table eval/runs/<stamp>_agent_run.json
 
 One scoring engine (decision 19): cases come from eval/cases.py unchanged, and every
@@ -49,7 +49,7 @@ Modes:
                  confidence, agreement, misses, the not_in_library secondary, latency and
                  cost. Writes an agent_table record and a Markdown table under data/tables/.
 
-Conventions (Claude's, to confirm before a paid run):
+Conventions (confirmed by Raj, 4 October 2026; decision 77):
 - One subset draw for every fault: the same run numbers across faults, which keeps the
   run-number bootstrap paired across faults (decision 49). Undetected runs in the draw have
   no case (decision 70); the subset isn't topped up.
@@ -99,6 +99,7 @@ DEFAULT_BUNDLE = bundle_mod.DEFAULT_BUNDLE.parent / "pca_v3"
 DEFAULT_OUT = run_record.REPO_ROOT / "data" / "agent_runs"
 PROMPTS = run_record.REPO_ROOT / "app" / "agent" / "prompts"
 CHARS_PER_TOKEN = 4
+DEFAULT_BUDGETS = {"evaluation": 450}       # Rs; tuning's Rs 50 is given explicitly (decision 77)
 EXPECTED_OUTPUT_TOKENS = 300
 DRY_ANSWER = json.dumps({"decision": "decline", "entry_ref": None, "family": None, "confidence": "low",
                          "cited_evidence": [], "action_ids": [], "rationale": "dry run"})
@@ -366,7 +367,7 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     paid = mode in ("tuning", "evaluation")
     if paid:
-        budget = budget if budget is not None else (500 if mode == "evaluation" else None)
+        budget = budget if budget is not None else DEFAULT_BUDGETS.get(mode)
         if budget is None:
             raise AgentTableError("--tuning needs --budget (rupees)")
         render = render or load_render()
