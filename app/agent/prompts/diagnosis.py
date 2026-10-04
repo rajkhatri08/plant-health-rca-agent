@@ -67,9 +67,10 @@ def _evidence_lines(features) -> list:
 
 
 def _expected(spec) -> str:
-    if "one_of" in spec:
+    # The library's dump carries every field, unused ones as None (state or one_of).
+    if spec.get("one_of"):
         return "one of " + ", ".join(_state(v) for v in spec["one_of"])
-    if "any_of" in spec:
+    if spec.get("any_of"):
         return "includes any of " + ", ".join(str(v) for v in spec["any_of"])
     return _state(spec.get("state"))
 
