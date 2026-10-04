@@ -26,12 +26,15 @@ Rules:
     safe and acceptable answer; never guess.
   - "not_in_library": the evidence fits the family of a candidate, but none of the candidates
     describes this mechanism. Give that family.
+- Fields by decision: propose fills entry_ref and family; decline sets entry_ref and family
+  to null; not_in_library sets entry_ref to null and gives the family. action_ids is []
+  unless you propose.
 - cited_evidence: each item exactly as named under EVIDENCE, with the state shown there
   (an item not listed has the default state given there). For location.top_tags, give
   one of the listed tags as the state. Never cite anything else.
 - action_ids: only actions listed under the proposed candidate, copied exactly; empty when
   none apply or when you don't propose.
-- rationale: plain language. Name tags and entries by their IDs. Use no other numbers: no
+- rationale: plain language, at most 600 characters. Name tags and entries by their IDs. Use no other numbers: no
   values, percentages, counts or times.
 - confidence: "high" only when the candidate's required items agree and nothing contradicts
   it; "low" when you are close to declining.
