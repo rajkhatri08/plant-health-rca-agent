@@ -61,6 +61,34 @@ def add_watch(folder, p=99.0):
     return folder
 
 
+SHA_D = "d" * 64
+
+
+def add_normals(folder, band=(0.5, 99.5)):
+    """Give a make_bundle + add_watch folder a normals.json (a pca_v3-style bundle). Each
+    register tag's band is its central 99% over other normal runs after warm-up, the same
+    form as eval/evidence_normals.py; analyzers are read as stored (here unheld noise)."""
+    from app.detector import bundle as bm
+    from dataset.convert import VARIABLES
+    from ingest import tags as tagmap
+    lim = bm.load(folder).limits
+    tags = [r["tag"] for r in tagmap.register()]
+    cols = tagmap.column_indices(VARIABLES, tags)
+    runs = two_factor_runs(numbers=range(60, 70), samples=120, seed=33)
+    X = np.vstack([runs.runs[k][lim["warmup"]:, cols] for k in sorted(runs.runs)]).astype(np.float64)
+    lo, hi = np.percentile(X, band[0], axis=0), np.percentile(X, band[1], axis=0)
+    doc = {"pool": "calibration", "runs": 10, "warmup": lim["warmup"], "band": list(band),
+           "tags": {t: [float(a), float(b)] for t, a, b in zip(tags, lo, hi)},
+           "normals_record_sha256": SHA_D}
+    (folder / "normals.json").write_text(json.dumps(doc))
+    return folder
+
+
+def edit_normals(folder, **changes):
+    path = folder / "normals.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), **changes}))
+
+
 def edit_watch(folder, **changes):
     path = folder / "watch.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), **changes}))

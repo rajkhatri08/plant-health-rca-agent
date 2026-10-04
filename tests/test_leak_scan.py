@@ -50,6 +50,29 @@ def test_served_text_is_clean():
     assert scan(SERVED, PATTERNS, TEXT_SUFFIXES) == []
 
 
+def test_one_definition_shared_by_eval_and_app():
+    import eval.leak_scan as ev
+    import shared.leak_scan as sh
+    assert ev.find_leaks is sh.find_leaks and ev.PATTERNS is sh.PATTERNS and ev.check is sh.check
+
+
+def test_shared_module_sits_outside_app_and_imports_nothing_of_ours():
+    # The patterns spell raw names, so they can't live in app/ (CLAUDE.md); and the module
+    # must not pull eval/, ingest/, dataset/ or app/ into whoever imports it.
+    from tests.test_walls import imported_top_modules
+    src = (REPO / "shared" / "leak_scan.py").read_text()
+    assert imported_top_modules(src) <= {"re"}
+    assert not (REPO / "app" / "leak_scan.py").exists()
+
+
+def test_check_passes_clean_text_and_withholds_a_leak():
+    from shared.leak_scan import LeakError, check
+    assert check("RX-PI-202 low; loop CP-FIC-501 compensating", "a tool") == \
+        "RX-PI-202 low; loop CP-FIC-501 compensating"
+    with pytest.raises(LeakError, match=r"evidence would leak \['fault 4'\]"):
+        check("looks like fault 4", "evidence")
+
+
 @pytest.mark.parametrize("text", [
     "Check for shutdowns and breakdowns.", "Output has its ups and downs.",
     "Reactant-1 feed flow", "Purge gas composition, inert", "The component was replaced.",

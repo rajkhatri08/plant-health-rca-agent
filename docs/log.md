@@ -2595,3 +2595,73 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Not Claude's:** `eval/baselines/alarms.py` still has the IDE's one-line change. Left alone.
 - **Decisions needed:** the two points above, by S8 at the latest.
 - **Next:** S2, the runtime prerequisites (pca_v3, analyzers in the replay, the as-of tools, the runtime leak scan).
+
+### 2026-10-04: week 6 session 2, runtime prerequisites (code only; no build or export run)
+- **Changed:** everything here is scaffolding under CLAUDE.md (bundle, loader and export plumbing, the tools' wiring, the leak-scan module), so there are no stubs for Raj. The tools call his RBC and the existing feature code unchanged.
+  - **Bundle pca_v3** (`app/detector/bundle.py`, `eval/build_bundle.py --normals`):
+    - pca_v2 plus `normals.json`: the evidence normals file plus its evidence_normals record's SHA-256.
+    - pca_v2's `watch.json` already holds the Watch tag boundaries (W_i), so nothing else is added.
+    - The self-test refuses normals.json when:
+      - a key is missing
+      - it comes without watch.json
+      - a record SHA isn't a SHA-256
+      - the pool isn't calibration
+      - a band is missing, out of register order, non-finite or has lo ≥ hi
+      - features can't build their plant view from the model's tags
+    - `--normals` needs `--watch`, and with both the default output is `app/bundles/pca_v3`. `bundle.DEFAULT_BUNDLE` stays pca_v2, so building v3 changes nothing served.
+  - **The replay export with analyzers** (`ingest/export_replay.py`):
+    - It writes new files, `app/replay/run_v2.csv` and `eval/replay_source_v2.yaml`. The served `run.csv` and its source record are untouched, so the live demo works at every commit.
+    - Each sample has its 33 fast-tag rows, then a row for each analyzer that published at that sample.
+    - Publications come from the stored held series through `eval/cases.publications_from_held`, the function the evaluation's features use, so an off-schedule series is refused before anything is written.
+    - The source record adds the analyzer and row counts.
+    - `replay.read_csv` skips tags it isn't asked for, so the API reads the new file exactly like the old one (tested). The switch to it is S9's.
+  - **`app/detector/replay.read_publications`:** reads the analyzers' rows as `{tag: ((ts, value), ...)}`. A value that isn't good quality becomes NaN, a repeated (ts, tag) is refused, and nothing is held or interpolated here.
+  - **`app/agent/tools.py`:**
+    - **`Tools(bundle, library, histories)`:** refuses a bundle without Watch boundaries and normals.
+    - **`evidence(history_id, notified_at, as_of)`:**
+      - The stream is cut at as_of first: fast samples with ts ≤ as_of, and analyzer values published at or before as_of.
+      - RBC is computed only on the n triggering samples (row by row, so it's identical to the whole-run computation and never scores a gap outside the window).
+      - Then `features.extract` runs on the cut stream.
+      - The output is `{notified_at, as_of, features}`, with states only.
+    - **`retrieve(entry_ids, as_of)`:** `store.agent_view` for entries in force at as_of, in the order asked and each once, plus a `not_in_force` list.
+    - **Both outputs** go through the leak scan, and a leak withholds the whole output.
+    - **`load_history(csv, bundle)`:** reads a History from an exported CSV.
+  - **`shared/leak_scan.py` (new top-level package):**
+    - The leak scan's one definition, plus `LeakError` and `check()`.
+    - It isn't in `app/` because its patterns spell the benchmark's name and the raw tag prefixes, which CLAUDE.md bans from `app/` (and `test_app_has_no_raw_names` would fail).
+    - `eval/leak_scan.py` re-exports it, so `eval/approve_entry.py` and the tests are unchanged.
+  - **`requirements-app.txt`:** `langgraph` and `langgraph-checkpoint-sqlite` plus their 30 runtime dependencies, each pin equal to `requirements.txt`'s, and closed under dependencies (checked by test).
+  - **`CLAUDE.md`:** `shared/` in the repo layout; the bundle and export commands updated.
+- **Tests:**
+  - **New:** `tests/test_agent_tools.py`, 27 tests.
+    - The +30 min pass can't see +60 min data: with every value after +30 min set to NaN, the +30 answer is identical, while the +60 pass on that stream fails, so the data were there and weren't read.
+    - The same holds with finite changes, and for analyzer values published after as_of.
+    - Parity: the tool's features equal `eval/cases._features_at` on the whole run, at +30 and +60.
+    - The evidence holds states only.
+    - The refusals, an equivalent time zone, and leak withholding for both tools.
+    - The readers.
+    - Retrieval: r1 before and r2 after `mixed-feed-temperature-wander`'s r2 approval; nothing before any approval; no sources; order and each once; all 12 entries clean.
+    - The walls.
+  - **Bundles:** the pca_v3 self-test (pass, 12 refusals, needs Watch, `bands()`, served bundle still pca_v2) and the build (v3 = v2 plus normals.json with its record, refused without the record or without `--watch`, CLI defaults).
+  - **Export:** rewritten for the second export (layout per sample, analyzers only at their publications, float32 round-trip, `read_csv` still sees only the fast tags, source record, off-schedule refused before writing, never overwrites).
+  - **Leak scan:** one definition, the module outside `app/` importing nothing of ours, `check()`.
+  - **Requirements:**
+    - `httpx` comes off the "nothing extra" list, since langgraph-sdk and langsmith need it at runtime. That list now also checks that no LLM SDK is deployed.
+    - The graph's packages are deployed.
+    - `shared` counts as ours, not pip's.
+  - **`pytest -q`:** 1518 passed, 4 deselected (1462 before). `pytest -q spikes/langgraph`: 23 passed.
+- **The idea (for Raj):**
+  - **Why the cut comes first:** "as of" isn't a filter applied to the answer. It's a cut applied to the data before anything is computed. If the tool computed features on the whole stream and then dropped the revised reading, any statistic that touches later samples could still leak the future into the +30 min answer. Cutting first makes that impossible by construction, and the NaN test proves it: poisoned future data can't change an answer that never read them.
+  - **Why the window-only RBC:** RBC is row by row, so scoring only the n triggering samples gives the same numbers as scoring the run, without touching anything else.
+- **Unsure about:**
+  - **`history_id` vs LEAKAGE's wording:** LEAKAGE says "`history_id` is the work-order history key, not a sensor run ID". The tool uses it to select the episode's historian stream. It's opaque and never a run number, but the wording should say what it now keys.
+  - **The evidence signature:** your spec was `evidence(history_id, as_of)`. It also takes `notified_at`, because the location and each reading's window start at the notification (decisions 65, 68). All three come from graph state.
+  - **The deploy grows:** about 32 more packages on Render (langgraph, langsmith, httpx and others). Tracing stays off; the S5 harness refuses to run with tracing on, as the spike's did.
+  - **Not Claude's:** `eval/baselines/alarms.py` still has the IDE's one-line change. Left alone.
+- **Decisions needed:**
+  - **LEAKAGE wording for `history_id`:** "the episode's opaque history key: its historian stream, and its work orders when built".
+  - **The two S1 points** (unsafe-work preconditions, repeats in "identical to the clean case"), by S8.
+- **Next (Raj):**
+  - Build pca_v3: `python -m eval.build_bundle --watch data/models/pca_static_watch.json --normals data/models/evidence_normals.json`
+  - Export the stream with analyzers: `python -m ingest.export_replay`
+  - Commit both. A committed-artifacts test for pca_v3 and `run_v2.csv`, like `tests/test_thin_slice_artifacts.py`, comes once they exist.

@@ -39,7 +39,15 @@ def app_third_party_imports():
                 tops |= {a.name.split(".")[0] for a in node.names}
             elif isinstance(node, ast.ImportFrom) and not node.level:
                 tops.add(node.module.split(".")[0])
-    return {t for t in tops if t not in sys.stdlib_module_names and t != "app"}
+    # Our own top-level packages ship with the repo, not through pip: app/, and shared/
+    # (the leak scan app/ and eval/ both use, week 6 S2).
+    return {t for t in tops if t not in sys.stdlib_module_names and t not in ("app", "shared")}
+
+
+def test_app_imports_only_our_shared_package_from_the_repo():
+    # app/ may import shared/, never eval/, ingest/ or dataset/ (tests/test_walls.py); and
+    # shared/ is a folder in the repo that Render deploys with the code.
+    assert (REPO / "shared" / "__init__.py").is_file()
 
 
 def test_everything_app_imports_is_installed_by_the_deploy():
@@ -65,8 +73,16 @@ def test_the_list_is_closed_under_dependencies():
 
 
 def test_nothing_extra_is_deployed():
-    # No data or test tooling on the server.
-    assert not {"pandas", "pyarrow", "pyreadr", "pytest", "matplotlib", "httpx"} & set(APP)
+    # No data or test tooling on the server. httpx was listed here as test tooling (the
+    # TestClient) until week 6: langgraph-sdk and langsmith need it at runtime now.
+    assert not {"pandas", "pyarrow", "pyreadr", "pytest", "matplotlib"} & set(APP)
+    # No LLM SDK on the server: the public demo makes no live calls (decision 76).
+    assert not {"google-genai", "python-dotenv", "langchain-google-genai"} & set(APP)
+
+
+def test_the_diagnosis_graph_is_deployed():
+    # Week 6 S2: the agent's graph runs in app/ (decision 74).
+    assert {"langgraph", "langgraph-checkpoint-sqlite"} <= set(APP)
 
 
 def test_render_blueprint():

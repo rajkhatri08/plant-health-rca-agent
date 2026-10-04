@@ -176,3 +176,73 @@ def test_watch_groups_must_match_the_register(v2, tmp_path):
     path.write_text(yaml.safe_dump(reg))
     with pytest.raises(bm.BundleError, match="group"):
         bm.self_test(bm.load(v2), register=path)
+
+
+# ---------- normals.json (pca_v3, decisions 62, 68; week 6 S2) ----------
+
+from tests.replay_helpers import add_normals, edit_normals  # noqa: E402
+
+
+@pytest.fixture
+def v3(tmp_path):
+    return add_normals(add_watch(make_bundle(tmp_path / "pca_v3")))
+
+
+def test_v3_bundle_passes_and_carries_normals(v3):
+    b = bm.load(v3)
+    assert b.normals is not None and len(b.normals["tags"]) == 52
+    assert bm.self_test(b) is True
+    bands = b.bands()
+    assert list(bands) == [r for r in b.normals["tags"]] and all(lo < hi for lo, hi in bands.values())
+
+
+def test_v2_has_no_normals_and_says_so(v2):
+    b = bm.load(v2)
+    assert b.normals is None
+    with pytest.raises(bm.BundleError, match="no evidence normals"):
+        b.bands()
+
+
+def _first(n):
+    return next(iter(n["tags"]))
+
+
+@pytest.mark.parametrize("edit", [
+    lambda n: {"normals_record_sha256": "not-a-sha"},
+    lambda n: {"pool": "dev"},                                           # normals come from calibration
+    lambda n: {"warmup": -1}, lambda n: {"warmup": 9.0},
+    lambda n: {"tags": dict(list(n["tags"].items())[1:])},               # a tag missing
+    lambda n: {"tags": dict(reversed(list(n["tags"].items())))},         # register order
+    lambda n: {"tags": {**n["tags"], _first(n): [1.0, 1.0]}},            # lo == hi
+    lambda n: {"tags": {**n["tags"], _first(n): [2.0, 1.0]}},            # lo > hi
+    lambda n: {"tags": {**n["tags"], _first(n): [0.0, float("inf")]}},
+    lambda n: {"tags": {**n["tags"], _first(n): [0.0]}},
+    lambda n: {"tags": {**n["tags"], _first(n): [True, 2.0]}},
+    lambda n: {"tags": {**n["tags"], "XX-TI-999": [0.0, 1.0]}},          # not a register tag
+])
+def test_bad_normals_are_refused(v3, edit):
+    import json
+    edit_normals(v3, **edit(json.loads((v3 / "normals.json").read_text())))
+    with pytest.raises(bm.BundleError, match="normals"):
+        bm.self_test(bm.load(v3))
+
+
+def test_normals_key_missing_is_refused(v3):
+    import json
+    path = v3 / "normals.json"
+    n = json.loads(path.read_text())
+    del n["band"]
+    path.write_text(json.dumps(n))
+    with pytest.raises(bm.BundleError, match="lacks"):
+        bm.self_test(bm.load(v3))
+
+
+def test_normals_need_watch(v3):
+    (v3 / "watch.json").unlink()
+    with pytest.raises(bm.BundleError, match="needs watch.json"):
+        bm.self_test(bm.load(v3))
+
+
+def test_served_bundle_is_still_pca_v2():
+    # pca_v3 is built alongside; Raj switches the served bundle (week 6 S2).
+    assert bm.DEFAULT_BUNDLE.name == "pca_v2"

@@ -1,4 +1,7 @@
-"""ingest/export_replay.py on synthetic runs (never data/)."""
+"""ingest/export_replay.py on synthetic runs (never data/).
+
+The second export (week 6 S2) adds the 19 analyzers, each at its publication time only.
+The synthetic runs hold every analyzer on its register schedule, as the stored data does."""
 
 import csv
 import hashlib
@@ -8,20 +11,39 @@ import pytest
 import yaml
 
 import dataset.loader as loader_mod
+from app.detector import replay
 from dataset import splits
 from dataset.convert import VARIABLES
 from dataset.loader import Runs
+from eval import cases
 from ingest import export_replay as ex
+from ingest import tags as tagmap
+from tests.test_authoring import ANALYZERS, INTERVAL, hold
 from tests.test_fit_pca import FAST, two_factor_runs
 from tests.test_leak_scan import find_leaks
 
 DEV = [44, 7, 301]
+SAMPLES = 30
+
+
+def held_runs(numbers=DEV, samples=SAMPLES, seed=0):
+    runs = two_factor_runs(numbers=numbers, samples=samples, seed=seed)
+    an = dict(zip(ANALYZERS, tagmap.column_indices(VARIABLES, ANALYZERS)))
+    for x in runs.runs.values():
+        for t, c in an.items():
+            x[:, c] = hold(x[:, c], INTERVAL[t])
+    return runs
+
+
+def expected_publications(x):
+    an = dict(zip(ANALYZERS, tagmap.column_indices(VARIABLES, ANALYZERS)))
+    return {t: cases.publications_from_held(x[:, c], INTERVAL[t]) for t, c in an.items()}
 
 
 @pytest.fixture
 def fake(tmp_path, monkeypatch, git_repo):
     calls = []
-    runs = two_factor_runs(numbers=DEV, samples=30)
+    runs = held_runs()
 
     def load_faulty(fault, pool):
         calls.append((fault, pool))
@@ -29,13 +51,26 @@ def fake(tmp_path, monkeypatch, git_repo):
 
     monkeypatch.setattr(loader_mod, "load_faulty", load_faulty)
     monkeypatch.setattr(splits, "load", lambda repo_root=None: {"pools": {"dev": DEV}})
-    return {"csv": git_repo / "app" / "replay" / "run.csv",
-            "source": git_repo / "eval" / "replay_source.yaml",
+    return {"csv": git_repo / "app" / "replay" / "run_v2.csv",
+            "source": git_repo / "eval" / "replay_source_v2.yaml",
             "repo": git_repo, "runs": runs, "calls": calls}
 
 
 def export(f):
     return ex.run(f["csv"], f["source"], repo_root=f["repo"])
+
+
+def body(f):
+    with open(f["csv"], newline="") as fh:
+        rows = list(csv.reader(fh))
+    assert rows[0] == ["ts", "tag", "value", "quality"]
+    return rows[1:]
+
+
+def test_defaults_are_new_files_so_the_served_stream_is_untouched():
+    assert ex.DEFAULT_CSV.name == "run_v2.csv" and ex.DEFAULT_SOURCE.name == "replay_source_v2.yaml"
+    from app import api
+    assert api.DEFAULT_CSV.name == "run.csv"                         # the live demo's file until S9
 
 
 def test_mechanical_choice_is_fault_13_on_the_lowest_dev_number(fake):
@@ -44,45 +79,86 @@ def test_mechanical_choice_is_fault_13_on_the_lowest_dev_number(fake):
     assert doc["fault"] == 13 and doc["run"] == 7 and doc["pool"] == "dev"
 
 
-def test_csv_is_historian_rows_with_plant_names(fake):
+def test_each_sample_has_the_fast_tags_then_the_analyzers_that_published(fake):
     export(fake)
-    with open(fake["csv"], newline="") as f:
-        rows = list(csv.reader(f))
-    assert rows[0] == ["ts", "tag", "value", "quality"]
-    body = rows[1:]
-    assert len(body) == 30 * 33
-    assert [r[1] for r in body[:33]] == FAST                        # register order
-    assert body[0][0] == "2026-01-05T06:00:00Z" and body[33][0] == "2026-01-05T06:03:00Z"
-    assert {r[3] for r in body} == {"good"}
+    rows = body(fake)
+    pubs = expected_publications(fake["runs"].runs[7])
+    at = {}
+    for t, items in pubs.items():
+        for s, _ in items:
+            at.setdefault(s, []).append(t)
+    i = 0
+    for s in range(1, SAMPLES + 1):
+        ts = (ex.START + (s - 1) * ex.STEP).strftime(ex.TS_FORMAT)
+        block = rows[i:i + 33 + len(at.get(s, []))]
+        assert {r[0] for r in block} == {ts}
+        assert [r[1] for r in block] == FAST + at.get(s, [])          # register order in each part
+        i += len(block)
+    assert i == len(rows)
+    assert {r[3] for r in rows} == {"good"}
+
+
+def test_an_analyzer_appears_only_at_its_publications(fake):
+    export(fake)
+    rows = body(fake)
+    pubs = expected_publications(fake["runs"].runs[7])
+    for t in ANALYZERS:
+        seen = [(r[0], float(r[2])) for r in rows if r[1] == t]
+        want = [((ex.START + (s - 1) * ex.STEP).strftime(ex.TS_FORMAT), v) for s, v in pubs[t]]
+        assert seen == want
+        assert len(seen) < SAMPLES                                    # not one row per sample
 
 
 def test_values_round_trip_float32_exactly(fake):
     export(fake)
-    with open(fake["csv"], newline="") as f:
-        body = list(csv.reader(f))[1:]
-    from ingest import tags as tagmap
+    rows = body(fake)
     cols = tagmap.column_indices(VARIABLES, FAST)
     x = fake["runs"].runs[7]
-    got = np.array([float(r[2]) for r in body]).reshape(30, 33)
+    got = np.array([float(r[2]) for r in rows if r[1] in FAST]).reshape(SAMPLES, 33)
     assert np.array_equal(got, x[:, cols].astype(np.float64))
     assert np.array_equal(got.astype(np.float32), x[:, cols])
+    an = dict(zip(ANALYZERS, tagmap.column_indices(VARIABLES, ANALYZERS)))
+    for r in rows:
+        if r[1] in an:
+            assert np.float32(float(r[2])) in x[:, an[r[1]]]
+
+
+def test_the_replay_reader_still_sees_only_the_fast_tags(fake):
+    # The live API reads with replay.read_csv(model tags): analyzer rows are skipped, so the
+    # new file scores exactly like the 33-tag one.
+    export(fake)
+    s = replay.read_csv(fake["csv"], FAST)
+    cols = tagmap.column_indices(VARIABLES, FAST)
+    assert len(s.ts) == SAMPLES and np.array_equal(s.values, fake["runs"].runs[7][:, cols].astype(np.float64))
 
 
 def test_csv_reveals_neither_the_fault_nor_the_run(fake):
     export(fake)
     text = fake["csv"].read_text()
     assert find_leaks(text) == []
-    header = text.splitlines()[0]
-    assert header == "ts,tag,value,quality"
+    assert text.splitlines()[0] == "ts,tag,value,quality"
 
 
 def test_source_is_builder_side_and_pins_the_csv(fake):
     export(fake)
     doc = yaml.safe_load(fake["source"].read_text())
-    assert doc["csv"] == "app/replay/run.csv"
+    n_an = sum(len(v) for v in expected_publications(fake["runs"].runs[7]).values())
+    assert doc["csv"] == "app/replay/run_v2.csv"
     assert doc["csv_sha256"] == hashlib.sha256(fake["csv"].read_bytes()).hexdigest()
-    assert doc["rows"] == 990 and doc["samples"] == 30 and doc["tags"] == 33
+    assert doc["samples"] == SAMPLES and doc["tags"] == 33 and doc["analyzers"] == 19
+    assert doc["fast_rows"] == SAMPLES * 33 and doc["analyzer_rows"] == n_an
+    assert doc["rows"] == SAMPLES * 33 + n_an
     assert len(doc["commit"]) == 40 and doc["dirty"] is False
+    assert fake["source"].read_text().startswith("# Builder side only: which run app/replay/run_v2.csv")
+
+
+def test_an_off_schedule_analyzer_is_refused_before_writing(fake):
+    x = fake["runs"].runs[7]
+    c = tagmap.column_indices(VARIABLES, [ANALYZERS[0]])[0]
+    x[:, c] = np.arange(SAMPLES, dtype=np.float32)                   # changes every sample
+    with pytest.raises(cases.CasesError, match="off the"):
+        export(fake)
+    assert not fake["csv"].exists() and not fake["source"].exists()
 
 
 @pytest.mark.parametrize("which", ["csv", "source"])

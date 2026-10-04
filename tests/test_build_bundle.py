@@ -125,9 +125,61 @@ def test_v2_refuses_a_watch_file_for_other_limits(watched, tmp_path):
 
 def test_main_defaults_to_v2_with_watch(monkeypatch):
     seen = {}
-    monkeypatch.setattr(build_bundle, "run", lambda m, l, out, watch=None: seen.update(out=out, watch=watch))
+    monkeypatch.setattr(build_bundle, "run", lambda m, l, out, watch=None, normals=None:
+                        seen.update(out=out, watch=watch, normals=normals))
     assert build_bundle.main(["--watch", "w.json"]) == 0
     assert seen["out"] == build_bundle.DEFAULT_V2 and str(seen["watch"]) == "w.json"
     assert build_bundle.main([]) == 0
     assert seen["out"] == build_bundle.DEFAULT_V1 and seen["watch"] is None
+    assert build_bundle.main(["--watch", "w.json", "--normals", "n.json"]) == 0
+    assert seen["out"] == build_bundle.DEFAULT_V3 and str(seen["normals"]) == "n.json"
     assert build_bundle.DEFAULT_V1.name == "pca_v1" and build_bundle.DEFAULT_V2.name == "pca_v2"
+    assert build_bundle.DEFAULT_V3.name == "pca_v3"
+
+
+# ---------- pca_v3: with --watch and --normals ----------
+
+from eval import evidence_normals  # noqa: E402
+
+
+@pytest.fixture
+def normalled(watched, monkeypatch):
+    # The calibration fixture's loader serves the calibration pool; evidence_normals reads
+    # it and writes its own record into the fixture repo.
+    from tests.test_approve_entry import commit
+    normals = watched["out"].parent / "normals.json"
+    evidence_normals.run(normals, repo_root=watched["repo"], allow_dirty=True)
+    commit(watched["repo"])
+    return {**watched, "normals": normals, "bundle": watched["repo"] / "app" / "bundles" / "pca_v3"}
+
+
+def build_v3(c):
+    return build_bundle.run(c["model_path"], c["out"], c["bundle"], watch=c["watch"],
+                            normals=c["normals"], repo_root=c["repo"])
+
+
+def test_v3_bundle_is_v2_plus_the_normals_file_and_its_record(normalled):
+    out = build_v3(normalled)
+    assert sorted(p.name for p in out.iterdir()) == ["limits.json", "model.npz", "normals.json", "watch.json"]
+    got = json.loads((out / "normals.json").read_text())
+    doc = json.loads(normalled["normals"].read_text())
+    (rec,) = (normalled["repo"] / "eval" / "runs").glob("*_evidence_normals.json")
+    assert got == {**doc, "normals_record_sha256": run_record.sha256(rec)}
+    b = bm.load(out)
+    assert b.normals == got and b.watch is not None and bm.self_test(b)
+    assert set(b.watch["tags"]) == set(b.model.tags)          # the Watch tag boundaries ride in watch.json
+
+
+def test_v3_refuses_normals_without_their_record(normalled):
+    doc = json.loads(normalled["normals"].read_text())
+    normalled["normals"].write_text(json.dumps({**doc, "runs": 1}))
+    with pytest.raises(evidence_normals.NormalsError, match="evidence_normals"):
+        build_v3(normalled)
+    assert not normalled["bundle"].exists()
+
+
+def test_v3_refuses_normals_without_watch(normalled):
+    with pytest.raises(ValueError, match="needs --watch"):
+        build_bundle.run(normalled["model_path"], normalled["out"], normalled["bundle"],
+                         normals=normalled["normals"], repo_root=normalled["repo"])
+    assert not normalled["bundle"].exists()

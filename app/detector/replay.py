@@ -92,6 +92,36 @@ def read_csv(path, tags):
     return Stream(ts=tuple(order), values=values, tags=tags)
 
 
+def read_publications(path, tags):
+    """{tag: ((ts, value), ...)} in time order for these tags (the analyzers), from a
+    historian CSV whose analyzer rows sit only at publication times. Nothing is held or
+    interpolated here; the caller holds the last value. A value whose quality isn't
+    "good", or that isn't finite, is kept as NaN: a gap must never read as normal. Same
+    refusals as read_csv."""
+    tags = tuple(tags)
+    out, seen = {t: [] for t in tags}, set()
+    with open(path, newline="") as f:
+        reader = csv.reader(f)
+        if next(reader, None) != HEADER:
+            raise ReplayError(f"historian CSV header must be {','.join(HEADER)}")
+        for line, row in enumerate(reader, start=2):
+            if len(row) != 4:
+                raise ReplayError(f"line {line}: expected 4 fields")
+            ts, tag, value, quality = row
+            t = parse_ts(ts)
+            if tag not in out:
+                continue
+            try:
+                v = float(value)
+            except ValueError:
+                raise ReplayError(f"line {line}: value isn't a number") from None
+            if (t, tag) in seen:
+                raise ReplayError(f"line {line}: {tag} appears twice at {ts}")
+            seen.add((t, tag))
+            out[tag].append((t, v if quality == GOOD and np.isfinite(v) else float("nan")))
+    return {t: tuple(sorted(items, key=lambda p: p[0])) for t, items in out.items()}
+
+
 def group_ratios(bundle, X):
     """RBC_g / W_g for every sample of X (samples x the model's tags), groups in the
     Watch file's order."""

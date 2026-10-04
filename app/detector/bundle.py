@@ -8,6 +8,12 @@ A bundle is a folder, e.g. app/bundles/pca_v1/, holding:
                percentile p, each group's tags and W_g, each tag's W_i, the model's
                SHA-256 and the SHA-256 of the calibrate_watch run record. Without it the
                bundle gives the thin slice's bands (Unknown, Alert, Normal).
+- normals.json (from pca_v3 on) the evidence normals (decisions 62, 68): every register
+               tag's normal band [lo, hi] on the calibration pool, in register order, with
+               the pool, warm-up and band, and the SHA-256 of the evidence_normals run
+               record. With watch.json it lets app/detector/features.py run in app/ (the
+               agent's evidence tool). It needs watch.json: the features' location is
+               ranked by RBC over the Watch boundaries.
 
 Runtime code: no imports from dataset/, eval/ or ingest/. The tag list is checked
 against the agent-visible register, library/tags.yaml.
@@ -25,6 +31,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from app.detector import features
 from app.detector import groups as groups_mod
 from app.detector import pca, rbc
 
@@ -36,6 +43,8 @@ LIMIT_KEYS = ("detector", "model_sha256", "warmup", "lags", "n", "gap", "q", "t2
               "fit_record_sha256", "calibration_record_sha256")
 WATCH_KEYS = ("detector", "model_sha256", "limits_sha256", "warmup", "p", "cap", "groups", "tags",
               "watch_record_sha256")
+NORMALS_KEYS = ("pool", "runs", "warmup", "band", "tags", "normals_record_sha256")
+NORMALS_POOL = "calibration"
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -50,6 +59,13 @@ class Bundle:
     limits: dict
     model_sha256: str
     watch: dict | None = None             # watch.json, when the bundle has Watch boundaries
+    normals: dict | None = None           # normals.json, when the bundle has evidence normals
+
+    def bands(self) -> dict:
+        """{tag: (lo, hi)} from normals.json, the form features.extract takes."""
+        if self.normals is None:
+            raise BundleError(f"bundle {self.name} has no evidence normals (pca_v3 on)")
+        return {t: (float(b[0]), float(b[1])) for t, b in self.normals["tags"].items()}
 
 
 def sha256(path):
@@ -68,11 +84,12 @@ def load(folder=DEFAULT_BUNDLE):
     for p in (model_path, limits_path):
         if not p.is_file():
             raise BundleError(f"bundle file missing: {p.name}")
-    watch_path = folder / "watch.json"
+    watch_path, normals_path = folder / "watch.json", folder / "normals.json"
     watch = json.loads(watch_path.read_text()) if watch_path.is_file() else None
+    normals = json.loads(normals_path.read_text()) if normals_path.is_file() else None
     return Bundle(name=folder.name, model=pca.load(model_path),
                   limits=json.loads(limits_path.read_text()), model_sha256=sha256(model_path),
-                  watch=watch)
+                  watch=watch, normals=normals)
 
 
 def _positive(v):
@@ -115,6 +132,39 @@ def _check_watch(bundle, register):
     at_mean = rbc.group_rbc(m, M, m.mean[None, :], list(table.values()))
     if not np.all(np.abs(at_mean) < 1e-9):
         raise BundleError("group RBC at the fit mean isn't 0")
+
+
+def _check_normals(bundle, register):
+    """The evidence normals fit the register and the model; raise BundleError if not."""
+    n = bundle.normals
+    missing = [k for k in NORMALS_KEYS if k not in n]
+    if missing:
+        raise BundleError(f"normals.json lacks {missing}")
+    if bundle.watch is None:
+        raise BundleError("normals.json needs watch.json: the features rank the location by RBC / W")
+    if not (isinstance(n["normals_record_sha256"], str) and _SHA.match(n["normals_record_sha256"])):
+        raise BundleError("normals.json normals_record_sha256 isn't a SHA-256")
+    if n["pool"] != NORMALS_POOL:
+        raise BundleError(f"normals.json must come from the {NORMALS_POOL} pool, not {n['pool']!r}")
+    # The protocol's warm-up skipped when pooling (eval/masked.WARMUP), not the detector's.
+    if isinstance(n["warmup"], bool) or not isinstance(n["warmup"], int) or n["warmup"] < 0:
+        raise BundleError("normals.json warmup must be a non-negative integer")
+    rows = yaml.safe_load(Path(register).read_text())["tags"]
+    if list(n["tags"]) != [r["tag"] for r in rows]:
+        raise BundleError("normals.json must give a band for every register tag, in register order")
+    for tag, b in n["tags"].items():
+        ok = (isinstance(b, list) and len(b) == 2
+              and all(isinstance(v, (int, float)) and not isinstance(v, bool) and np.isfinite(v) for v in b))
+        if not ok or not b[0] < b[1]:
+            raise BundleError(f"normals.json band for {tag} must be [lo, hi], finite, with lo < hi")
+    # Known answer: the features' plant view builds from the model's tags and the register,
+    # and every tag it reads has a band.
+    try:
+        plant = features.plant_from_files(bundle.model.tags, register)
+    except (features.FeatureError, ValueError, KeyError) as e:
+        raise BundleError(f"features can't be built for this bundle: {e}") from None
+    if set(plant.fast_tags + plant.analyzers) - set(n["tags"]):
+        raise BundleError("normals.json misses a tag the features read")
 
 
 def self_test(bundle, register=REGISTER):
@@ -164,4 +214,6 @@ def self_test(bundle, register=REGISTER):
         raise BundleError("scoring the fit mean doesn't give T² = SPE = 0")
     if bundle.watch is not None:
         _check_watch(bundle, register)
+    if bundle.normals is not None:
+        _check_normals(bundle, register)
     return True

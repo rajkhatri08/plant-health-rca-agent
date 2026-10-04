@@ -55,6 +55,7 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 - `ingest/`: raw data to historian; with `dataset/`, the only places raw names appear.
 - `dataset/`: the only loader for raw data.
 - `eval/`: protocol, leakage rules and evaluation code. Never imported by `app/`.
+- `shared/`: code both `app/` and `eval/` use, kept outside both (the leak scan, whose patterns spell raw names and so can't live in `app/`). Imports nothing of ours.
 - `docs/`: `PLAN.md`, `decisions.md`, `log.md`.
 - `notebooks/`: exploration only, train/dev data only.
 - `tests/`
@@ -65,8 +66,8 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 - Convert raw data (Raj runs this; Claude Code never runs it): `python -m dataset.convert <name>`, one of `fault_free_training` (first, with `--crosscheck`), `fault_free_testing`, `faulty_training`, `faulty_testing`.
 - Run the API locally: `uvicorn app.api:app --reload` (health at `/health`, replay at `/replay/info` and `/replay/status?upto=<ts>`).
 - Run the page locally: `ALLOWED_ORIGIN=http://localhost:8080 uvicorn app.api:app --reload` in one terminal and `python -m http.server 8080 -d web` in another, then open http://localhost:8080.
-- Build the detector bundle (after a fit and a calibration run): `python -m eval.build_bundle`.
-- Export the replay stream once: `python -m ingest.export_replay`.
+- Build the detector bundle (after a fit and a calibration run): `python -m eval.build_bundle`. With Watch: `--watch data/models/pca_static_watch.json` (pca_v2). With the evidence normals as well: `--watch … --normals data/models/evidence_normals.json` (pca_v3).
+- Export the replay stream once: `python -m ingest.export_replay` (since week 6 S2 it writes `app/replay/run_v2.csv` with the analyzers, and `eval/replay_source_v2.yaml`; the served `run.csv` is the first export).
 - CI: `.github/workflows/ci.yml` runs `pytest -q` on every push, with no data and no secrets.
 - Add the lint command here when it's created.
 
