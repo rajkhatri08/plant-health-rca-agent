@@ -681,6 +681,14 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
       - `cited_evidence`: a list of {item, state}, at least two for propose
       - `action_ids`: a subset of the chosen entry's actions; may be empty
       - `rationale`: at most 600 characters, with no numbers that aren't in the evidence. Digits inside tag and loop IDs (for example RX-FV-206) are allowed.
+      - **Numbers in the rationale (Raj, 4 October 2026, week 6 S4):** a number is allowed only inside what the LLM was shown:
+        - the tag, loop and analyzer IDs in the evidence
+        - the candidates' entry IDs, refs and action IDs
+        - names with a number in the shown entry text (for example "reactant 1", "Reactant-2")
+
+        Every other number fails check 5.
+    - **Conventions (confirmed by Raj, 4 October 2026):** `entry_ref` is null and `action_ids` is empty unless the decision is propose, and a decline has no family.
+    - **An answer that isn't JSON or breaks the schema (Raj, 4 October 2026):** it never reaches the faithfulness check. It scores like a faithfulness failure (no diagnosis, the deterministic evidence shown) and is counted separately as "schema".
     - **Action texts and safety preconditions** are attached by code from the entry, never taken from the model.
     - **Faithfulness check (deterministic, after the LLM):**
       - every cited item exists in the evidence with the stated state

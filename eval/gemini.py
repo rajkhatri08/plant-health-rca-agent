@@ -1,6 +1,7 @@
 """The Gemini provider behind the adapter (decision 76), and the smoke command.
 
     python -m eval.gemini --smoke [--thinking-level minimal|low]
+    python -m eval.gemini --schema-check
 
 Builder side: evaluation and the demo's precompute call the model; the deployed API never
 does, so google-genai is in requirements.txt only (never requirements-app.txt), and
@@ -23,8 +24,11 @@ GeminiClient:
 
 The smoke command reads .env (python-dotenv, without overriding the environment), makes one
 call with a neutral prompt that names no plant, tag or entry, under a Rs 1 cap, and prints
-the model version, token counts, cost and latency. It's the only thing here that spends
-money, and Raj runs it.
+the model version, token counts, cost and latency. --schema-check makes one call with the
+diagnosis output schema (app/agent/schema.JSON_SCHEMA) and a neutral prompt asking for null
+entry_ref and family, under the same cap, and passes when the API accepts the schema and the
+answer validates with both null. These two are the only things here that spend money, and
+Raj runs them.
 """
 
 import argparse
@@ -123,19 +127,53 @@ def smoke(thinking_level=None, *, client=None, out=print):
     return r, meter
 
 
+SCHEMA_CHECK_PROMPT = (
+    "This is a format check only. Reply with one JSON object in which decision is \"decline\", "
+    "entry_ref is null, family is null, confidence is \"low\", cited_evidence is an empty list, "
+    "action_ids is an empty list, and rationale is \"format check\".")
+
+
+def schema_check(*, client=None, out=print):
+    """One call with the diagnosis output schema (app/agent/schema.JSON_SCHEMA), asking for an
+    answer whose nullable fields are null. It passes when the API accepts the schema and the
+    answer parses as a valid schema.Output with entry_ref and family null."""
+    from app.agent import schema as sc
+    meter = llm.BudgetMeter(SMOKE_CAP_INR, llm.SETTINGS)
+    c = llm.MeteredClient(client or GeminiClient(llm.SETTINGS), meter)
+    r = c.complete(SCHEMA_CHECK_PROMPT, sc.output_schema(), repeat=0)
+    out(f"schema {sc.SCHEMA_VERSION} accepted by {llm.SETTINGS.model_id} (served: {r.model_version}); "
+        f"tokens: input {r.tokens_in}, output {r.tokens_out}, thinking {r.tokens_thinking}; "
+        f"cost Rs {meter.spent:.5f}; latency {r.latency_ms:.0f} ms")
+    try:
+        o = sc.parse_output(r.parsed)
+    except sc.OutputError as e:
+        out(f"FAIL: the answer doesn't validate: {e}")
+        return False, r, meter
+    ok = o.decision == "decline" and o.entry_ref is None and o.family is None
+    out(f"{'PASS' if ok else 'FAIL'}: answer valid; decision {o.decision}, entry_ref {o.entry_ref}, "
+        f"family {o.family}")
+    return ok, r, meter
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--smoke", action="store_true", help="one paid call (about Rs 0.01), Raj runs it")
+    parser.add_argument("--schema-check", action="store_true",
+                        help="one paid call (about Rs 0.005) with the diagnosis output schema, Raj runs it")
     parser.add_argument("--thinking-level", choices=["minimal", "low"], default=None,
                         help="default: decision 76's setting (minimal)")
     args = parser.parse_args(argv)
-    if not args.smoke:
+    if args.smoke == args.schema_check:                  # exactly one of the two
         parser.print_help()
         return 2
     from dotenv import load_dotenv                       # only the command line reads .env
     load_dotenv(override=False)
     try:
-        smoke(args.thinking_level)
+        if args.smoke:
+            smoke(args.thinking_level)
+        else:
+            ok, _, _ = schema_check()
+            return 0 if ok else 1
     except llm.LLMError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

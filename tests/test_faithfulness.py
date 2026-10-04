@@ -240,3 +240,44 @@ def test_the_check_reads_no_clock(library, evidence, monkeypatch):
             raise AssertionError("the faithfulness check read the clock")
     monkeypatch.setattr(mod, "datetime", NoClock, raising=False)
     assert run(library, evidence, out()) == []
+
+# ---------- numbers allowed only inside what the LLM was shown (Raj, 4 October 2026) ----------
+
+REACTANT = "reactant-1-feed-supply-loss"          # its shown text has "reactant 1" and "Reactant-1"
+WITH_REACTANT = [f"{REACTANT}@r1", f"{DRIFT}@r1"]
+
+
+def decline(text):
+    """A decline whose citations are faithful, so only the rationale can fail."""
+    return out(decision="decline", entry_ref=None, family=None, action_ids=[],
+               cited_evidence=cite(("provisional.tags.RX-PI-202", "low")), rationale=text)
+
+
+def test_the_reactant_entry_shows_what_these_tests_rely_on(library):
+    rev = library.get(REACTANT, AS_OF).stored.revision
+    text = " ".join([rev.title, rev.description, *(a.text for a in rev.actions)])
+    assert "reactant 1" in text
+    assert {"check-reactant-1-supply", "escalate-reactant-1-supply-loss"} <= {a.action_id for a in rev.actions}
+
+
+def test_a_name_with_a_number_from_the_shown_text_passes(library, evidence):
+    assert run(library, evidence, decline("the reactant 1 share"), candidates=WITH_REACTANT) == []
+
+
+def test_a_number_beside_an_allowed_name_still_fails(library, evidence):
+    o = decline("the reactant 1 share fell by 1 unit")
+    assert codes(run(library, evidence, o, candidates=WITH_REACTANT)) == ["rationale"]
+
+
+@pytest.mark.parametrize("text", [
+    f"{REACTANT} fits better than {DRIFT}.",              # an entry ID with digits
+    f"{REACTANT}@r1 is the closer candidate.",            # its ref
+    "check-reactant-1-supply would come first.",          # an action ID with digits
+])
+def test_an_entry_or_action_id_with_digits_passes(library, evidence, text):
+    assert run(library, evidence, decline(text), candidates=WITH_REACTANT) == []
+
+
+def test_a_name_with_a_number_not_shown_fails(library, evidence):
+    # Neither default candidate's text says "reactant 1", so here it's a stray number.
+    assert codes(run(library, evidence, decline("the reactant 1 share"))) == ["rationale"]

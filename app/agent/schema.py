@@ -26,9 +26,13 @@ Fields (decision 75):
                   the decision is propose (only an entry has actions)
 - rationale       at most 600 characters
 
-Conventions (Claude's, to confirm): entry_ref null and action_ids empty unless propose;
-family null for decline; no extra fields. What the output claims about the evidence and the
-library is checked in app/agent/faithfulness.py, not here.
+Conventions (confirmed by Raj, 4 October 2026; decision 75): entry_ref null and action_ids
+empty unless propose; family null for decline; no extra fields. What the output claims about
+the evidence and the library is checked in app/agent/faithfulness.py, not here.
+
+An answer that isn't JSON or breaks this schema (OutputError) never reaches the faithfulness
+check. It scores like a faithfulness failure (no diagnosis, the evidence shown) and is
+counted separately as SCHEMA_FAILURE ("schema"; decision 75).
 """
 
 from typing import Literal
@@ -41,6 +45,7 @@ SCHEMA_VERSION = "diagnosis-1"          # part of the cache key: bump on any cha
 DECISIONS = ("propose", "decline", "not_in_library")
 CONFIDENCE = ("high", "medium", "low")
 RATIONALE_MAX = 600
+SCHEMA_FAILURE = "schema"               # how an invalid answer is counted (decision 75)
 MIN_CITATIONS_PROPOSE = 2
 
 

@@ -21,9 +21,11 @@ The five checks, one Failure code each (decision 75):
 4. FAMILY     for propose, family is the entry's family; for not_in_library, it's the
               family of one of the candidates.
 5. RATIONALE  the rationale passes the leak scan (shared/leak_scan.py) and holds no number
-              that isn't in the evidence. The evidence is states only, so the only digits
-              allowed are those inside tag and loop IDs (for example RX-FV-206,
-              CP-FIC-501).
+              the LLM wasn't shown. Digits are allowed only inside tag, loop and analyzer
+              IDs in the evidence, the candidates' entry IDs, refs and action IDs, and
+              names with numbers in the shown entry text ("reactant 1", "reactants 1
+              and 2"), never a number on its own after a function word ("and 2").
+              Every other number fails (decision 75).
 
 A failed output isn't shown as a diagnosis: the deterministic evidence is shown with "the
 explanation failed a check", it scores as no diagnosis, it's counted separately, and it's
@@ -39,7 +41,13 @@ from shared import leak_scan
 
 READINGS = ("provisional", "revised")
 SECTIONS = ("tags", "loops", "analyzers")
-_NAME_WITH_NUMBER = re.compile(r"[A-Za-z]+[- ]\d+")      # "reactant 1", "Reactant-1", "product 2"
+# A name with a number, with any numbers listed after it: "reactant 1", "Reactant-2",
+# "reactants 1 and 2", "products 1, 2 and 3". The whole phrase and its head ("reactants 1")
+# are allowed, never a number on its own after a function word ("and 2").
+_NAME_WITH_NUMBER = re.compile(r"([A-Za-z]+)[- ]\d+(?:(?:\s*,\s*|\s+(?:and|or)\s+)\d+)*")
+_HEAD = re.compile(r"[A-Za-z]+[- ]\d+")
+_FUNCTION_WORDS = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "is", "of", "on",
+                   "or", "per", "than", "the", "to", "was", "were", "with"}
 _DIGITS = re.compile(r"\d")
 
 
@@ -86,7 +94,9 @@ def _allowed_strings(features, shown, entry_ids):
         rev = s.revision
         allowed.update({s.ref, rev.entry_id, *(a.action_id for a in rev.actions)})
         text = " ".join([rev.title, rev.description, *(a.text for a in rev.actions)])
-        allowed.update(m.group(0) for m in _NAME_WITH_NUMBER.finditer(text))
+        for m in _NAME_WITH_NUMBER.finditer(text):
+            if m.group(1).lower() not in _FUNCTION_WORDS:
+                allowed.update({m.group(0), _HEAD.match(m.group(0)).group(0)})
     return sorted((a for a in allowed if _DIGITS.search(a)), key=len, reverse=True)
 
 

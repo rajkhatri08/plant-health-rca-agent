@@ -182,11 +182,12 @@ Headline results use no work-order history (C0).
   - entry_ref is a candidate and in force at as_of, never a draft
   - every action ID belongs to that entry
   - the family matches the entry, or a candidate's family for not_in_library
-  - the rationale (at most 600 characters, no numbers that aren't in the evidence; digits inside tag and loop IDs, such as RX-FV-206, are allowed) passes the leak scan
+  - the rationale (at most 600 characters) passes the leak scan and holds no number that isn't inside what the LLM was shown. That means the tag, loop and analyzer IDs in the evidence, the candidates' entry IDs, refs and action IDs, and names with a number in the shown entry text (for example "reactant 1", "Reactant-2"). Every other number fails.
 - **On failure:**
   - The page shows "the explanation failed a check", with no proposal.
   - It scores as no diagnosis (wrong on known cases, a decline on unknowns) and is reported separately.
   - It's never retried.
+- **An answer that isn't JSON or breaks the output schema** never reaches the check. It scores the same way (no diagnosis, the evidence shown) and is counted separately as "schema" (decision 75).
 
 | Measure | Target |
 |---|---|

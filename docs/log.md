@@ -2776,3 +2776,34 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Implement `faithfulness.check()`, then run `pytest -q tests/test_faithfulness.py`.
   - Write the prompt template in `app/agent/prompts/` (plain Python, no LangChain; scanned by `tests/test_leak_scan.py`). Claude reviews both.
   - S5 also leak-checks every rendered prompt at runtime, before any call.
+
+### 2026-10-04: week 6 session 4 (close), Raj's check, the numbers rule, the schema-check command
+- **Raj:** implemented `faithfulness.check()` (with guidance from the Claude.ai chat; 665d1d7). All 1651 tests passed.
+- **Changed:**
+  - **Decision 75 and the PROTOCOL mirror (Faithfulness and governance checks):**
+    - **The numbers rule:** a number in the rationale is allowed only inside what the LLM was shown: tag, loop and analyzer IDs in the evidence; the candidates' entry IDs, refs and action IDs; names with a number in the shown entry text ("reactant 1", "Reactant-2"). Every other number fails.
+    - **The conventions confirmed:** entry_ref null and no actions unless propose; no family on a decline.
+    - **An answer that isn't JSON or breaks the schema** scores like a faithfulness failure and is counted separately as "schema".
+  - **`app/agent/schema.py`:** the docstring marks the conventions confirmed, and `SCHEMA_FAILURE = "schema"` is added for S5's counting. `JSON_SCHEMA` and `SCHEMA_VERSION` are unchanged, so the cache key is too.
+  - **`eval/gemini.py --schema-check`:**
+    - One call with `JSON_SCHEMA` and a neutral prompt asking for a decline with null entry_ref and family, under a Rs 1 cap.
+    - It prints the served version, tokens, cost and latency, then PASS when the API accepts the schema and the answer validates with both null, otherwise FAIL (exit code 1).
+    - `--smoke` and `--schema-check` are exclusive.
+  - **`CLAUDE.md`:** the schema-check command.
+- **Tests:**
+  - **`tests/test_faithfulness.py`, 7 new tests:**
+    - The fixture check for `reactant-1-feed-supply-loss`'s shown text.
+    - "the reactant 1 share" passes with that entry shown, and fails when no shown entry says it.
+    - "the reactant 1 share fell by 1 unit" fails.
+    - An entry ID, a ref and an action ID with digits pass.
+  - **`tests/test_gemini.py`, 6 new tests:** the schema check passes on a valid null answer; fails on non-JSON, on a schema break, and on an entry_ref in a decline; sends `JSON_SCHEMA`; its prompt names nothing of the plant; the commands are exclusive.
+  - **`pytest -q`:** 1665 passed, 4 deselected.
+- **Review notes on `check()`** (your code, unchanged; probed on the committed library):
+  - **Hyphen versus space:** `mixed-feed-composition-wander@r1` shows only "reactant-1". With it as the only candidate, the rationale "reactant 1" fails and "reactant-1" passes. Your rule's examples ("reactant 1", "Reactant-2") read as the same name in either form. If they should be, normalise hyphens and spaces in both the allowed names and the rationale before matching.
+  - **Loose matches:** the name pattern `[A-Za-z]+[- ]\d+` also takes "and 2" from "reactants 1 and 2" (`mixed-feed-supply-loss@r1`), so "and 2 tags agree" would pass. Something like requiring the word to be a noun from the text ("reactant", "product") would close it. That's your call; the failure only lets a small integer through.
+  - **The docstring for check 5** still says only tag and loop IDs' digits are allowed; the code and decision 75 now say more.
+- **Unsure about:** nothing else. (`eval/baselines/alarms.py` is clean now.)
+- **Decisions needed:** the hyphen and space equivalence, and whether to tighten the name pattern (the review notes above).
+- **Next (Raj):**
+  - `python -m eval.gemini --schema-check`, about Rs 0.005. Paste the output.
+  - On PASS the nullable form stands. On FAIL (the API refuses the schema, or the answer doesn't validate), S5 changes `JSON_SCHEMA` before any tuning call and bumps `SCHEMA_VERSION`.

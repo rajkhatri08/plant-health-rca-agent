@@ -176,3 +176,45 @@ def test_the_smoke_prompt_names_nothing_of_the_plant():
 
 def test_main_without_smoke_does_nothing():
     assert gemini.main([]) == 2
+
+# ---------- the schema check (one call with the diagnosis output schema) ----------
+
+NULLS = json.dumps({"decision": "decline", "entry_ref": None, "family": None, "confidence": "low",
+                    "cited_evidence": [], "action_ids": [], "rationale": "format check"})
+
+
+def test_schema_check_passes_on_a_valid_null_answer():
+    from app.agent import schema as sc
+    fake, lines = llm.FakeClient(lambda p, s, r: NULLS), []
+    ok, r, meter = gemini.schema_check(client=fake, out=lines.append)
+    assert ok and lines[-1].startswith("PASS")
+    (call,) = fake.calls
+    assert call["schema_version"] == sc.SCHEMA_VERSION and meter.spent <= meter.cap == 1
+
+
+@pytest.mark.parametrize("raw", [
+    "not json",
+    json.dumps({"decision": "decline"}),                                          # breaks the schema
+    NULLS.replace('"entry_ref": null', '"entry_ref": "x@r1"'),                    # invalid for a decline
+])
+def test_schema_check_fails_on_a_bad_answer(raw):
+    lines = []
+    ok, _, _ = gemini.schema_check(client=llm.FakeClient(lambda p, s, r: raw), out=lines.append)
+    assert not ok and lines[-1].startswith("FAIL")
+
+
+def test_the_request_sends_the_diagnosis_schema(keyed):
+    from app.agent import schema as sc
+    sdk = FakeSDK([response(text=NULLS)])
+    ok, _, _ = gemini.schema_check(client=client(sdk), out=lambda s: None)
+    assert ok and sdk.calls[0]["config"].response_json_schema == sc.JSON_SCHEMA
+
+
+def test_the_schema_check_prompt_names_nothing_of_the_plant():
+    import re
+    assert find_leaks(gemini.SCHEMA_CHECK_PROMPT) == []
+    assert not re.search(r"\b[A-Z]{2}-[A-Z]{2,3}-\d{3}\b", gemini.SCHEMA_CHECK_PROMPT)
+
+
+def test_main_takes_exactly_one_command():
+    assert gemini.main(["--smoke", "--schema-check"]) == 2
