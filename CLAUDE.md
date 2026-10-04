@@ -20,7 +20,7 @@ Read these when a task touches them:
 - End every session by appending an entry to `docs/log.md` (template at the top of that file).
 
 ## Stack
-Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest, Pydantic, LangGraph, LangChain (model wrapper, tool definitions and prompt templates only: no agent executors, no chat memory, no vector search for the library), Gemini with a pinned model ID, static HTML front end, Render and Vercel.
+Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest, Pydantic, LangGraph (no LangChain: prompts are plain Python templates and tools are our own functions; `langchain-core` is present only as LangGraph's dependency; no agent executors, no chat memory, no vector search for the library), Gemini through the official `google-genai` SDK behind one provider adapter, with a pinned model ID (decision 76), static HTML front end, Render and Vercel.
 
 ## Hard rules
 

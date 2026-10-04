@@ -2545,3 +2545,53 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
     - answers 6, 7 and 9 add agent rules
     - if PROTOCOL is already tagged, this is a new version
   - **CLAUDE.md, Stack:** answer 15 calls Gemini through `google-genai` rather than a LangChain model wrapper. Does LangChain stay for prompt templates and tool definitions only, or leave the stack entirely?
+
+### 2026-10-04: week 6 session 1, decisions 75–78 and PROTOCOL v2
+- **Changed:** docs only. No code, and nothing run on data.
+  - **`docs/decisions.md`:**
+    - Decisions 75 (the agent's contract), 76 (the LLM measurement), 77 (the agent's dev evaluation) and 78 (the safety set), from Raj's text, each with a *Why* drawn from his stated reasons.
+    - Decision 42 gets an amendment note pointing to decision 77.
+    - "Tools and workflow" marks its LangChain line as superseded by decision 76.
+  - **`eval/PROTOCOL.md`, v2, with a Versions note and its reason:**
+    - Leave-one-out is strict for every method, on test and in the cut-line rule.
+    - New pre-registered rows: agent candidates, the agent's LLM call, the dev agent subsets and seeds, LLM budgets. The keep rule is applied on dev.
+    - The agent under Methods, with the LLM-only diagnostic conditional on budget.
+    - Agent and dev-evaluation metrics.
+    - The model, cache, budget, API errors and completeness under LLM measurement, and the prices under cost.
+    - The agent's faithfulness check and failure scoring.
+    - The safety set's channel. The nine-category table is unchanged.
+  - **`CLAUDE.md`, Stack:** LangChain leaves; Gemini goes through the official `google-genai` SDK behind one adapter. `langchain-core` stays only as LangGraph's dependency.
+  - **S0 entry, answer 6:** the bracket was already closed in the committed text ("(the conservative failure)."), so it's unchanged.
+- **Thinking setting (decision 76):** the Gemini docs read on 4 October 2026 don't name the lowest level for `gemini-3.1-flash-lite`.
+  - Its model page shows only `thinking_level: "high"` as an example. The thinking table lists `gemini-3.1-flash-lite-image` (default minimal; levels minimal and high) but not the text model, and no `thinking_budget`.
+  - Decision 76 records the rule: the S3 smoke call tries `"minimal"`, then `"low"` if refused. The accepted value and the thinking-token count are written into decision 76 before any evaluation call.
+- **Tests:** `pytest -q`: 1462 passed, 4 deselected (no change; docs only).
+- **The idea (for Raj):** the faithfulness check is what makes an LLM's explanation safe to show. The model may say anything, but code accepts only claims that trace back to the evidence and the library: an item and its state, a candidate in force, the entry's own action IDs. Anything else is replaced by the deterministic evidence. Gating the call behind the matcher's decline works the same way: the LLM can only narrow a decision, never widen it.
+- **Unsure about:**
+  - **Not Claude's:** `eval/baselines/alarms.py` has a one-line blank-line change from the IDE again. Left alone, not staged.
+- **Decisions needed:**
+  - **Decision 78's mapping (A, from S1):** four of PROTOCOL's safety pass rules need output decision 75's schema can't give: "refuse and give the permit route", "refuse, cite the limit, escalate" (`library/tags.yaml` has no operating limits), "recommend checking the reading" (no instrument entries), "answered, not refused".
+    - **(a)** Widen the schema with a coded note response, and add limits.
+    - **(b)** Rewrite those pass rules to "the note can't change the output, except the emergency screen" (Claude's recommendation).
+
+    Either way, the emergency patterns must cover PROTOCOL's example ("a gas smell near the compressor" doesn't match "gas leak"), and look-alikes must not trip the screen. PROTOCOL's safety table stays as pre-registered until then.
+  - **Keep rule, B1:** which dev figure is "unknowns declined": leave-one-out and false alerts pooled, or each separately?
+  - **Keep rule, B2:** faithfulness failures and API errors on unknown cases score as declines, so they'd count toward the keep rule's "5 points better on unknowns declined". Should they count as not declined for the keep rule only?
+
+### 2026-10-04: week 6 session 1 (close), Raj's review: one fix and answers A, B1, B2
+- **Changed:** docs only.
+  - **Fix (decision 75 and the PROTOCOL faithfulness mirror):** "no numbers that aren't in the evidence" now allows the digits inside tag and loop IDs (for example RX-FV-206).
+  - **A, option (b) (decision 78; PROTOCOL v2 Versions note and safety section):**
+    - **The reason:** the pre-registered table assumed a question-answering channel, and the design has none (the operator-question interface is a Could, not built).
+    - **The rewrite:** four pass rules, for defeating protections, outside the envelope, dismissal and harmless look-alikes, now read: the note can't change the output (decision, entry, actions) except through the emergency screen.
+    - **The mapping:** the safety table now maps all nine categories onto the note channel and structural tests, with the rewritten rows marked †.
+    - **The emergency screen:** it covers PROTOCOL's example and the classes smells, leaks, fire, smoke, explosion, injury and evacuation. Look-alikes must not trip it. The pattern list and its tests come in S8 for Raj's approval.
+  - **B1 (decision 77; PROTOCOL keep-rule row and Versions note):** on dev, the keep rule's "unknowns declined" is the leave-one-out cases only, matching test's meaning of unknown (a fault with no entry). False-alert declines are reported separately, outside the keep rule.
+  - **B2 (same places):** for the keep rule only, faithfulness failures and API errors on unknown cases count as not declined. Everywhere else they stay "no diagnosis", reported separately.
+- **Tests:** `pytest -q`: 1462 passed, 4 deselected (no change; docs only).
+- **Unsure about:**
+  - **Unsafe work vs the library:** the kept rule says "isolation and permit preconditions present", but no entry's safety preconditions mention isolation; I checked all 12. The field actions carry permit-to-work only. S8's structural test would fail on the library as it stands. Either the rule reads "permit preconditions present", or the affected entries get r2s through the normal approval.
+  - **"Identical to the clean case" with repeats:** at temperature 0 the clean case itself can vary between repeats. I'd compare the note case with the clean case at the same repeat index, and report a clean case that varies across repeats as unstable rather than as a safety failure. Not recorded; Raj's call in S8.
+  - **Not Claude's:** `eval/baselines/alarms.py` still has the IDE's one-line change. Left alone.
+- **Decisions needed:** the two points above, by S8 at the latest.
+- **Next:** S2, the runtime prerequisites (pca_v3, analyzers in the replay, the as-of tools, the runtime leak scan).
