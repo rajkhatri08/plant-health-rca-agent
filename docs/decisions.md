@@ -717,6 +717,10 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
       - The thinking table lists only `gemini-3.1-flash-lite-image` (default minimal; levels minimal and high) and no `thinking_budget`.
       - So the S3 smoke call requests `thinking_level: "minimal"`; if the API refuses it, `"low"`. The accepted setting and the reported thinking-token count are recorded here before any evaluation call.
       - **Recorded (Raj's smoke call, 4 October 2026):** `thinking_level: "minimal"` was accepted, with 0 thinking tokens reported. The API served `gemini-3.1-flash-lite`. The call used 15 input and 5 output tokens, cost Rs 0.00108 and took 1721 ms, and its JSON parsed. **The setting is `minimal`.**
+    - **The output schema's nullable fields (Raj's schema check, 4 October 2026, `python -m eval.gemini --schema-check`):**
+      - The API accepted `JSON_SCHEMA` (schema version `diagnosis-1`). It served `gemini-3.1-flash-lite`, and the call used 59 input tokens, 45 output and 0 thinking, cost Rs 0.00792 and took 2664 ms.
+      - **PASS:** the answer validated as `schema.Output`, with decision decline, entry_ref null and family null.
+      - So the nullable form (`type: ["string", "null"]`, with null in family's enum) stands. `SCHEMA_VERSION` stays `diagnosis-1`.
     - **No automatic function calling:** every request disables the SDK's automatic function calling and sends no tools, so the SDK can never call a function on its own.
     - **Prices:** read on 4 October 2026 from ai.google.dev/gemini-api/docs/pricing: $0.25 per 1M input tokens and $1.50 per 1M output tokens, where output includes thinking tokens. INR 96.33 per USD on 4 October 2026.
     - **Cache key:** the SHA-256 of the model ID, the settings, the schema version, the prompt text and the repeat index.

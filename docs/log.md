@@ -2869,3 +2869,78 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Next (Raj):**
   - Implement the 17 functions in `app/agent/nodes.py`, then run `pytest -q tests/test_agent_graph.py`.
   - Run `python -m eval.gemini --schema-check` if it hasn't run yet, and paste its output.
+
+### 2026-10-04: week 6 session 6, the agent's dev evaluation driver and metric stubs (code only; nothing run on data, no paid call)
+- **S5 close:**
+  - **Raj:** implemented the 17 nodes (with guidance from the Claude.ai chat; 4407fbc). All graph tests pass.
+  - **The schema check's result is still not recorded:** the message again held the placeholder ("<paste the real output line here>"). Decision 76 is unchanged until Raj pastes the output line.
+- **Changed:**
+  - **`app/agent/graph.py`:** `start(..., stage=)`, `"provisional"` by default. Evaluation can start an episode at `"revised"` directly, with the same nodes, as_of +60 min, and no approval needed to reach it. Re-entry after a proposal would otherwise need an approve or reject in evaluation, which never acts. 2 new tests.
+  - **`eval/agent_table.py` (Claude's driver):**
+    - **One engine:**
+      - Cases come from `eval/cases.py` unchanged (known, false, and loo for faults 2 and 11 with their entries removed).
+      - Each case's history is its run, built as the replay export builds the demo's stream (`ingest/export_replay.publications`, plant clock).
+      - Every pass runs the real graph on the real tools and bundle pca_v3, stopping at the approval pause.
+      - For every case and stage, the graph's evidence is checked against `eval/cases.py`'s features; a mismatch stops the run.
+      - The bundle must match the inputs (model, limits, Watch boundaries, normals).
+    - **Subsets (decision 77):**
+      - Evaluation: 10 dev run numbers (seed 20261004), their known cases plus every false and loo case, 5 repeats.
+      - Tuning: 3 other numbers (seed 20261005), known cases only, 1 repeat. Disjoint from the evaluation draw.
+    - **The matcher's rules:** threshold and k are re-derived on all dev known cases with the library at `--library-as-of`, by the diag table's own functions. The matcher baseline is the graph's match node on the same cases.
+    - **`--dry-run`:** both plans with a FakeClient that declines, in a temporary folder. It writes an `agent_dry_run` record (planned and completed passes, outcomes, cases by kind, LLM calls, the cost projection). `--project-cost` prints the projection only.
+    - **`--tuning --budget` / `--evaluation --prompt-sha256` (paid; Raj):**
+      - The provider stack is `CachedClient(MeteredClient(GeminiClient))`.
+      - Each run writes `data/agent_runs/<stamp>_<mode>/calls.jsonl`, `ledger.json`, and an `agent_run` record (prompt hash, settings, prices, budget, completeness, spend).
+      - A budget stop gives an incomplete record.
+      - The evaluation run refuses a prompt whose hash isn't the frozen one, before loading anything.
+    - **`--table <agent_run record>`:**
+      - **It refuses** an incomplete record, or a file whose SHA-256 differs from the record's.
+      - **Per stage:** your metrics per repeat; the matcher on the same cases; the keep rule (unknowns are loo only, with B2); the paired bootstrap per repeat (seed 20261001, a fresh generator each).
+      - **Also reported:** confidence, agreement, misses, the not_in_library secondary, latency and cost.
+      - **It writes** an `agent_table` record and Markdown under `data/tables/`.
+      - Metrics are computed apart from the paid run, so a metric bug never costs a rerun.
+  - **`eval/agent_metrics.py` (stubs for Raj, 8 functions):**
+    - `to_case`, `summary(rows, family_of)`, `keep_rule`, `confidence_table`, `agreement`, `miss_labels`, `not_in_library_secondary`, `latency_cost`.
+    - The row form and the scoring from decisions 75 and 77 are in the module docstring.
+  - **`CLAUDE.md`:** the agent evaluation commands.
+- **Tests:**
+  - **`tests/test_agent_table.py` (16):** synthetic runs, patched loaders, the diag-table fixture's repo with a copy of the real library, a pca_v3 bundle built from the fixture's inputs, and a FakeClient always. 15 pass:
+    - subsets (seeded, disjoint, sized; too few refused)
+    - the projection's arithmetic
+    - the dry run (complete for both plans, every kind present, a record, nothing left on disk), and project-cost writes nothing
+    - the evidence check stops a mismatch, and a bundle not built from the inputs is refused
+    - a tuning run writes calls, ledger and record with every field the metrics need; an evaluation run covers every kind, and loo candidates never include a left-out entry
+    - a budget stop is recorded incomplete and never tabled
+    - tuning needs a budget; evaluation refuses an unfrozen prompt before loading; the prompt hash needs a template and changes with it
+    - a dirty tree is refused before loading; an unknown mode and a naive library clock are refused
+
+    1 waits on your metrics: the table from a complete run.
+  - **`tests/test_agent_metrics.py` (35):** all fail with the stubs' `NotImplementedError` until you implement them. They cover:
+    - `to_case`: a right proposal; the agent's top-3 ranking; no proposal on a known case is wrong; unknowns right only when declined; the keep-rule variant on loo but not on false alerts
+    - the summary
+    - the keep rule: kept; one repeat short; another metric more than 2 points worse; exactly 2 worse allowed
+    - confidence, agreement, misses, the secondary, latency and cost
+  - **Checked:** all 36 failures are the stubs (35 metric tests plus the table test).
+  - **A feasibility check:** with a straightforward metrics implementation in Claude's scratchpad (removed afterwards; the stub was restored and checked byte-identical), all 51 pass, the table step included.
+  - **`pytest -q`:** 1756 passed and 36 failed, all from the metric stubs.
+- **The idea (for Raj):** the dry run is the eval's rehearsal. It drives every planned pass through the same graph and tools as the paid run, with an LLM that can only decline. That proves the plumbing is complete (every case gets an outcome, the evidence equals the case builder's), and its prompt sizes give the projection, all before a rupee is spent.
+- **Unsure about (conventions to confirm before any paid run):**
+  - **The subset draw:** one draw of run numbers shared by every fault, so the run-number bootstrap stays paired across faults (decision 49). Undetected runs in the draw have no case, and the draw isn't topped up. The alternative is a separate draw per fault.
+  - **Thresholds and k on the r2 library:** they're re-derived by the pre-registered rules on all dev known cases at the library clock, rather than reusing week 5's 1/3, 5/11 and k = 2 (set on r1). Both values end up in records.
+  - **The agent's top-3:** the proposed entry first, then the matcher's blocks without it.
+  - **The confidence check:** over rows with a valid LLM output.
+  - **Miss labels:** gate, retrieval or reasoning.
+  - **Agreement:** a row's answer is (outcome, entry).
+  - **The paired bootstrap:** reported per repeat, not pooled.
+  - **Tuning:** known cases only (all false and loo cases are in the evaluation subset). It needs an explicit `--budget`; the evaluation defaults to Rs 500. Both draw on the same Rs 500 dev budget, so choose tuning's share.
+  - **The projection** assumes 4 characters per input token and 300 output tokens per call. The worst case is the meter's own bound.
+  - **The dry run and the projection need your prompt template:** `app/agent/prompts/diagnosis.py` with `render(features, candidates, operator_note)`. Without it the driver refuses with a clear message. The tests use a test renderer.
+- **Decisions needed:** the conventions above.
+- **Added after the entry (same day):** Raj pasted the schema check's output:
+  - `schema diagnosis-1 accepted by gemini-3.1-flash-lite (served: gemini-3.1-flash-lite); tokens: input 59, output 45, thinking 0; cost Rs 0.00792; latency 2664 ms. PASS: answer valid; decision decline, entry_ref None, family None`
+  - It's recorded in decision 76 and PROTOCOL (LLM measurement). The nullable schema stands, and `SCHEMA_VERSION` stays `diagnosis-1`.
+  - The S6 code above was already written; nothing was redone.
+- **Next (Raj):**
+  1. Implement the 8 functions in `eval/agent_metrics.py`, then run `pytest -q tests/test_agent_metrics.py tests/test_agent_table.py`.
+  2. Write the prompt template (`app/agent/prompts/diagnosis.py`, plain Python, `render(features, candidates, operator_note)`).
+  3. On a clean tree, run `python -m eval.agent_table --dry-run --library-as-of 2026-10-05T00:00:00+00:00`. It reads dev data only and spends nothing. Paste its counts and projection before any paid run.

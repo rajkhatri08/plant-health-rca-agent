@@ -184,9 +184,16 @@ def _iso_aware(value, what):
     return value
 
 
-def start(graph, episode, history_id, notified_at, library_as_of, *, repeat=0, operator_note=None) -> dict:
-    """The provisional pass for a new episode. It runs until it ends (a decline, a
-    family-level answer, a failed check) or pauses at approval."""
+def start(graph, episode, history_id, notified_at, library_as_of, *, repeat=0, operator_note=None,
+          stage="provisional") -> dict:
+    """The first pass for a new episode. It runs until it ends (a decline, a family-level
+    answer, a failed check) or pauses at approval.
+
+    stage is "provisional" in operation; re_enter() then runs the revised pass. Evaluation
+    may start an episode at "revised" directly (eval/agent_table.py): the nodes are the same,
+    as_of is notified_at + 60 min, and no approval is needed to reach it."""
+    if stage not in STAGES:
+        raise GraphError(f"stage is one of {STAGES}, not {stage!r}")
     for name, value in (("episode", episode), ("history_id", history_id)):
         if not (isinstance(value, str) and OPAQUE[name].match(value)):
             raise GraphError(f"{name} must be an opaque ID from opaque_id(), got {value!r}")
@@ -198,7 +205,7 @@ def start(graph, episode, history_id, notified_at, library_as_of, *, repeat=0, o
         raise GraphError(f"episode {episode} already started")
     graph.invoke({"episode": episode, "history_id": history_id, "notified_at": notified_at,
                   "library_as_of": library_as_of, "repeat": repeat, "operator_note": operator_note,
-                  "stage": "provisional"}, config(episode))
+                  "stage": stage}, config(episode))
     return snapshot(graph, episode)
 
 

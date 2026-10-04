@@ -566,3 +566,21 @@ def test_the_harness_imports_nothing_from_the_builder_side():
     for name in ("graph.py", "nodes.py", "records.py"):
         mods = imported_top_modules((REPO / "app" / "agent" / name).read_text())
         assert not {"eval", "ingest", "dataset", "langchain", "langchain_core"} & mods, name
+
+
+# ---------- evaluation starts a revised pass directly (week 6 S6) ----------
+
+def test_an_episode_can_start_at_the_revised_stage(world):
+    s = start(world, stage="revised")
+    v = s["values"]
+    assert v["stage"] == "revised" and v["as_of"] == ah.PLUS_60 and "revised" in v["evidence"]
+    assert v["proposal"]["key"] == records.act_key(EP, "revised")
+    assert [k for k, _ in kinds(world, "diagnosis")] == [records.diagnosis_key(EP, "revised")]
+    with pytest.raises(ag.GraphError, match="revised pass"):
+        ag.decide(world["graph"], EP, "reject")
+        ag.re_enter(world["graph"], EP)                                # no second revised pass
+
+
+def test_start_refuses_an_unknown_stage(world):
+    with pytest.raises(ag.GraphError, match="stage"):
+        start(world, stage="final")

@@ -160,6 +160,7 @@ Headline results use no work-order history (C0).
   - **The model and settings (decision 76):** `gemini-3.1-flash-lite`, paid tier, standard; temperature 0; structured output against the JSON schema; max output tokens 1024; thinking at the lowest level the model allows.
   - **The thinking setting:** `thinking_level: "minimal"`, accepted by the API in the S3 smoke call on 4 October 2026, with 0 thinking tokens reported (decision 76).
   - **No automatic function calling:** every request disables it and sends no tools (decision 76).
+  - **The output schema:** `diagnosis-1`, with nullable entry_ref and family, accepted by the model in the schema check on 4 October 2026, whose null answer validated (decision 76).
 - **Cache (decision 76):** the key is the SHA-256 of the model ID, the settings, the schema version, the prompt text and the repeat index. Each repeat is one real call, and reruns are free.
 - **Budget (decision 76):**
   - A hard cap per run, in rupees.
