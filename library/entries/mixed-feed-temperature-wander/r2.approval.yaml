@@ -1,0 +1,12 @@
+entry_id: mixed-feed-temperature-wander
+revision: 2
+approver: raj-review
+approved_at: '2026-10-04T08:09:26Z'
+checks:
+- schema
+- leak_scan
+- provenance
+- preconditions
+- entry_tests
+- gap_24h
+independent: false
