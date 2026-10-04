@@ -1,0 +1,17 @@
+# Builder side only: which run app/replay/run_v2.csv holds. Never copy into app/.
+fault: 13
+run: 29
+pool: dev
+rule: fault 13 on the lowest dev run number (mechanical, session 6)
+csv: app/replay/run_v2.csv
+csv_sha256: 62aeb834d0955d25d7af2178b787d2ff6f00af0ed53db6672101c5ab28315aa0
+rows: 20500
+samples: 500
+tags: 33
+analyzers: 19
+fast_rows: 16500
+analyzer_rows: 4000
+start: '2026-01-05T06:00:00Z'
+step_min: 3
+commit: 61694b9632235ff6bad682041196c229739e457c
+dirty: true

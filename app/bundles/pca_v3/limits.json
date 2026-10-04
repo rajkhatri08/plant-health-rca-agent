@@ -1,0 +1,13 @@
+{
+  "detector": "pca_static",
+  "model_sha256": "1e4aa9e6cac5ed75f81e6f6a6adc197ba215d9390ec556012c481bc49f8afae5",
+  "warmup": 9,
+  "lags": 0,
+  "n": 3,
+  "gap": 15,
+  "q": 95.57,
+  "t2_lim": 21.53222480077245,
+  "spe_lim": 13.099097429393527,
+  "fit_record_sha256": "f398f5cd982d2133fe72cc710a5436a3fb3e7d849fbf9544931272c090f64539",
+  "calibration_record_sha256": "82b0dba10e9b4d4673d0ff6b996b9499905baa42edfe3366e95ed7e7511a9ef6"
+}
