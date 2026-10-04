@@ -68,7 +68,8 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 - Run the page locally: `ALLOWED_ORIGIN=http://localhost:8080 uvicorn app.api:app --reload` in one terminal and `python -m http.server 8080 -d web` in another, then open http://localhost:8080.
 - Build the detector bundle (after a fit and a calibration run): `python -m eval.build_bundle`. With Watch: `--watch data/models/pca_static_watch.json` (pca_v2). With the evidence normals as well: `--watch … --normals data/models/evidence_normals.json` (pca_v3).
 - Export the replay stream once: `python -m ingest.export_replay` (since week 6 S2 it writes `app/replay/run_v2.csv` with the analyzers, and `eval/replay_source_v2.yaml`; the served `run.csv` is the first export).
-- CI: `.github/workflows/ci.yml` runs `pytest -q` on every push, with no data and no secrets.
+- LLM smoke call (Raj runs this; it spends about Rs 0.01): `python -m eval.gemini --smoke`, with `GEMINI_API_KEY` in the gitignored `.env`. Add `--thinking-level low` if the API refuses `minimal`.
+- CI: `.github/workflows/ci.yml` runs `pytest -q` on every push, with no data and no secrets. Every test runs under a guard (`tests/conftest.py`): no `GEMINI_API_KEY`, no `.env`, no network beyond loopback.
 - Add the lint command here when it's created.
 
 ## Deployment

@@ -2665,3 +2665,65 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Build pca_v3: `python -m eval.build_bundle --watch data/models/pca_static_watch.json --normals data/models/evidence_normals.json`
   - Export the stream with analyzers: `python -m ingest.export_replay`
   - Commit both. A committed-artifacts test for pca_v3 and `run_v2.csv`, like `tests/test_thin_slice_artifacts.py`, comes once they exist.
+
+### 2026-10-04: week 6 session 2 (close) and session 3, committed v3 artifacts; the LLM adapter (code only; no paid call)
+- **S2 close:**
+  - **`eval/LEAKAGE.md`:** `history_id` is "the episode's opaque history key: its historian stream, and its work orders when built" (Raj's approved wording). Decision 37 gets an amendment note.
+  - **`tests/test_v3_artifacts.py` (8 tests, like `test_thin_slice_artifacts.py`):**
+    - pca_v3's self-test passes, and v2 is still served.
+    - v3's model, limits and watch files are byte-identical to v2's.
+    - v3's normals come from a committed evidence_normals record, with identical bands.
+    - `run_v2.csv` matches its source record (rows = fast + analyzer rows; 33, 19, 500).
+    - Its fast part equals the served `run.csv` exactly.
+    - Each analyzer appears only at its publications.
+    - The live API gives identical `/replay/info` and `/replay/status` on `run_v2.csv` and `run.csv`, so the S9 switch changes no score.
+    - The tools run on the committed files at the first notification: +30 has no revised reading, +60 has both, and the output is leak-free.
+  - **Noted:** `eval/replay_source_v2.yaml` says `dirty: true`. The export records the tree state rather than refusing a dirty tree, and the likely cause is the IDE's change to `eval/baselines/alarms.py`. The CSV's content doesn't depend on any uncommitted file.
+- **S3, the adapter.** No stubs for Raj: all of it is plumbing under CLAUDE.md and the week plan.
+  - **Dependencies (approved in S0):** `google-genai==2.28.0` and `python-dotenv==1.2.4` are pinned in `requirements.txt`, plus 6 new transitive dependencies (cffi, cryptography, google-auth, pyasn1, pyasn1_modules, pycparser), installed into `.venv`. A dry-run install of `requirements.txt` resolves with nothing to add. Neither is in `requirements-app.txt` (tested).
+  - **`app/agent/llm.py` (provider-neutral, stdlib only):**
+    - **Values:** decision 76's `SETTINGS`, `PRICES` (with the read date and source) and `USD_INR` (with its date).
+    - **Types:** `OutputSchema` (version + JSON schema) and `Result` (key, raw, parsed, tokens in/out/thinking, latency, the model version the API reports, cached).
+    - **`cache_key`:** the SHA-256 of canonical JSON holding the model ID, settings, schema version, prompt and repeat.
+    - **`cost_inr`:** Decimal; thinking is billed as output.
+    - **The clients:**
+      - `FakeClient`
+      - `CachedClient`: `data/llm_cache/<key[:2]>/<key>.json`. It stores the prompt's SHA-256, not its text. It never overwrites, and refuses an edited entry.
+      - `ReplayClient`: cache only. A miss raises `CacheMiss`.
+    - **`BudgetMeter`:**
+      - `check()` before each real call: spent + worst case > cap raises `BudgetExceeded`, before the call.
+      - `charge()` after it, from actual tokens.
+      - The ledger is keyed by cache key, so a call is charged once.
+    - **`MeteredClient`** wires the meter to the real client. Composed as `CachedClient(MeteredClient(provider))`, a cache hit is never checked or charged.
+  - **`eval/gemini.py` (builder side):**
+    - **`GeminiClient`:**
+      - `google-genai` is imported only when a client is made.
+      - The key is read from `GEMINI_API_KEY`, refused if missing before the SDK is touched, and never stored, printed or put in a result or error message (errors show only class and status).
+      - The request uses temperature 0, max output tokens 1024, JSON output against the schema, and `thinking_level` MINIMAL.
+      - The SDK's own retries are off (attempts = 1). A 429, a 5xx or a transport error is retried twice with 1 s and 2 s backoff, then raised. Any other 4xx is raised at once.
+    - **`python -m eval.gemini --smoke`:** reads `.env` (no override), makes one call with a neutral prompt under a Rs 1 cap, and prints the served model version, tokens, cost and latency. `--thinking-level low` is the fallback if `minimal` is refused.
+  - **The guard (`tests/conftest.py`, autouse, every test):**
+    - `GEMINI_API_KEY` is removed.
+    - `socket.connect`, `connect_ex`, `create_connection` and `getaddrinfo` raise `NetworkBlocked` for anything but loopback or a Unix socket.
+    - `dotenv.load_dotenv` raises.
+    - `NetworkBlocked` isn't an OSError, so no retry treats it as transient.
+  - **`CLAUDE.md`:** the smoke command and the guard.
+- **Tests:**
+  - `tests/test_llm.py` (33): decision 76's values; the key's known answer and that each part changes it; cost known answers; the bound never undercounts; the meter refuses before calling, charges once, never goes over the cap, and charges thinking as output; the cache (a rerun is free and identical, each repeat its own call, hits are free even with the budget spent, no prompt text stored, edited entries refused, never overwritten, a settings mismatch refused); replay (serves hits, refuses a changed prompt or schema version, calls nothing); and the adapter imports only the standard library.
+  - `tests/test_gemini.py` (13), on a fake SDK with the real offline `types`: missing key refused before the SDK; the request carries decision 76's settings with SDK retries off; tokens, thinking and version mapping; the key never shows (repr, result, error); retry and backoff; three failures raise; a 400 isn't retried; no thinking config when the level is None; the smoke command's output and cap; the smoke prompt names nothing of the plant.
+  - `tests/test_guard.py` (8): no key in the environment; outside connections and lookups blocked; loopback still works; `.env` never read (including through the smoke command); the real client refuses without a key; no test file holds a key-shaped string; `.env` is gitignored.
+  - **`pytest -q`:** 1580 passed, 4 deselected, with the guard on every test (1518 before). `spikes/langgraph`: 23 passed. CI installs `requirements.txt`, so these run there on fakes, with no secrets.
+- **The idea (for Raj):**
+  - **The adapter is three layers that can't be confused:** the cache, the meter and the provider. The order makes the guarantees: a cache hit returns before the meter is asked, so reruns are free; the meter is asked before the provider, so a run stops before it overspends, never after.
+  - **The worst-case check needs an input count before the call.** It uses the prompt's byte length, which can't undercount tokens. That overstates the cost of one call several times, but it only matters for the last call near the cap.
+- **Unsure about:**
+  - **Where `GeminiClient` lives:** the plan said `app/agent/llm.py --smoke`. `test_everything_app_imports_is_installed_by_the_deploy` sees lazy imports too, so any `google.genai` import in `app/` would force the SDK onto Render, which your rule forbids. So the provider and the smoke command live in `eval/gemini.py`, and `app/` keeps only what the demo needs (settings, key, cache, replay).
+  - **Which errors are retried:** decision 76 says "API errors retried up to 2 times". I retry only rate limits, server errors and transport errors. A 400 (for example a refused thinking level) fails at once, because a retry can't change it. If you want every error retried, it's one line.
+  - **The input bound:** bytes, not the API's free token-count call, which would add a network round trip to every call. Your choice if you'd rather count exactly.
+  - **The ledger is in memory per run.** S5 persists it in the record store, keyed the same way. A retried graph step is a cache hit anyway, so it isn't charged twice either way.
+  - **Not Claude's:** `eval/baselines/alarms.py` still has the IDE's one-line change.
+- **Decisions needed:** none new. After the smoke call, write the accepted thinking level and its thinking-token count into decision 76 (it says so).
+- **Next (Raj):**
+  - Put the key in `.env` as `GEMINI_API_KEY=…` (it's gitignored and denied to Claude Code).
+  - Run `python -m eval.gemini --smoke`, about Rs 0.01. If `minimal` is refused, run `--thinking-level low`.
+  - Paste the output (it never contains the key) so the accepted setting goes into decision 76.

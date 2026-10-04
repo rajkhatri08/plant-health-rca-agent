@@ -86,6 +86,7 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 36. **A normal dev pool.** Fit 250, early stop 50, calibration 150, normal dev 50. *Why:* dev false alerts and chance rates need normal runs that didn't set the limits.
 
 37. **No run IDs in the historian.** The demo replays one run at a time and the engine resets at each new stream. Run boundaries are handled on the dataset side. `history_id` is the work-order history key. Warm-up is the longest lag or window in samples, pre-registered, and under 10 samples. *Why:* training runs keep most of their 1 h pre-onset period.
+    *Amended 4 October 2026 (Raj, week 6 S2; eval/LEAKAGE.md):* `history_id` is the episode's opaque history key: its historian stream, and its work orders when built.
 
 38. **Onset offset per split.** 1 h into training runs, 8 h into testing runs. Chance rates use fake onsets at the offset of the runs they're compared with. *Why:* the offset differs between splits.
 

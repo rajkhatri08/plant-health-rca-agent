@@ -6,7 +6,7 @@ Three walls. CI enforces walls 1 and 2; wall 3 is audited from the access log an
 ## 1. The agent can't read the answer
 - Test labels and anything about faults 16–20 live only in the sealed folder. Train/dev labels, onsets and run IDs may be used in `dataset/`, `eval/` and notebooks, never in `app/` or `library/`. `app/` never imports `eval/` or `ingest/`.
 - The historian stores `ts, tag, value, quality`. The dataset's fault, run and sample columns are dropped at ingestion. The onset offset is fixed within each split (1 h into training runs, 8 h into testing runs), so a visible run boundary would give away the onset.
-- The historian has no run IDs: the demo replays one run at a time, and the engine resets at each new stream. Run boundaries are handled on the dataset side. `history_id` is the work-order history key, not a sensor run ID.
+- The historian has no run IDs: the demo replays one run at a time, and the engine resets at each new stream. Run boundaries are handled on the dataset side. `history_id` is the episode's opaque history key: its historian stream, and its work orders when built (Raj, 4 October 2026). It never carries a run or fault number.
 - Library entries reach the LLM only through the retrieval tool, which strips source and provenance. Entry IDs describe mechanisms, never fault numbers.
 - Few-shot examples come from training runs and carry no labels.
 - Work orders (when built) are as-of the diagnosis time. An order closed after that time shows only its opening text. Each case gets its own history, and truth rows stay in `eval/`.

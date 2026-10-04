@@ -1,5 +1,6 @@
-# Direct dependencies (approved: decisions 43 and 45; matplotlib, fastapi, uvicorn and httpx approved 27 Sep 2026, week 2; scikit-learn approved 2 Oct 2026, week 5, eval only; langgraph and langgraph-checkpoint-sqlite approved 3 Oct 2026, week 5 spike, not in requirements-app.txt until week 6 needs them). Resolved on Python 3.13.15.
+# Direct dependencies (approved: decisions 43 and 45; matplotlib, fastapi, uvicorn and httpx approved 27 Sep 2026, week 2; scikit-learn approved 2 Oct 2026, week 5, eval only; langgraph and langgraph-checkpoint-sqlite approved 3 Oct 2026, week 5 spike, not in requirements-app.txt until week 6 needs them; google-genai and python-dotenv approved 4 Oct 2026, week 6, for eval and the provider adapter only, never in requirements-app.txt). Resolved on Python 3.13.15.
 fastapi==0.141.1
+google-genai==2.28.0
 httpx==0.28.1
 langgraph==1.2.12
 langgraph-checkpoint-sqlite==3.1.1
@@ -9,6 +10,7 @@ pandas==3.0.6
 pyarrow==25.0.1
 pyreadr==0.5.6
 pytest==9.1.1
+python-dotenv==1.2.4
 PyYAML==6.0.3
 scikit-learn==1.9.1
 uvicorn==0.54.0
@@ -19,16 +21,19 @@ annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
 certifi==2026.7.22
+cffi==2.1.1
 charset-normalizer==3.5.2
 click==8.5.0
 cloudpickle==3.1.2
 contourpy==1.4.0
+cryptography==50.0.2
 cycler==0.12.1
 distro==1.9.0
 fonttools==4.66.0
+google-auth==2.59.1
 h11==0.16.0
-httpcore2==2.13.1
 httpcore==1.0.9
+httpcore2==2.13.1
 httpx2==2.13.1
 idna==3.20
 iniconfig==2.3.0
@@ -48,13 +53,16 @@ ormsgpack==1.12.2
 packaging==26.3
 pillow==12.3.0
 pluggy==1.6.0
-pydantic_core==2.46.5
+pyasn1==0.6.4
+pyasn1_modules==0.4.2
+pycparser==3.0
 pydantic==2.13.5
+pydantic_core==2.46.5
 Pygments==2.21.0
 pyparsing==3.3.3
 python-dateutil==2.9.0.post0
-requests-toolbelt==1.0.0
 requests==2.34.2
+requests-toolbelt==1.0.0
 scipy==1.18.1
 six==1.17.0
 sniffio==1.3.1

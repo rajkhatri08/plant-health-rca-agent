@@ -29,6 +29,63 @@ def _no_real_paths(tmp_path, monkeypatch):
     monkeypatch.delenv("EVAL_MODE", raising=False)
 
 
+class NetworkBlocked(RuntimeError):
+    """A test tried to reach the network, or to read .env (week 6 S3 guard). Not an
+    OSError, so no retry logic mistakes it for a transient failure."""
+
+
+_LOCAL_HOSTS = {None, "localhost", "127.0.0.1", "::1", b"localhost"}
+
+
+def _is_local(address):
+    if isinstance(address, (str, bytes)):                  # an AF_UNIX path
+        return True
+    host = address[0]
+    return host in _LOCAL_HOSTS or str(host).startswith("127.")
+
+
+@pytest.fixture(autouse=True)
+def _no_network_no_key(monkeypatch):
+    """No test sees GEMINI_API_KEY, reads .env, or reaches anything but loopback, so no test
+    (and no CI run) can call the model or spend money. tests/test_guard.py proves each."""
+    import socket
+
+    import dotenv
+
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    real_connect, real_connect_ex = socket.socket.connect, socket.socket.connect_ex
+    real_getaddrinfo, real_create = socket.getaddrinfo, socket.create_connection
+
+    def connect(self, address):
+        if not _is_local(address):
+            raise NetworkBlocked(f"a test tried to connect to {address!r}")
+        return real_connect(self, address)
+
+    def connect_ex(self, address):
+        if not _is_local(address):
+            raise NetworkBlocked(f"a test tried to connect to {address!r}")
+        return real_connect_ex(self, address)
+
+    def getaddrinfo(host, *args, **kwargs):
+        if host not in _LOCAL_HOSTS and not str(host).startswith("127."):
+            raise NetworkBlocked(f"a test tried to resolve {host!r}")
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    def create_connection(address, *args, **kwargs):
+        if not _is_local(address):
+            raise NetworkBlocked(f"a test tried to connect to {address!r}")
+        return real_create(address, *args, **kwargs)
+
+    def load_dotenv(*args, **kwargs):
+        raise NetworkBlocked("a test tried to read .env")
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+    monkeypatch.setattr(dotenv, "load_dotenv", load_dotenv)
+
+
 FAULTY = [1, 2, 16]
 SAMPLES = {"fault_free_training": 3, "fault_free_testing": 4,
            "faulty_training": 3, "faulty_testing": 4}
