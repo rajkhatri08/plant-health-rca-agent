@@ -1,0 +1,105 @@
+{
+  "name": "agent_run",
+  "time": "2026-10-04T16:45:17+00:00",
+  "commit": "c9a40e362170ef5b83ad2dc30f6c001e74abd815",
+  "dirty": false,
+  "config": {
+    "mode": "tuning",
+    "library_as_of": "2026-10-05T00:00:00+00:00",
+    "library": {
+      "condenser-cooling-water-temperature-wander": "condenser-cooling-water-temperature-wander@r1",
+      "condenser-cooling-water-warm-supply": "condenser-cooling-water-warm-supply@r1",
+      "mixed-feed-composition-wander": "mixed-feed-composition-wander@r1",
+      "mixed-feed-inert-rise": "mixed-feed-inert-rise@r1",
+      "mixed-feed-reactant-ratio-shift": "mixed-feed-reactant-ratio-shift@r1",
+      "mixed-feed-supply-loss": "mixed-feed-supply-loss@r1",
+      "mixed-feed-temperature-wander": "mixed-feed-temperature-wander@r2",
+      "reactant-1-feed-supply-loss": "reactant-1-feed-supply-loss@r1",
+      "reaction-rate-drift": "reaction-rate-drift@r1",
+      "reactor-cooling-valve-sticking": "reactor-cooling-valve-sticking@r1",
+      "reactor-cooling-water-temperature-wander": "reactor-cooling-water-temperature-wander@r1",
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "left_out": {
+      "2": "mixed-feed-inert-rise",
+      "11": "reactor-cooling-water-temperature-wander"
+    },
+    "bundle": "pca_v3",
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+    "normals_record": "eval/runs/20261001T182856Z_evidence_normals.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "subsets": {
+      "evaluation": {
+        "seed": 20261004,
+        "runs": 10
+      },
+      "tuning": {
+        "seed": 20261005,
+        "runs": 3
+      }
+    },
+    "rules": {
+      "provisional": {
+        "threshold": "1/3",
+        "accepted": 0.9371816638370118,
+        "short": true,
+        "k": 2
+      },
+      "revised": {
+        "threshold": "5/11",
+        "accepted": 0.9066213921901528,
+        "short": true,
+        "k": 2
+      }
+    },
+    "settings": {
+      "model_id": "gemini-3.1-flash-lite",
+      "temperature": 0.0,
+      "max_output_tokens": 1024,
+      "thinking_level": "minimal"
+    },
+    "schema_version": "diagnosis-1",
+    "prices": {
+      "read_on": "2026-10-04",
+      "usd_per_m_input": "0.25",
+      "usd_per_m_output": "1.50",
+      "usd_inr": "96.33",
+      "usd_inr_on": "2026-10-04"
+    },
+    "prompt_sha256": "9c9a9ce3da16174dfea5986d393a450daba4f5e4327c5f2d65fc89a2d9d4d2c0",
+    "budget_inr": 50.0,
+    "repeats": 1,
+    "min_interval_s": 4.0
+  },
+  "seeds": {
+    "evaluation": 20261004,
+    "tuning": 20261005
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {
+    "calls": {
+      "path": "data/agent_runs/20261004T164517Z_tuning/calls.jsonl",
+      "sha256": "a31936a4fce02610c5e4c2091dbd99459065ebedd3b785ed6a8bc4000d09e174"
+    },
+    "ledger": {
+      "path": "data/agent_runs/20261004T164517Z_tuning/ledger.json",
+      "sha256": "566e351d1016734cab812b54ee94d402927ca4ff2dbd9774d78f3a9b8daf755e"
+    }
+  },
+  "metrics": {
+    "planned": 68,
+    "completed": 68,
+    "complete": true,
+    "stopped": null,
+    "llm_calls": 66,
+    "spent_inr": 0.0
+  }
+}
