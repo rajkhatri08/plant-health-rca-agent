@@ -3830,3 +3830,58 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:** none.
 - **For Raj:** implement `amoc_sweep` until `tests/test_curves.py` passes. Then, on dev (no sealed data): rerun `python -m eval.dev_table … --watch … --masked …`, run `python -m eval.curves amoc`, and run `python -m eval.curves plot <record>` on each. Commit the records; the PNGs stay in `data/plots/`.
 - **Next:** the suite's run time (Raj's request): the 15 slowest tests and a proposal, nothing changed until approved. Then S2 and S3.
+
+### 2026-10-05: week 7 S1e, dev results: the cumulative detection curve and the AMOC curve (Raj's runs; dev only)
+- **Changed:** docs only (this entry). Raj implemented `amoc_sweep` (with guidance from the Claude.ai chat; `8e06392`), and `tests/test_curves.py` passes. Raj ran the dev commands and committed the records; the PNGs are in `data/plots/`.
+- **Records:**
+  - `eval/runs/20261005T151937Z_dev_table_pca_static.json`: the dev table rerun with the same inputs as `20260929T073949Z`, now with the cumulative curve
+  - `eval/runs/20261005T151556Z_amoc.json`: 509 grid points
+- **Cumulative detection (dev, static PCA, the equal-weight mean of the 12 summary faults):** 44.5% of runs detected within 12 min of onset, 61.7% within 30 min, 81.7% within 1 h, 90.2% within 2 h, and 98.2% within 4 h.
+- **AMOC (dev; pooled median delay over every summary-fault run, misses +inf):**
+  - **The operating point,** q = 95.57: 0.919 false alerts per 24 h on the normal dev runs, a pooled median delay of 15 min, and a detection rate of 98.2%. No grid point has an infinite delay.
+  - **The same 15-min median** is reached at 0.626 false alerts per 24 h (q = 96.28, the lowest rate with a median of 15 min or less). So a stricter limit might cut false alerts by about 30% at the same median delay.
+- **This is a dev observation only.** The pre-registered operating point stays: q is set on the calibration pool to the budget by decision 54's search, and choosing it on dev would tune on dev. It goes in the README's limitations as a possible improvement not taken.
+- **Tests:** none run (docs only).
+- **Decisions needed:** none.
+
+### 2026-10-05: week 7 session 2, the published-number check: stubs, tests and driver (code only; nothing run on data)
+- **Raj's answers (S2, before any code):**
+  - **The paper (Yin et al. 2012, in hand):**
+    - section 4.1's settings
+    - 9 PCs by PRESS (Table 3), 17 as the alternative (Table 6)
+    - T² from the F distribution (eq. 3) and SPE by Jackson-Mudholkar (eq. 2), either statistic, per-sample FDR and FAR
+    - Table 4 and Table 7 FDRs, and FAR 6.13% and 6.38%
+    - the significance level isn't stated, so 99% is assumed
+  - **The check:**
+    - k = 9 on the 33 fast tags, with k = 12 alongside and k = 17 against Table 7 as a second verdict
+    - theoretical 99% limits, no persistence; per-sample FDR after onset on dev, FAR on normal dev
+    - agreement within 10 points on the 12 detectable faults, every miss explained
+    - the known differences recorded
+  - **scipy** is approved as a direct dependency for eval only, at the pin already there (1.18.1).
+- **Changed:**
+  - **`eval/published/yin2012.yaml` (new; builder side, never agent-visible):** the citation, the settings, Tables 4 and 7, the FAR, and the assumption. The record holds its SHA-256.
+  - **`eval/published_check.py` (new):**
+    - **Raj's four stubs, with their specifications:** `t2_limit_f`, `spe_limit_jm`, `flagged` and `per_sample_rate`.
+    - **Claude's:**
+      - `load_paper` and `compare`: per fault, ours, the paper's value, the difference and whether it's within 10 points; only the detectable faults are judged; the misses are listed; "agrees" only with no miss.
+      - **The driver:** it fits the production fit matrix (`fit_pca.fit_matrix`, warm-up 9) at k = 9, 12 and 17. It takes the limits from the stubs, with n the fit samples and the discarded eigenvalues, and scores the normal dev runs and the dev runs of faults 1–15. FDR runs from sample 21, FAR from sample 10.
+      - **The `published_check` record:** aggregates only, the known differences and `alpha_assumed`, with a table in `data/tables/`. It loads open data only (fit and dev).
+  - **`requirements.txt`:** the header comment notes scipy's approval. The pin is unchanged.
+  - **`eval/PROTOCOL.md`:** the published-number check paragraph now holds the confirmed components, settings, agreement rule and known differences (v2, before the tag).
+  - **`docs/decisions.md`:** decision 56 amended the same way.
+- **Tests (`tests/test_published_check.py`, 37):**
+  - **9 pass now:**
+    - the paper file and a refusal
+    - `compare` (only detectable faults judged; exactly 10 points counts as within)
+    - the detectable set
+    - the driver with stand-ins for the four functions: the production matrix at each k; the T² and SPE arguments (n, 33 − k residual eigenvalues, 0.99); open dev data only, never the test split; FAR from sample 10 and FDR from 21; the record's comparisons for k = 9 and 17 and k = 12 alongside; the headline k required; a dirty tree refused
+  - **28 fail with the stubs' `NotImplementedError` until Raj implements them (checked: 28 of 28, nothing else):**
+    - eq. 3 against a reference written out with scipy, and its approach to χ²(0.99, k) at n = 122,750 (21.669 against 21.666)
+    - eq. 2 against its reference, a hand value (26.796 for [3, 2, 1, 0.5, 0.25]), near χ²(0.99, 24) with 24 equal eigenvalues (43.004 against 42.980), and scaling with the eigenvalues
+    - strict and either-statistic flags
+    - pooled rates from `first`
+    - all the refusals
+  - `tests/test_requirements_app.py` passes. CI is red until the stubs are in, as before.
+- **Unsure about:** none.
+- **Decisions needed:** none.
+- **For Raj:** implement the four functions until `tests/test_published_check.py` passes. Then run `python -m eval.published_check` (dev only, about one dev-table run's time) and explain every miss in decision 56.

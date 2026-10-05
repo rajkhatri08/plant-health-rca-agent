@@ -241,6 +241,15 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
 
     *Why:* the table uses exactly our production variable set, so the check is like-for-like on variables (decision 39) and needs no analyzer tags.
 
+    **Amended (Raj, 5 October 2026, week 7 S2, before the check runs; the paper's full text in hand):**
+    - **Components:** 9, by PRESS cross-validation (the paper's Table 3); 17 (90% explained variance, Table 6) as the alternative. The fallback to our k = 12 isn't needed; k = 12 is reported alongside.
+    - **Limits and rule (section 4.1):** T² from the F distribution (eq. 3), SPE by Jackson-Mudholkar (eq. 2), either statistic flags a sample, no persistence. The significance level isn't stated: 99% is assumed, recorded as an assumption.
+    - **Published values:** FDR per fault, Table 4 (9 PCs) and Table 7 (17 PCs); FAR 6.13% (Table 5) and 6.38% (Table 8). Transcribed into `eval/published/yin2012.yaml`, whose SHA-256 goes in the record.
+    - **Agreement:** within 10 points per fault on the 12 detectable faults (not 3, 9, 15), k = 9 against Table 4 as the headline and k = 17 against Table 7 as a second verdict; every miss explained here once the check has run.
+    - **Known differences:** dev runs are training runs (fault after sample 20, about 480 post-onset samples, against 800 after 160); the fit pool is 250 runs against one; the significance level is assumed; FAR skips the warm-up.
+    - **scipy** becomes a direct dependency for eval only (the F and normal quantiles), at the pin already resolved (1.18.1); never in requirements-app.txt.
+    - **Who writes what:** Raj the limits and the per-sample rates; Claude the stubs, tests, the paper file and the driver (`eval/published_check.py`).
+
 ## Week 3 decisions, 28 September 2026
 
 57. **Detection is scored from the documented onset; twin divergence is a diagnostic only (Raj's decision).**

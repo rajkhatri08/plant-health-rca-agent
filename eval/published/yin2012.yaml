@@ -1,0 +1,59 @@
+# The published-number check's source (decision 56; PROTOCOL, Detection). Builder side only:
+# this file names the benchmark's literature, so it lives in eval/ and never reaches app/,
+# library/ or a prompt. Values as transcribed by Raj from the full text (week 7 S2).
+source:
+  authors: Yin, S., Ding, S. X., Haghani, A., Hao, H., Zhang, P.
+  year: 2012
+  title: >-
+    A comparison study of basic data-driven fault diagnosis and process monitoring methods
+    on the benchmark Tennessee Eastman process
+  journal: Journal of Process Control 22(9), 1567-1581
+  doi: 10.1016/j.jprocont.2012.06.009
+settings:                       # section 4.1
+  variables: "XMEAS(1-22) and XMV(1-11): 33, the same as our fast tags"
+  components:
+    headline: 9                 # PRESS cross-validation, Table 3
+    alternative: 17             # 90% explained variance, Table 6
+  t2_limit: F distribution (eq. 3)
+  spe_limit: Jackson-Mudholkar (eq. 2)
+  rule: a sample is flagged if either statistic exceeds its limit
+  rates: per-sample percentages (FDR on fault runs, FAR on normal data)
+  test_sets: 960 samples, the fault after sample 160
+assumptions:
+  significance: 0.99            # not stated in the text; assumed (Raj, S2)
+fdr_percent:                    # PCA, faults 1-15
+  k9:                           # Table 4
+    1: 99.88
+    2: 98.75
+    3: 12.88
+    4: 100
+    5: 33.63
+    6: 100
+    7: 100
+    8: 98
+    9: 8.38
+    10: 60.5
+    11: 78.88
+    12: 99.13
+    13: 95.38
+    14: 100
+    15: 14.13
+  k17:                          # Table 7
+    1: 100
+    2: 99.38
+    3: 10.25
+    4: 100
+    5: 34.75
+    6: 100
+    7: 100
+    8: 98.63
+    9: 9.88
+    10: 71
+    11: 83
+    12: 99
+    13: 95.75
+    14: 100
+    15: 17.25
+far_percent:
+  k9: 6.13                      # Table 5
+  k17: 6.38                     # Table 8
