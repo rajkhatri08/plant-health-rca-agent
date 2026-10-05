@@ -3923,3 +3923,73 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
     - five refusals
 - **Decisions needed:** none.
 - **For Raj:** implement `far_matched_factor`, then run `python -m eval.published_check --far-matched eval/runs/20261005T165013Z_published_check.json` (dev only). The verdict in decision 56 stands whatever it shows.
+
+### 2026-10-05: week 7 S2, the FAR-matched diagnostic's result, and S2 closed (docs only)
+- **Changed:** docs only (decision 56's Result and this entry).
+- **The diagnostic** (Raj's run, `eval/runs/20261005T165837Z_published_check_far_matched.json`, commit ec20664, clean; post hoc, changes no verdict; Claude read the record):
+  - **The factors:** c* = 0.844 at k = 9 and 0.837 at k = 17. The FAR reached is 6.13% and 6.38%.
+  - **Fault 10** rises from 33.2% to 49.1% at k = 9 (paper 60.5%) and from 51.3% to 64.9% at k = 17 (paper 71.0%). That closes about 60% and 70% of the gap.
+    - The paper's operating point explains most of the miss.
+    - A residual of about 11 points remains at k = 9. It isn't explained further. The paper's rates come from one test run per fault, so they may differ from our pooled dev rate by several points; that isn't verified.
+  - **Fault 5** goes the other way: 48.5% at k = 9 and 51.7% at k = 17, against 33.6% and 34.8%.
+    - That's consistent with the window difference: the control system compensates the fault some hours after onset, so our 480-sample window gives a higher per-sample rate than the paper's 800 (about 200 detectable samples: 42% against about 30%).
+    - This is consistent, not verified.
+    - The record gives 48.55% at k = 9; Raj's note said 48.6.
+  - **Reading only:** at c*, 10 of 12 detectable faults are within 10 points at k = 9 (5 and 10 outside) and 11 of 12 at k = 17.
+- **README line:** our PCA reproduces the published per-sample rates on 11 of 12 detectable faults. The one miss (fault 10) is mostly explained by the paper's three-times-higher false-alarm operating point.
+- **Tests:** none run (docs only).
+
+### 2026-10-05: week 7 S2 closed
+- **The published-number check (Must, Metrics; open since week 2) is done:**
+  - **The check:** `eval/runs/20261005T165013Z_published_check.json`. Under the pre-registered rule it doesn't agree: 11 of 12 detectable faults are within 10 points at k = 9 and at k = 17; the one miss is fault 10.
+  - **The post-hoc diagnostic:** `eval/runs/20261005T165837Z_published_check_far_matched.json`. The paper's three-times-higher FAR explains most of fault 10's gap.
+  - Recorded in decision 56 and PROTOCOL.
+- **Code:**
+  - `eval/published_check.py`: Raj's limits, rates and factor; Claude's driver and diagnostic.
+  - `eval/published/yin2012.yaml`
+  - scipy approved for eval only
+- **Carried to S3:**
+  - **The forest fingerprint record (`diag_fingerprint`) hasn't been made yet.** Raj runs it on dev before the freeze, because TEST_PLAN names it.
+  - The S1e AMOC observation (a stricter limit might cut false alerts by about 30% at the same median delay) and this check's result both go in the README.
+- **Next:** S3, the TEST_PLAN draft.
+
+### 2026-10-05: week 7 session 3, the test plan drafted (docs only; nothing committed or tagged)
+- **Changed:**
+  - **`eval/TEST_PLAN.md` (new, draft for Raj's review):**
+    - the freeze and tag, and the crash and rerun rule
+    - every frozen value with its source record or S0, S1, S1e and S2 answer: the model, limits, Watch boundaries, evidence normals and alarm limits by SHA-256; the masked list; the library as-of and rules; the leave-one-out refs; the LLM settings and prompt hash (rechecked: `fa39b73e…5ee0`); the subsample; the false-alert cap; the budget
+    - the pre-freeze steps (the fingerprint record, Claude's check of it against the agent run's rules, the tag and push)
+    - the command sequence (13 steps, with every path but the four records still to be made filled in), the expected outputs, and the expected access-log lines (198 in all)
+    - the table layouts as empty tables
+    - the budget
+    - three open questions
+  - **`eval/PROTOCOL.md` (v2, before the tag):** 11 rows in the pre-registered values table for the test run (plan and freeze, the crash rule, detection, the twin check, curves, diagnosis rules, subsample, cases, LLM budget, reporting).
+- **Tests:** none run (docs only).
+- **Decisions needed (before the tag):**
+  - **A. DPCA on test.** The draft runs static PCA only ("test only confirms the choice").
+  - **B. `--masked` on the alarm rows.** The draft uses it on the PCA row only, as on dev.
+  - **The fingerprint record** still has to be made by Raj on dev (section 3).
+
+### 2026-10-06: week 7 session 3, Raj's review of the test plan applied (docs only; nothing committed or tagged)
+- **Raj's answers:**
+  - **A.** DPCA on test as a confirmation row only. Static PCA stays shipped whatever it shows.
+  - **B.** `--masked` on the alarm rows too.
+  - **C.** The access-log count is fine as written.
+  - **Additions:**
+    1. Also report the 12-fault (dev-equivalent) mean and a 16–20 mean.
+    2. State B2 for the keep rule on test's unknowns.
+    3. List the safety set, the probes and the FAR-matched diagnostic as not run on test.
+- **Changed:**
+  - **`eval/TEST_PLAN.md`:**
+    - **Section 2:** DPCA pinned (model `33433c41…`, limits `e8b8c436…`, L = 1, n = 3, G = 13, q = 97.07, its fit, calibration and selection records); the three summaries; the detector rows; Masked on every row; B2 stated; "Not run on test" widened.
+    - **Section 3:** a new step for the summary code change.
+    - **Section 4:** DPCA is step 3 (21 lines), and the alarm rows carry `--masked`. There are now 14 steps and 219 access-log lines. The record references are corrected to steps 1, 11 and 12; the earlier draft had them wrong.
+    - **Sections 5.1 and 5.2:** the new summary rows and the DPCA row.
+    - **Section 7:** Raj's answers.
+  - **`eval/PROTOCOL.md` (v2, untagged):** the detection row widened; new rows for the detector rows and for "Not run on test"; the reporting row states B2.
+- **Tests:** none run (docs only).
+- **Decisions needed:** none.
+- **Before the tag (named in TEST_PLAN section 3):**
+  - Raj's fingerprint run.
+  - Claude's check of the fingerprint against the agent run's rules.
+  - **Claude's driver change:** `dev_table --split test` must also compute the 12-fault and 16–20 means, with tests. Today it computes only the 17-fault summary and the 3, 9, 15 mean.

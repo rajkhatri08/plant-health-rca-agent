@@ -259,6 +259,14 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **Diagnostic (post hoc, dev only, changes no verdict):** both theoretical limits are scaled by one common factor c* so that our FAR on the normal dev runs equals the paper's (6.13% at k = 9, 6.38% at k = 17), and every fault's rate is reported at c*.
       - **How c* is set:** the (100 − target)th percentile of the pooled per-sample ratio max(T²/T²lim, SPE/SPElim) over the normal dev runs after the warm-up. This rule is fixed before it runs.
       - **Who writes it:** Raj writes the factor; Claude the driver (`python -m eval.published_check --far-matched`).
+    - **The diagnostic's result** (`eval/runs/20261005T165837Z_published_check_far_matched.json`, commit ec20664, clean; post hoc, changes no verdict):
+      - **The factors:** c* = 0.844 at k = 9 and 0.837 at k = 17. The FAR reached is 6.13% and 6.38%.
+      - **Fault 10 rises** from 33.2% to 49.1% at k = 9 (paper 60.5%), and from 51.3% to 64.9% at k = 17 (paper 71.0%). That closes about 60% and 70% of the gap: the paper's operating point explains most of the miss.
+      - **At k = 9 a residual of about 11 points remains.** It's not explained further. The paper's rates come from one test run per fault, so a random-variation fault may differ from our pooled dev rate by several points. That's not verified.
+      - **Fault 5 moves the other way:** 48.5% at k = 9 and 51.7% at k = 17, against the paper's 33.6% and 34.8% (41.7% and 42.2% in the check). At c* it's outside 10 points, so the reading-only count is 10 of 12 at k = 9 and 11 of 12 at k = 17.
+      - **That's consistent with the window difference.** Fault 5 is compensated by the control system some hours after onset, so a shorter post-onset window gives a higher per-sample rate: our 480 samples against the paper's 800. With about 200 detectable samples, 200 of 480 is about 42%, against 200 of 800 plus false alarms, about 30%. It's an explanation consistent with the numbers, not a verified one.
+      - **The undetectable faults 3, 9 and 15** rise to 6.2–7.5%, the matched FAR plus noise, against the paper's 8.4–17.3%.
+    - **README line:** our PCA reproduces the published per-sample rates on 11 of 12 detectable faults. The one miss (fault 10) is mostly explained by the paper's three-times-higher false-alarm operating point.
 
 ## Week 3 decisions, 28 September 2026
 
