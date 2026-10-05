@@ -71,7 +71,7 @@ def cumulative_block(delays_by_fault, summary_faults, horizons_min=HORIZONS_MIN)
 # ---------- the AMOC sweep (Raj's) ----------
 
 def amoc_sweep(cal_scored, normal_scored, fault_scored, n, gap, warmup, onset, q_grid, lags=0) -> list:
-    """One AMOC point per q in q_grid, in grid order (Raj implements this; week 7 S1e).
+    """One AMOC point per q in q_grid, in grid order (Raj's; week 7 S1e).
 
     Inputs (each {run number: (T² array, SPE array)} over whole runs, index 0 = sample 1,
     as calibrate_driver.score_runs gives them):
@@ -93,7 +93,29 @@ def amoc_sweep(cal_scored, normal_scored, fault_scored, n, gap, warmup, onset, q
     Returns [{"q", "per_24h", "delay_min", "detection_rate"}, ...] (floats; delay_min may be
     math.inf). Raises ValueError if q_grid is empty or not strictly increasing, or if
     normal_scored or fault_scored is empty."""
-    raise NotImplementedError("Raj implements amoc_sweep (week 7 S1e)")
+    grid = [float(q) for q in q_grid]
+    if not grid or any(b <= a for a, b in zip(grid, grid[1:])):
+        raise ValueError("q_grid must be non-empty and strictly increasing")
+    if not normal_scored:
+        raise ValueError("no normal runs to count false alerts on")
+    if not fault_scored or not any(fault_scored.values()):
+        raise ValueError("no fault runs to measure delays on")
+    numbers = sorted(cal_scored)
+    t2_runs = [cal_scored[k][0] for k in numbers]
+    spe_runs = [cal_scored[k][1] for k in numbers]
+    points = []
+    for q in grid:
+        limits = cal.limits_at(t2_runs, spe_runs, q, warmup)            # set on the calibration pool
+        normal = drv.tracks(normal_scored, limits, n, gap, warmup, lags)
+        per_24h = metrics.false_alerts_per_24h(
+            [metrics.ScoredRun(0, k, t) for k, t in sorted(normal.items())], warmup)[2]
+        dets = [metrics.detection(t, onset, warmup=warmup)
+                for f in sorted(fault_scored)
+                for _, t in sorted(drv.tracks(fault_scored[f], limits, n, gap, warmup, lags).items())]
+        delay = metrics.delay_summary([d.delay_min for d in dets])[0]   # pooled median, misses +inf
+        points.append({"q": q, "per_24h": float(per_24h), "delay_min": float(delay),
+                       "detection_rate": sum(d.detected for d in dets) / len(dets)})
+    return points
 
 
 def operating_point(points, q):
