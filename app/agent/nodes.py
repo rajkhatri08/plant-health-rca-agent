@@ -27,7 +27,7 @@ from fractions import Fraction
 
 from langgraph.types import interrupt
 
-from app.agent import emergency as emergency_screen  # noqa: F401 (screen uses it)
+from app.agent import emergency as emergency_screen
 from app.agent import faithfulness, records
 from app.agent import llm      # BudgetExceeded and CacheMiss propagate; any other LLMError is an outcome
 from app.agent import schema as sc
@@ -72,19 +72,22 @@ def screen(state, deps) -> dict:
     """{"screen": {"emergency": bool, "classes": [...]}} from
     emergency_screen.screen(state["operator_note"]) (decision 78). No clock, no tools, no LLM:
     it reads only the note. A pass without a note is never an emergency."""
-    raise NotImplementedError("Raj implements the screen node (decision 78)")
+    classes = emergency_screen.screen(state.get("operator_note"))      # [] without a note
+    return {"screen": {"emergency": bool(classes), "classes": classes}}
 
 
 def route_after_screen(state) -> str:
     """"emergency" when state["screen"]["emergency"], else "evidence"."""
-    raise NotImplementedError("Raj implements route_after_screen")
+    return "emergency" if state["screen"]["emergency"] else "evidence"
 
 
 def emergency(state, deps) -> dict:
     """{"outcome": "emergency", "note": emergency_screen.EMERGENCY_TEXT, "as_of": ISO}: the pass
     ends with the site emergency procedure. No evidence, no matcher, no LLM, no diagnosis, no
     proposal. as_of = notified_at + OFFSETS_MIN[stage] min (the record needs it; no clock)."""
-    raise NotImplementedError("Raj implements the emergency node (decision 78)")
+    notified = datetime.fromisoformat(state["notified_at"])
+    as_of = notified + timedelta(minutes=OFFSETS_MIN[state["stage"]])       # plant clock, from the state
+    return {"outcome": "emergency", "note": emergency_screen.EMERGENCY_TEXT, "as_of": as_of.isoformat()}
 
 
 def evidence(state, deps) -> dict:
