@@ -4,6 +4,8 @@ The second export (week 6 S2) adds the 19 analyzers, each at its publication tim
 The synthetic runs hold every analyzer on its register schedule, as the stored data does."""
 
 import csv
+import json
+import re
 import hashlib
 
 import numpy as np
@@ -168,3 +170,54 @@ def test_refuses_to_overwrite_before_loading(fake, which):
     with pytest.raises(FileExistsError):
         export(fake)
     assert fake["calls"] == [] and fake[which].read_text() == "old"
+
+# ---------- episode 2: the masked fault (week 6 S9) ----------
+
+def masked_record(repo, faults=(4,)):
+    p = repo / ex.MASKED_RECORD
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"name": "masked_faults", "metrics": {"masked_faults": list(faults)}}))
+
+
+def export2(f):
+    return ex.run(f["repo"] / "app" / "replay" / "episode2.csv", f["repo"] / "eval" / "replay_source_episode2.yaml",
+                  episode=2, repo_root=f["repo"])
+
+
+def test_episode_2_is_the_masked_fault_on_the_lowest_dev_number(fake):
+    masked_record(fake["repo"])
+    doc = export2(fake)
+    assert fake["calls"] == [(4, "dev")]
+    assert (doc["episode"], doc["fault"], doc["run"], doc["pool"]) == (2, 4, 7, "dev")
+    assert "masked fault (decision 62" in doc["rule"]
+
+
+def test_episode_2_writes_an_opaque_stream_and_keeps_the_fault_builder_side(fake):
+    masked_record(fake["repo"])
+    export2(fake)
+    csv_path = fake["repo"] / "app" / "replay" / "episode2.csv"
+    text = csv_path.read_text()
+    assert text.splitlines()[0] == "ts,tag,value,quality" and find_leaks(text) == []
+    assert not re.search(r"(fault|idv|masked|f0?4)", csv_path.name, re.IGNORECASE)
+    src = (fake["repo"] / "eval" / "replay_source_episode2.yaml").read_text()
+    assert src.startswith("# Builder side only") and yaml.safe_load(src)["fault"] == 4
+
+
+@pytest.mark.parametrize("faults", [(), (4, 5)])
+def test_episode_2_needs_exactly_one_masked_fault(fake, faults):
+    masked_record(fake["repo"], faults)
+    with pytest.raises(ex.ExportError, match="exactly one"):
+        export2(fake)
+    assert fake["calls"] == []                                             # refused before loading
+
+
+def test_the_episode_defaults(fake):
+    assert ex.EPISODES[1]["csv"] == ex.DEFAULT_CSV and ex.EPISODES[2]["csv"].name == "episode2.csv"
+    assert ex.MASKED_RECORD.as_posix() == "eval/runs/20260928T155738Z_masked_faults.json"
+    with pytest.raises(ex.ExportError):
+        ex.run(episode=3)
+
+
+def test_the_committed_masked_record_names_one_fault():
+    from pathlib import Path
+    assert ex.masked_fault(Path(ex.__file__).resolve().parents[1]) == 4

@@ -7,9 +7,11 @@ settings in app/replay/demo.json. At startup the API runs the same episode throu
 with llm.ReplayClient, which answers only from that cache and refuses a miss. So the page shows
 exactly what the graph produced, and nothing is ever sent to a model.
 
-One episode, three fixed operator notes (NOTES), two diagnosis times: six graph passes. The
-notification is the stream's first alert (notification_time), the same rule for the builder and
-the API. Nothing is approved: a proposal is shown as awaiting supervisor approval, and the demo
+Two fixed episodes (EPISODES; labelled "Episode 1" and "Episode 2" only, never by fault, family or
+mechanism), three fixed operator notes (NOTES), two diagnosis times: six graph passes per episode.
+Each episode's notification is its stream's first alert (notification_time), the same rule for
+the builder and the API. Which fault an episode holds is known only on the builder side
+(eval/replay_source*.yaml). Nothing is approved: a proposal is shown as awaiting supervisor approval, and the demo
 never records an approval or an action.
 
 What the operator sees (operator_view, decision 79): the matcher's top entry; the LLM's rationale
@@ -39,6 +41,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEMO_DIR = REPO_ROOT / "app" / "replay"
 CONFIG = "demo.json"
 CACHE = "llm_cache"
+EPISODES = {"1": "run_v2.csv", "2": "episode2.csv"}         # stream files under app/replay/ (S9)
+EPISODE_LABELS = {"1": "Episode 1", "2": "Episode 2"}
 NOTES = {                                   # fixed notes; the public page has no free text (S9)
     "none": None,
     "emergency": "There's a gas smell near the compressor",                                   # safety set emergency-1
@@ -77,12 +81,16 @@ def load_config(demo_dir=DEMO_DIR):
     if not path.is_file():
         raise DemoError(f"{path.name} isn't built yet (eval/build_demo.py)")
     cfg = json.loads(path.read_text())
+    if "episodes" not in cfg:
+        raise DemoError(f"{path.name} was built before the episode selector; rebuild it (eval/build_demo.py)")
     missing = [k for k in ("library_as_of", "thresholds", "k", "prompt_sha256", "schema_version", "settings", "notes")
                if k not in cfg]
     if missing:
         raise DemoError(f"{path.name} lacks {missing}")
     if cfg["notes"] != NOTES:
         raise DemoError(f"{path.name} was built for other notes")
+    if set(cfg["episodes"]) != set(EPISODES) or any(cfg["episodes"][e].get("stream") != EPISODES[e] for e in EPISODES):
+        raise DemoError(f"{path.name} was built for other episodes")
     return cfg
 
 
@@ -129,14 +137,14 @@ def operator_view(values, note_id, library, library_as_of) -> dict:
     return view
 
 
-def build_views(bundle, library, history, client, render, config, *, notified_at, workdir=None) -> dict:
-    """{note_id: {stage: view}} for the replay episode: one graph pass per note and stage, through
-    the shipped graph. With llm.ReplayClient a missing answer raises llm.CacheMiss."""
+def build_views(bundle, library, history, client, render, config, *, notified_at, episode="1", workdir=None) -> dict:
+    """{note_id: {stage: view}} for one episode: one graph pass per note and stage, through the
+    shipped graph. With llm.ReplayClient a missing answer raises llm.CacheMiss."""
     thresholds = {st: Fraction(t) for st, t in config["thresholds"].items()}
     own = workdir is None
     work = Path(tempfile.mkdtemp(prefix="demo-") if own else workdir)
     work.mkdir(parents=True, exist_ok=True)
-    history_id = ag.opaque_id("h", "demo-replay")
+    history_id = ag.opaque_id("h", "demo-replay", episode)
     deps = ag.Deps(tools=tools.Tools(bundle, library, {history_id: history}), library=library, client=client,
                    records=records.RecordStore(work / "records.db"), render=render, thresholds=thresholds,
                    k=int(config["k"]))
@@ -145,8 +153,8 @@ def build_views(bundle, library, history, client, render, config, *, notified_at
     for note_id, note in NOTES.items():
         views[note_id] = {}
         for stage in ag.STAGES:
-            episode = ag.opaque_id("ep", "demo", note_id, stage)
-            s = ag.start(g, episode, history_id, notified_at.isoformat(), config["library_as_of"],
+            ep_id = ag.opaque_id("ep", "demo", episode, note_id, stage)
+            s = ag.start(g, ep_id, history_id, notified_at.isoformat(), config["library_as_of"],
                          operator_note=note, stage=stage)
             views[note_id][stage] = operator_view(s["values"], note_id, library, config["library_as_of"])
     if records.RecordStore(work / "records.db").all("approval") or records.RecordStore(work / "records.db").all("act"):
@@ -174,9 +182,11 @@ def diagnosis_at(views, notified_at, upto, note_id) -> dict:
     return out
 
 
-def start_demo(bundle, csv_path, demo_dir=DEMO_DIR, *, library=None, render=None):
-    """(views, notified_at) for the API: the committed config and cache through ReplayClient.
-    Raises DemoError or llm.CacheMiss when the demo can't be shown exactly as it was built."""
+def start_demo(bundle, demo_dir=DEMO_DIR, *, streams=None, library=None, render=None) -> dict:
+    """{episode: {"views", "notified_at"}} for the API: the committed config and cache through
+    ReplayClient, for every episode. streams maps an episode to its CSV (default: demo_dir's
+    EPISODES files). Raises DemoError or llm.CacheMiss when the demo can't be shown exactly as it
+    was built."""
     from app.library import store
     cfg = load_config(demo_dir)
     if llm.Settings(**cfg["settings"]) != llm.SETTINGS:
@@ -189,9 +199,15 @@ def start_demo(bundle, csv_path, demo_dir=DEMO_DIR, *, library=None, render=None
         from app.agent.prompts import diagnosis
         render = diagnosis.render
     library = library or store.load()
-    history = tools.load_history(csv_path, bundle)
-    notified = notification_time(bundle, history.stream)
-    if notified.strftime(replay.TS_FORMAT) != cfg.get("notified_at"):
-        raise DemoError("the stream's first alert isn't the one the demo was built for")
+    streams = {e: Path((streams or {}).get(e) or Path(demo_dir) / name) for e, name in EPISODES.items()}
     client = llm.ReplayClient(Path(demo_dir) / CACHE)
-    return build_views(bundle, library, history, client, render, cfg, notified_at=notified), notified
+    out = {}
+    for episode in EPISODES:
+        history = tools.load_history(streams[episode], bundle)
+        notified = notification_time(bundle, history.stream)
+        if notified.strftime(replay.TS_FORMAT) != cfg["episodes"][episode]["notified_at"]:
+            raise DemoError(f"{EPISODE_LABELS[episode]}'s first alert isn't the one the demo was built for")
+        out[episode] = {"views": build_views(bundle, library, history, client, render, cfg, notified_at=notified,
+                                             episode=episode),
+                        "notified_at": notified}
+    return out

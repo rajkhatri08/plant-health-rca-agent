@@ -88,7 +88,7 @@
 <body>
 <main>
   <h1>Plant health: replay</h1>
-  <p class="sub">One recorded stream of plant measurements, replayed through the detector sample by sample (every 3 minutes of plant time).</p>
+  <p class="sub">Recorded streams of plant measurements (two episodes), replayed through the detector sample by sample (every 3 minutes of plant time).</p>
 
   <div class="advisory"><strong>Advisory only.</strong> This page shows the detector's status. It never changes plant controls, and nothing here is an instruction to act.</div>
 
@@ -135,6 +135,12 @@
 
   <section class="panel" aria-label="Replay controls">
     <div class="controls">
+      <label>Episode
+        <select id="episode" disabled>
+          <option value="1" selected>Episode 1</option>
+          <option value="2">Episode 2</option>
+        </select>
+      </label>
       <button id="play" class="primary" disabled>Play</button>
       <button id="step" disabled>Step</button>
       <button id="reset" disabled>Reset</button>
@@ -180,7 +186,8 @@ const LOCAL_HOSTS = ["localhost", "127.0.0.1", ""];
 const API = LOCAL_HOSTS.includes(location.hostname) ? "http://127.0.0.1:8000" : RENDER_API_URL;
 
 const $ = (id) => document.getElementById(id);
-const state = { info: null, shown: 0, samples: [], playing: false, timer: null, busy: false, diagnosis: false };
+const state = { info: null, shown: 0, samples: [], playing: false, timer: null, busy: false, diagnosis: false,
+                episode: "1" };
 
 function msg(text, isError = false) {
   $("msg").textContent = text;
@@ -206,7 +213,7 @@ async function show(n) {
   try {
     n = Math.max(0, Math.min(n, state.info.samples));
     const data = n === 0 ? { samples: [], current: null }
-                         : await getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}`);
+                         : await getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}&episode=${state.episode}`);
     state.shown = n;
     state.samples = data.samples;
     render(data.current);
@@ -296,7 +303,7 @@ async function showDiagnosis(n) {
   if (n === 0) { box.textContent = ""; box.append(el("p", "Press Play: a diagnosis appears 30 minutes (plant time) after an alert starts.", "msg")); return; }
   let r;
   try {
-    r = await getJSON(`/diagnosis?upto=${encodeURIComponent(uptoFor(n))}&note=${encodeURIComponent($("note").value)}`);
+    r = await getJSON(`/diagnosis?upto=${encodeURIComponent(uptoFor(n))}&note=${encodeURIComponent($("note").value)}&episode=${state.episode}`);
   } catch (e) {
     box.textContent = ""; box.append(el("p", `The diagnosis isn't available: ${e.message}`, "msg error")); return;
   }
@@ -407,7 +414,7 @@ async function init() {
   try {
     health = await getJSON("/health");
     if (health.self_test !== "pass") throw new Error("the detector's self-test didn't pass");
-    state.info = await getJSON("/replay/info");
+    state.info = await getJSON(`/replay/info?episode=${state.episode}`);
   } catch (e) {
     clearTimeout(slow);
     msg(`The detector service isn't available: ${e.message}`, true);
@@ -425,6 +432,22 @@ async function init() {
     $("diagnosis-panel").hidden = false;
     $("note").onchange = () => showDiagnosis(state.shown);
   }
+  // Two fixed episodes, labelled by number only; one the API can't serve is hidden.
+  const served = (health.episodes || []).map((e) => e.id);
+  Array.from($("episode").options).forEach((o) => { o.hidden = !served.includes(o.value); });
+  $("episode").disabled = served.length < 2;
+  $("episode").onchange = async () => {
+    stop();
+    state.episode = $("episode").value;
+    try {
+      state.info = await getJSON(`/replay/info?episode=${state.episode}`);
+    } catch (e) {
+      msg(`That episode isn't available: ${e.message}`, true);
+      return;
+    }
+    await show(0);
+    msg(`${$("episode").selectedOptions[0].textContent}: press Play, or Step one sample at a time.`);
+  };
   ["play", "step", "reset"].forEach((id) => ($(id).disabled = false));
   $("play").onclick = () => {
     if (state.playing) { stop(); return; }

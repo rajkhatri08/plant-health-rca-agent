@@ -25,36 +25,47 @@ pytestmark = pytest.mark.skipif(not CONFIG.exists(), reason="the demo isn't buil
 def test_the_demo_was_built_with_the_frozen_prompt_and_is_recorded():
     cfg = json.loads(CONFIG.read_text())
     assert cfg["prompt_sha256"] == at.prompt_sha256(REPO / "app" / "agent" / "prompts")
-    assert cfg["notes"] == demo.NOTES and cfg["bundle"] == "pca_v3" and cfg["stream"] == "run_v2.csv"
+    assert cfg["notes"] == demo.NOTES and cfg["bundle"] == "pca_v3"
+    assert {e: v["stream"] for e, v in cfg["episodes"].items()} == demo.EPISODES
     shas = {hashlib.sha256(p.read_bytes()).hexdigest(): p for p in (REPO / "eval" / "runs").glob("*_build_demo.json")}
     recs = [json.loads(p.read_text()) for p in shas.values()]
     assert any(r["outputs"]["config"]["sha256"] == hashlib.sha256(CONFIG.read_bytes()).hexdigest() for r in recs)
 
 
-def test_the_live_api_serves_every_note_at_every_time_cleanly():
+def test_the_live_api_serves_both_episodes_every_note_at_every_time_cleanly():
     cfg = json.loads(CONFIG.read_text())
-    n = replay.parse_ts(cfg["notified_at"])
     with TestClient(api.create_app(allowed_origins=[])) as c:
-        assert c.get("/health").json()["diagnosis"] == "ready"
+        h = c.get("/health").json()
+        assert h["diagnosis"] == "ready" and [e["label"] for e in h["episodes"]] == ["Episode 1", "Episode 2"]
         bodies = []
-        for note in demo.NOTES:
-            for m in (-30, 0, 15, 30, 45, 60, 180):
-                r = c.get("/diagnosis", params={"upto": (n + timedelta(minutes=m)).strftime(replay.TS_FORMAT),
-                                                "note": note})
-                assert r.status_code == 200
-                body = r.json()
-                assert body["available"] is (m >= 30)
-                if m < 0:
-                    assert "alert_at" not in body
-                bodies.append(r.text)
+        for e in demo.EPISODES:
+            n = replay.parse_ts(cfg["episodes"][e]["notified_at"])
+            for note in demo.NOTES:
+                for m in (-30, 0, 15, 30, 45, 60, 180):
+                    r = c.get("/diagnosis", params={"upto": (n + timedelta(minutes=m)).strftime(replay.TS_FORMAT),
+                                                    "note": note, "episode": e})
+                    assert r.status_code == 200
+                    body = r.json()
+                    assert body["available"] is (m >= 30)
+                    if m < 0:
+                        assert "alert_at" not in body
+                    bodies.append(r.text)
     assert all(find_leaks(b) == [] for b in bodies)
 
 
 def test_the_emergency_note_was_never_sent_to_the_model():
     cfg = json.loads(CONFIG.read_text())
-    n = replay.parse_ts(cfg["notified_at"])
     with TestClient(api.create_app(allowed_origins=[])) as c:
-        for m in (30, 60):
-            d = c.get("/diagnosis", params={"upto": (n + timedelta(minutes=m)).strftime(replay.TS_FORMAT),
-                                            "note": "emergency"}).json()["diagnosis"]
-            assert d["outcome"] == "emergency"
+        for e in demo.EPISODES:
+            n = replay.parse_ts(cfg["episodes"][e]["notified_at"])
+            for m in (30, 60):
+                d = c.get("/diagnosis", params={"upto": (n + timedelta(minutes=m)).strftime(replay.TS_FORMAT),
+                                                "note": "emergency", "episode": e}).json()["diagnosis"]
+                assert d["outcome"] == "emergency"
+
+
+def test_the_episode_streams_are_committed_and_named_opaquely():
+    import re
+    for e, name in demo.EPISODES.items():
+        assert (REPO / "app" / "replay" / name).is_file()
+        assert not re.search(r"fault|idv|mask|\d{2,}", name, re.IGNORECASE)

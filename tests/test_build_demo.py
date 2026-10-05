@@ -23,32 +23,35 @@ def source_record(repo, mode="evaluation", complete=True):
 
 @pytest.fixture
 def env(tmp_path, git_repo):
-    b, csv_path = dh.make_world(tmp_path)
+    b, streams = dh.make_world(tmp_path, folder=tmp_path / "streams")
     src = source_record(git_repo)
     commit(git_repo)
-    return {"repo": git_repo, "src": src, "bundle_dir": tmp_path / "pca_v3", "csv": csv_path,
+    return {"repo": git_repo, "src": src, "bundle_dir": tmp_path / "pca_v3", "streams": streams,
             "out": tmp_path / "replay", "bundle": b}
 
 
 def build(e, answer=dh.DECLINE, **kw):
     args = dict(from_run=e["src"], billing_tier="tier-1", provider=llm.FakeClient(lambda p, s, r: answer),
-                render=diagnosis.render, out_dir=e["out"], bundle_dir=e["bundle_dir"], csv_path=e["csv"],
+                render=diagnosis.render, out_dir=e["out"], bundle_dir=e["bundle_dir"], streams=e["streams"],
                 repo_root=e["repo"], out=lambda s: None)
     return bd.run(**{**args, **kw})
 
 
-def test_it_writes_the_config_and_cache_that_the_api_serves(env):
+def test_it_writes_both_episodes_config_and_cache_that_the_api_serves(env):
     views, record = build(env)
     cfg = json.loads((env["out"] / demo.CONFIG).read_text())
     assert cfg["notes"] == demo.NOTES and cfg["library_as_of"] == dh.LIB and cfg["k"] == 2
     assert cfg["thresholds"] == {"provisional": "-1", "revised": "-1"} and cfg["prompt_sha256"] == "test"
+    assert set(cfg["episodes"]) == {"1", "2"} and cfg["episodes"]["2"]["stream"] == "episode2.csv"
     assert list((env["out"] / demo.CACHE).rglob("*.json"))
-    served, _ = demo.start_demo(env["bundle"], env["csv"], env["out"], render=diagnosis.render)
-    assert served == views                                           # the API shows exactly what was built
+    served = demo.start_demo(env["bundle"], env["out"], streams=env["streams"], render=diagnosis.render)
+    assert {e: ep["views"] for e, ep in served.items()} == views     # the API shows exactly what was built
     rec = json.loads(record.read_text())
     assert rec["name"] == "build_demo" and rec["config"]["billing_tier"] == "tier-1"
-    assert rec["config"]["budget_inr"] == 5 and rec["metrics"]["calls"] >= 1
-    assert rec["metrics"]["outcomes"]["emergency_provisional"] == "emergency"
+    assert rec["config"]["budget_inr"] == 5 and rec["metrics"]["calls"] >= 2
+    for e in ("1", "2"):
+        assert rec["metrics"]["outcomes"][f"episode{e}_emergency_provisional"] == "emergency"
+    assert "fault" not in json.dumps(cfg).lower()                    # the app-side config names no fault
 
 
 def test_it_never_overwrites(env):

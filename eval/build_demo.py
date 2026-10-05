@@ -3,8 +3,9 @@
     python -m eval.build_demo --from-run eval/runs/<stamp>_agent_run.json --billing-tier tier-1
                               [--budget 5] [--min-interval 1]
 
-Runs the replay episode (bundle pca_v3, app/replay/run_v2.csv, its first alert) through the
-shipped graph for the three fixed notes (app/agent/demo.NOTES) at both diagnosis times, with
+Runs both episodes (app/agent/demo.EPISODES: app/replay/run_v2.csv and app/replay/episode2.csv,
+each from its first alert; bundle pca_v3) through the shipped graph for the three fixed notes
+(app/agent/demo.NOTES) at both diagnosis times, twelve passes in all, with
 GeminiClient behind the budget meter, the pacer and a cache. Then it proves the cache is
 complete: the same six passes through llm.ReplayClient give identical views. Every cache file and
 view is leak-checked. Only then are app/replay/llm_cache/ and app/replay/demo.json written
@@ -12,7 +13,8 @@ view is leak-checked. Only then are app/replay/llm_cache/ and app/replay/demo.js
 
 The demo uses the dev evaluation's settings (--from-run, a complete evaluation agent_run): its
 library clock, the matcher's thresholds and k, and its frozen prompt, which must be the committed
-one. The emergency note makes no call; about four calls in all, well under Rs 1.
+one. The emergency note and any pass the matcher declines make no call; at most eight calls,
+well under Rs 1.
 Writes a build_demo run record (the files' SHA-256, the spend, each view's outcome).
 """
 
@@ -49,7 +51,7 @@ def _from_run(record_path, repo_root):
 
 
 def run(*, from_run, billing_tier, budget=None, min_interval=0.0, provider=None, render=None, out_dir=None,
-        bundle_dir=None, csv_path=None, repo_root=None, allow_dirty=False, now=None, out=print):
+        bundle_dir=None, streams=None, repo_root=None, allow_dirty=False, now=None, out=print):
     if billing_tier not in at.BILLING_TIERS:
         raise BuildDemoError(f"--billing-tier is one of {at.BILLING_TIERS}, got {billing_tier!r}")
     if isinstance(min_interval, bool) or not isinstance(min_interval, (int, float)) or min_interval < 0:
@@ -74,15 +76,16 @@ def run(*, from_run, billing_tier, budget=None, min_interval=0.0, provider=None,
     b = bundle_mod.load(bundle_dir or bundle_mod.DEFAULT_BUNDLE)
     bundle_mod.self_test(b)
     library = store.load()
-    csv_path = Path(csv_path or (repo_root / "app" / "replay" / "run_v2.csv"))
-    history = tools.load_history(csv_path, b)
-    notified = demo.notification_time(b, history.stream)
+    streams = {e: Path((streams or {}).get(e) or repo_root / "app" / "replay" / name) for e, name in demo.EPISODES.items()}
+    histories = {e: tools.load_history(streams[e], b) for e in demo.EPISODES}
+    notified = {e: demo.notification_time(b, h.stream) for e, h in histories.items()}
     config = {"library_as_of": cfg["library_as_of"],
               "thresholds": {st: r["threshold"] for st, r in cfg["rules"].items()},
               "k": next(iter({r["k"] for r in cfg["rules"].values()})),
               "prompt_sha256": cfg["prompt_sha256"], "schema_version": ag.sc.SCHEMA_VERSION,
-              "settings": llm.SETTINGS.as_dict(), "notes": demo.NOTES,
-              "notified_at": notified.strftime("%Y-%m-%dT%H:%M:%SZ"), "bundle": b.name, "stream": csv_path.name}
+              "settings": llm.SETTINGS.as_dict(), "notes": demo.NOTES, "bundle": b.name,
+              "episodes": {e: {"stream": demo.EPISODES[e], "notified_at": notified[e].strftime("%Y-%m-%dT%H:%M:%SZ")}
+                           for e in demo.EPISODES}}
     if len({r["k"] for r in cfg["rules"].values()}) != 1:
         raise BuildDemoError("k differs between diagnosis times")
 
@@ -93,10 +96,13 @@ def run(*, from_run, billing_tier, budget=None, min_interval=0.0, provider=None,
             from eval import gemini
             provider = gemini.GeminiClient(llm.SETTINGS)
         paid = at.paid_stack(provider, budget, float(min_interval), cache_dir=stage_cache)
-        views = demo.build_views(b, library, history, paid, render, config, notified_at=notified,
-                                 workdir=Path(tmp) / "w1")
-        replayed = demo.build_views(b, library, history, llm.ReplayClient(stage_cache), render, config,
-                                    notified_at=notified, workdir=Path(tmp) / "w2")
+        views, replayed = {}, {}
+        for e in demo.EPISODES:
+            views[e] = demo.build_views(b, library, histories[e], paid, render, config, notified_at=notified[e],
+                                        episode=e, workdir=Path(tmp) / f"w1_{e}")
+        for e in demo.EPISODES:
+            replayed[e] = demo.build_views(b, library, histories[e], llm.ReplayClient(stage_cache), render, config,
+                                           notified_at=notified[e], episode=e, workdir=Path(tmp) / f"w2_{e}")
         if replayed != views:
             raise BuildDemoError("the cache-only replay doesn't give the same views; nothing written")
         files = sorted(stage_cache.rglob("*.json")) if stage_cache.exists() else []
@@ -112,7 +118,8 @@ def run(*, from_run, billing_tier, budget=None, min_interval=0.0, provider=None,
     outputs = {"config": out_dir / demo.CONFIG}
     for f in sorted((out_dir / demo.CACHE).rglob("*.json")):
         outputs[f"cache_{f.stem[:12]}"] = f
-    summary = {f"{n}_{st}": v["outcome"] for n, by in views.items() for st, v in by.items()}
+    summary = {f"episode{e}_{n}_{st}": v["outcome"] for e, by_note in views.items()
+               for n, by in by_note.items() for st, v in by.items()}
     record = run_record.write("build_demo",
                               config={"from_run": src_path.relative_to(repo_root.resolve()).as_posix(),
                                       "from_run_sha256": run_record.sha256(src_path), "billing_tier": billing_tier,

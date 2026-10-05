@@ -88,3 +88,27 @@ def test_says_the_answers_are_precomputed_and_advisory():
 
 def test_api_text_is_never_inserted_as_html():
     assert "innerHTML" not in PAGE and "insertAdjacentHTML" not in PAGE and "outerHTML" not in PAGE
+
+
+# ---------- the episode selector (week 6 S9) ----------
+
+def test_two_fixed_episodes_labelled_by_number_only():
+    sel = re.search(r'<select id="episode"[^>]*>(.*?)</select>', PAGE, re.S).group(1)
+    options = re.findall(r'<option value="(\d)"[^>]*>([^<]*)</option>', sel)
+    assert options == [("1", "Episode 1"), ("2", "Episode 2")]
+
+
+def test_every_call_names_the_selected_episode():
+    calls = re.findall(r"getJSON\(`(/[a-z/]+)\?[^`]*`\)", PAGE)
+    assert set(calls) == {"/replay/info", "/replay/status", "/diagnosis"}
+    for route in ("/replay/info", "/replay/status", "/diagnosis"):
+        for call in re.findall(r"getJSON\(`" + re.escape(route) + r"\?([^`]*)`\)", PAGE):
+            assert "episode=${state.episode}" in call, route
+
+
+def test_the_page_never_describes_an_episode():
+    # Labels come from the fixed options; nothing on the page ties an episode to a fault,
+    # a family or a mechanism.
+    for m in re.finditer(r"Episode \d", PAGE):
+        context = PAGE[max(0, m.start() - 80): m.end() + 80].lower()
+        assert not re.search(r"fault|mask|cooling|feed|reaction|condenser|kinetic", context)

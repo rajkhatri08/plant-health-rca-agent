@@ -3413,3 +3413,55 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   1. `python -m eval.build_demo --from-run eval/runs/20261005T021042Z_agent_run.json --billing-tier tier-1 --min-interval 1` (paid, about Rs 1). Then commit `app/replay/demo.json`, `app/replay/llm_cache/` and the record; the artifact tests then run.
   2. Run the page locally (CLAUDE.md commands).
   3. Deploy.
+
+### 2026-10-05: week 6 session 9 (cont.), a second demo episode (code only; the export and the builder not run)
+- **Raj's finding from the first build** (`eval/runs/20261005T090755Z_build_demo.json`, Rs 0):
+  - On the replay episode the matcher declines at both times, so no LLM call is made; the injection note never reaches the LLM.
+  - The page would only ever show "no confident diagnosis".
+  - **Kept:** it shows the system declining honestly.
+- **Episode 2, chosen by rule before looking:** the masked fault (decision 62), on its lowest dev run number, exported the way `run_v2.csv` was.
+  - **The masked fault is read by rule** from the record PROTOCOL names, `eval/runs/20260928T155738Z_masked_faults.json` (an earlier `masked_faults` record also exists). Its list is one fault, and the export refuses any other count.
+  - **The fault's identity stays builder side,** in `eval/replay_source_episode2.yaml`. The app sees `app/replay/episode2.csv`.
+- **Changed:**
+  - **`ingest/export_replay.py`:**
+    - `EPISODES` (1: fault 13, as before; 2: the masked fault), `masked_fault()` reading the record, and `--episode 1|2`.
+    - Episode 2 writes `app/replay/episode2.csv` and `eval/replay_source_episode2.yaml` (with `episode`, `fault`, `run` and `rule`).
+    - The fault is resolved before any loading, and nothing is overwritten.
+  - **`app/agent/demo.py`:**
+    - **Labels:** `EPISODES` (`{"1": "run_v2.csv", "2": "episode2.csv"}`) and `EPISODE_LABELS` ("Episode 1", "Episode 2"; never a fault, family or mechanism).
+    - **`demo.json`** holds per-episode stream and notification time. A first-build (single-episode) config is refused: "built before the episode selector; rebuild it".
+    - **IDs:** each episode has its own opaque history and episode IDs.
+    - **`start_demo`** returns both episodes.
+  - **`app/api.py`:**
+    - `/replay/info`, `/replay/status` and `/diagnosis` take `episode=1|2` (default 1). An unknown episode gets 422.
+    - Episode 1 is required. Episode 2 is optional, and a missing `episode2.csv` makes only it unavailable (503).
+    - `/health` lists the served episodes by label.
+  - **`eval/build_demo.py`:** precomputes both episodes' six passes (twelve in all), verifies the cache-only replay of both, and records outcomes per episode.
+  - **`web/index.html`:** an episode selector with two fixed options, "Episode 1" and "Episode 2". Every request carries the episode; switching resets the replay; an episode the API can't serve is hidden.
+  - **`CLAUDE.md`:** the episode-2 export command and the `episode` parameter.
+- **Tests:**
+  - **`tests/test_export_replay.py` (5 new):** episode 2 is the masked fault on the lowest dev number; its stream is opaque, with the fault only in the source; exactly one masked fault is required (refused before loading); the defaults; the committed record names one fault.
+  - **`tests/test_demo.py`:**
+    - both episodes rebuilt from the cache
+    - refusals: other episodes, a renamed stream, another first alert, and the first build's single-episode form
+    - episodes labelled by number only; both episodes' views clean; distinct IDs
+  - **`tests/test_api_diagnosis.py`:**
+    - health lists "Episode 1" and "Episode 2"; each episode has its own stream and first alert
+    - the contract for both episodes; the as-of rule is per episode (at episode 1's +30 min, episode 2 has nothing yet, not even its alert time); the emergency note in both
+    - bad episodes refused
+    - every response for every episode, note and time is leak-clean, with no label but "Episode N" and no "masked"
+    - without episode 2, episode 1 still replays
+  - **`tests/test_build_demo.py`:** both episodes written, served identically, recorded, and the app-side config names no fault.
+  - **`tests/test_web.py` (3 new):** two fixed options labelled by number only; every call carries the episode; no fault, family or mechanism word near an episode label.
+  - **New, skipped until the files exist:** `tests/test_episode2_artifacts.py` (4) checks the committed episode-2 stream against its source. It also checks the stream was chosen by rule (the masked fault, the same lowest dev number as episode 1), that the fault stays builder side, and that the stream alerts. `tests/test_demo_artifacts.py` is updated for both episodes.
+  - **`pytest -q`:** 2047 passed and 4 failed. The 4 failures are `tests/test_demo_artifacts.py`, failing only because the first build's untracked `app/replay/demo.json` (the single-episode form) is in the working tree and `episode2.csv` isn't exported yet. A clean checkout, as in CI, skips them.
+- **The first build's files (Claude's recommendation; Raj's call):**
+  - **What's there:** `app/replay/demo.json` (untracked, single-episode form), `app/replay/llm_cache/` (an empty folder; no call was made), and the record `eval/runs/20261005T090755Z_build_demo.json` (untracked).
+  - **The plan:**
+    1. Commit the record as it is. Every run is logged and reported (PROTOCOL, Reporting), and records are never edited; this entry says it was superseded. Nothing points to it, and the artifact test needs only some `build_demo` record to match the committed `demo.json`.
+    2. Delete `app/replay/demo.json` and the empty `app/replay/llm_cache/` (`rm app/replay/demo.json && rmdir app/replay/llm_cache`). They were never committed and hold no answers (Rs 0), so nothing is lost. The builder never overwrites, so they have to go before the rebuild.
+- **Decisions needed:** none new (the file handling above is Raj's call).
+- **Next (Raj):**
+  1. The first build's files, as above.
+  2. `python -m ingest.export_replay --episode 2` (reads dev data). Commit `app/replay/episode2.csv` and `eval/replay_source_episode2.yaml`.
+  3. `python -m eval.build_demo --from-run eval/runs/20261005T021042Z_agent_run.json --billing-tier tier-1 --min-interval 1` (paid, at most eight calls). Commit `app/replay/demo.json`, `app/replay/llm_cache/` and the new record. The artifact tests then run.
