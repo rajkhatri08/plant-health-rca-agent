@@ -14,8 +14,8 @@ Scores the dev runs of open faults 1-15 and the normal dev runs with one calibra
 detector: App 3's PCA (through calibration's alert path, app/detector/alerting.py), or
 one row of the conventional-alarm baseline (eval/baselines/alarms.py). The detector's
 kind comes from its limits file, which must be the output of exactly one calibration
-run record. Loads nothing but dev: the loader has no path to the test split or to
-faults 16-20.
+run record. By default it loads nothing but dev; --split test (below) is the only way in
+to the test split and faults 16-20, through the loader's EVAL_MODE gate.
 
 Per fault: detection rate, detections before divergence from the fault-free twin
 (decision 57, on the detector's own input tags), median delay (IQR), share still
@@ -43,6 +43,17 @@ reads "—".
 
 Writes a dev_table_<detector> run record holding every number, and a Markdown rendering
 of that record to data/tables/ (gitignored). Prints only the paths and one summary line.
+
+--split test (week 7; Raj runs it with EVAL_MODE=1 for the frozen test run, never Claude):
+the same table on the testing files through eval/split.py. All 500 runs per fault and the
+500 normal testing runs (S0 answer 6), onset after sample 160, faults 1-20, every file load
+access-logged. It needs --twin-check, a twin_check run record (eval/twin_check.py): the
+before-divergence column is computed only when its verdict is "shared", and otherwise reads
+"not reported" (PROTOCOL; decision 57; S1 Q3). The summary is faults 1-20 except 3, 9 and
+15; right place is summarised over the 12 family faults (S1 Q4). Faults 16-20 have no label:
+family and right place read "n/a", Masked "not labelled" (S0 answer 8). Writes a
+test_table_<detector> record (aggregates only, like every record) and its table to
+data/tables/.
 """
 
 import argparse
@@ -60,6 +71,7 @@ from dataset import loader
 from eval import calibrate_driver as drv
 from eval import calibrate_watch as cw
 from eval import check_dev, metrics, run_record
+from eval import split as split_mod
 from eval.baselines import alarms as al
 from ingest import tags as tagmap
 
@@ -81,6 +93,10 @@ FAMILY_GROUPS = {                                      # decision 65, fixed befo
     "condenser cooling": ("condenser",),
     "reaction kinetics": ("reactor",),
 }
+UNLABELLED = tuple(loader.QUARANTINED_FAULTS)          # 16-20: test only, no family, no masked label
+NOT_APPLICABLE = "n/a"
+NOT_LABELLED = "not labelled"
+NOT_REPORTED = "not reported"
 TOP_TAGS = 3
 PENDING = "—"                                          # a column not built yet
 ROWS = ("grouped", "ungrouped")
@@ -180,6 +196,18 @@ def load_masked(record_path, repo_root):
     return rel, {k: {"masked": v["masked"], "valves": v["absorbing_valves"]} for k, v in faults.items()}
 
 
+def load_twin_check(record_path, repo_root):
+    """(relative path, shared?) from a twin_check run record (eval/twin_check.py)."""
+    path = Path(record_path)
+    if not path.name.endswith("_twin_check.json"):
+        raise DevTableError(f"{path} isn't a twin_check run record")
+    rec = json.loads(path.read_text())
+    verdict = rec["metrics"].get("verdict")
+    if rec["config"].get("split") != "test" or verdict not in ("shared", "not shared"):
+        raise DevTableError(f"{path} isn't a test twin check with a verdict")
+    return path.resolve().relative_to(Path(repo_root).resolve()).as_posix(), verdict == "shared"
+
+
 def load_detector(limits_path, model_path, row, repo_root):
     """(detector, calibration record path, limits SHA-256). Reads no run data."""
     lim = json.loads(Path(limits_path).read_text())
@@ -212,15 +240,16 @@ def _median(delays):
     return metrics.delay_summary(delays)[0]
 
 
-def operator_load(per_point_by_run):
-    """Decision 60's counts over one fault's runs, in the notification window.
+def operator_load(per_point_by_run, onset=ONSET):
+    """Decision 60's counts over one fault's runs, in the notification window after onset.
     per_point_by_run maps a run number to that run's notification samples per point."""
+    first, last = onset + 1, onset + metrics.NOTIFY_SAMPLES
     episodes, periods, chatter_points, chatter_notes, total = [], [], [], 0, 0
     for k in sorted(per_point_by_run):
-        per_point = [[s for s in notes if FIRST <= s <= LAST] for notes in per_point_by_run[k]]
+        per_point = [[s for s in notes if first <= s <= last] for notes in per_point_by_run[k]]
         pooled = sorted(s for notes in per_point for s in notes)
-        counts = metrics.period_counts(pooled, ONSET)
-        chattering = [metrics.is_chattering(notes, FIRST, LAST) for notes in per_point]
+        counts = metrics.period_counts(pooled, onset)
+        chattering = [metrics.is_chattering(notes, first, last) for notes in per_point]
         episodes.append(len(pooled))
         periods.extend(counts)
         chatter_points.append(sum(chattering))
@@ -298,26 +327,31 @@ def attribution_row(fault, group_ratios, tag_ratios, dets, n, names, tags, n_boo
     return row, hits[""], hits["_30min"]
 
 
-def fault_row(fault, tracks, inputs, twins, warmup, n_boot, per_point=None):
+def fault_row(fault, tracks, inputs, twins, warmup, n_boot, per_point=None, onset=ONSET):
     """(row, per-run detections) for one fault. tracks, inputs and twins are keyed by
     run number; inputs and twins hold only the detector's input columns (decision 57).
-    per_point, if given, maps run number to notification samples per alarm point."""
+    twins None: the twins aren't known to share streams, so before divergence is "not
+    reported" (test, S1 Q3). per_point, if given, maps run number to notification samples
+    per alarm point."""
     numbers = sorted(tracks)
     runs = [metrics.ScoredRun(fault, k, tracks[k]) for k in numbers]
-    det = {k: metrics.detection(tracks[k], ONSET, warmup=warmup) for k in numbers}
-    div = {k: metrics.first_divergence(inputs[k], twins[k]) for k in numbers}
-    early = [k for k in numbers if div[k] is not None and div[k] <= ONSET]
-    if early:
-        raise DevTableError(f"fault {fault}: runs {early[:5]} differ from their twins at or before "
-                            f"sample {ONSET}; decision 49 says samples 1-{ONSET} are copies")
+    det = {k: metrics.detection(tracks[k], onset, warmup=warmup) for k in numbers}
+    if twins is None:
+        before, of = NOT_REPORTED, NOT_REPORTED
+    else:
+        div = {k: metrics.first_divergence(inputs[k], twins[k]) for k in numbers}
+        early = [k for k in numbers if div[k] is not None and div[k] <= onset]
+        if early:
+            raise DevTableError(f"fault {fault}: runs {early[:5]} differ from their twins at or before "
+                                f"sample {onset}; decision 49 says samples 1-{onset} are copies")
+        before, of = metrics.before_divergence_share([det[k] for k in numbers], [div[k] for k in numbers])
     detected = [k for k in numbers if det[k].detected]
     median, q1, q3 = metrics.delay_summary([det[k].delay_min for k in numbers])
-    before, of = metrics.before_divergence_share([det[k] for k in numbers], [div[k] for k in numbers])
     flagged = [metrics.share_still_flagged(tracks[k], det[k].sample) for k in detected]
     hit = {(fault, k): det[k].detected for k in numbers}
     delay = {(fault, k): det[k].delay_min for k in numbers}
     row = {
-        "family": FAMILIES.get(fault, PENDING),
+        "family": FAMILIES.get(fault, NOT_APPLICABLE if fault in UNLABELLED else PENDING),
         "runs": len(numbers),
         "detected": len(detected),
         "rate": len(detected) / len(numbers),
@@ -332,7 +366,7 @@ def fault_row(fault, tracks, inputs, twins, warmup, n_boot, per_point=None):
         "share_still_flagged_runs": len(flagged),
     }
     if per_point is not None:
-        row["load"] = operator_load(per_point)
+        row["load"] = operator_load(per_point, onset)
     return row, det
 
 
@@ -356,12 +390,13 @@ def mean_rate(hit, faults, n_boot):
     return {"faults": list(faults), "rate": point, "rate_ci95": [low, high]}
 
 
-def normal_row(tracks, warmup, n_boot):
-    """False alerts per 24 h and the chance rate on the normal dev runs (rule 4)."""
+def normal_row(tracks, warmup, n_boot, onset=ONSET):
+    """False alerts per 24 h and the chance rate on the split's normal runs (rule 4), with
+    fake onsets at the split's onset."""
     runs = [metrics.ScoredRun(0, k, tracks[k]) for k in sorted(tracks)]
     count, hours, per_24h = metrics.false_alerts_per_24h(runs, warmup)
     per_run = {(0, r.run): metrics.false_alerts_per_24h([r], warmup)[:2] for r in runs}
-    lucky = {(0, r.run): metrics.chance_rate([r], ONSET, warmup=warmup) == 1.0 for r in runs}
+    lucky = {(0, r.run): metrics.chance_rate([r], onset, warmup=warmup) == 1.0 for r in runs}
 
     def rate_24h(pairs):                     # pooled count over pooled hours, as the metric
         return sum(c for c, _ in pairs) / sum(h for _, h in pairs) * 24
@@ -372,7 +407,7 @@ def normal_row(tracks, warmup, n_boot):
         "hours": hours,
         "per_24h": per_24h,
         "per_24h_ci95": _ci(runs, per_run, rate_24h, n_boot),
-        "chance_rate": metrics.chance_rate(runs, ONSET, warmup=warmup),
+        "chance_rate": metrics.chance_rate(runs, onset, warmup=warmup),
         "chance_rate_ci95": _ci(runs, lucky, _rate, n_boot),
     }
 
@@ -403,15 +438,18 @@ def _lead(lead):
 
 
 def _masked(m):
+    if m == NOT_LABELLED:
+        return NOT_LABELLED
     if not m:
         return PENDING
     return f"yes ({m['valves']})" if m["masked"] else "no"
 
 
-def _right(rp):
-    """A right-place figure: the rate over all runs (interval), then k of detected."""
+def _right(rp, fault=None):
+    """A right-place figure: the rate over all runs (interval), then k of detected.
+    "n/a" for faults 16-20, which have no family."""
     if not rp:
-        return PENDING
+        return NOT_APPLICABLE if fault in UNLABELLED else PENDING
     lo, hi = rp["rate_ci95"]
     return f"{_num(rp['rate'])} ({_num(lo)}–{_num(hi)}), {rp['right']} of {rp['of_detected']} detected"
 
@@ -424,17 +462,28 @@ def _lags_note(cfg):
     return f", L = {cfg['lags']} lags" + (" (L = 0: DPCA equals static PCA)" if cfg["lags"] == 0 else "")
 
 
+def _before(r):
+    if r["before_divergence"] == NOT_REPORTED:
+        return NOT_REPORTED
+    return f"{r['before_divergence']} of {r['before_divergence_of']}"
+
+
 def render(record, record_path):
     """The Markdown tables, built only from a run record (as saved) and its repo path."""
     cfg, m = record["config"], record["metrics"]
     nrm = m["normal"]
     chance = f"{_num(nrm['chance_rate'])} ({_num(nrm['chance_rate_ci95'][0])}–{_num(nrm['chance_rate_ci95'][1])})"
     lead_vs = cfg.get("lead_vs")
+    faults = cfg.get("faults", list(FAULTS))
+    test = cfg.get("pool") == "test"
+    span = f"faults {min(faults)}–{max(faults)} except 3, 9, 15"
+    rp_label = "the 12 family faults" if cfg.get("right_place_faults") else span
     lines = [
-        f"# Dev detection table: {cfg['detector']}",
+        f"# {'Test' if test else 'Dev'} detection table: {cfg['detector']}",
         "",
         f"Run record `{record_path}`, commit {record['commit'][:12]}"
-        f"{' (dirty)' if record['dirty'] else ''}. Dev pool, {nrm['runs']} run numbers; "
+        f"{' (dirty)' if record['dirty'] else ''}. {'Test split' if test else 'Dev pool'}, "
+        f"{nrm['runs']} run numbers; "
         f"n = {cfg['n']}, G = {cfg['gap']}, q = {cfg['q']}, warm-up {cfg['warmup']}"
         f"{_lags_note(cfg)}. "
         f"Intervals: 95% run-number bootstrap, B = {cfg['bootstrap']['resamples']}, "
@@ -444,26 +493,28 @@ def render(record, record_path):
         + (f" Masked (decided on the selection runs): `{cfg['masked_record']}`."
            if cfg.get("masked_record") else "")
         + (f" Right place (decision 65) is over all runs, then k of the detected runs; Watch "
-           f"boundaries: `{cfg['attribution']['watch_record']}`." if cfg.get("attribution") else ""),
+           f"boundaries: `{cfg['attribution']['watch_record']}`." if cfg.get("attribution") else "")
+        + (f" Twin check: `{cfg['twin_check']['record']}` ({cfg['twin_check']['verdict']})."
+           if cfg.get("twin_check") else ""),
         "",
         "| Fault | Family | Masked | Detected (any / right place) | Chance rate | "
         "Detected before divergence | Median delay, min (IQR) | Share still flagged | "
         "Lead time vs grouped alarms |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
-    for f in FAULTS:
+    for f in faults:
         r = m["faults"][f"fault_{f:02d}"]
         lo, hi = r["rate_ci95"]
         dlo, dhi = r["delay_median_ci95"]
         lines.append(
             f"| {f}{' (excluded)' if f in EXCLUDED else ''} | {r['family']} | {_masked(r.get('masked'))} | "
-            f"{_num(r['rate'])} ({_num(lo)}–{_num(hi)}) / {_right(r.get('attribution', {}).get('right_place'))} | {chance} | "
-            f"{r['before_divergence']} of {r['before_divergence_of']} | "
+            f"{_num(r['rate'])} ({_num(lo)}–{_num(hi)}) / {_right(r.get('attribution', {}).get('right_place'), f)} | {chance} | "
+            f"{_before(r)} | "
             f"{_minutes(r['delay_median_min'])} ({_minutes(r['delay_q1_min'])}–{_minutes(r['delay_q3_min'])}); "
             f"median interval {_minutes(dlo)}–{_minutes(dhi)} | "
             f"{_num(r['share_still_flagged'])} ({r['share_still_flagged_runs']} runs) | "
             f"{_lead(r.get('lead'))} |")
-    for key, label in (("summary", "Mean, faults 1–15 except 3, 9, 15"),
+    for key, label in (("summary", f"Mean, {span}"),
                        ("excluded", "Mean, faults 3, 9, 15")):
         s = m[key]
         rp = m.get("right_place", {}).get("summary") if key == "summary" else None
@@ -492,19 +543,20 @@ def render(record, record_path):
             "Top tags (runs ranked first) |",
             "|---|---|---|---|---|---|",
         ]
-        for f in FAULTS:
+        for f in faults:
             a = m["faults"][f"fault_{f:02d}"]["attribution"]
             top = (f"{a['top_group']} ({_num(a['top_group_share'])})" if a["top_group"] else PENDING)
             tags_ = ", ".join(f"{t} ({c})" for t, c in a["top_tags"].items()) or PENDING
+            groups = NOT_APPLICABLE if f in UNLABELLED else PENDING
             lines.append(
                 f"| {f}{' (excluded)' if f in EXCLUDED else ''} | "
-                f"{', '.join(a.get('allowed_groups', [])) or PENDING} | {_right(a.get('right_place'))} | "
-                f"{_right(a.get('right_place_30min'))} | {top} | {tags_} |")
+                f"{', '.join(a.get('allowed_groups', [])) or groups} | {_right(a.get('right_place'), f)} | "
+                f"{_right(a.get('right_place_30min'), f)} | {top} | {tags_} |")
         for key, label in (("summary", "at the notification"), ("summary_30min", "30 min later")):
             s = rp[key]
-            lines.append(f"| Mean, faults 1–15 except 3, 9, 15, {label} | | {_num(s['rate'])} "
+            lines.append(f"| Mean, {rp_label}, {label} | | {_num(s['rate'])} "
                          f"({_num(s['rate_ci95'][0])}–{_num(s['rate_ci95'][1])}) | | | |")
-    if all("load" in m["faults"][f"fault_{f:02d}"] for f in FAULTS):
+    if all("load" in m["faults"][f"fault_{f:02d}"] for f in faults):
         lines += [
             "",
             f"## Operator load, first 2 h after onset (decision 60)",
@@ -517,7 +569,7 @@ def render(record, record_path):
             "Chattering points per run | Share from chattering |",
             "|---|---|---|---|---|---|---|",
         ]
-        for f in FAULTS:
+        for f in faults:
             ld = m["faults"][f"fault_{f:02d}"]["load"]
             lines.append(
                 f"| {f}{' (excluded)' if f in EXCLUDED else ''} | {_num(ld['per_episode_mean'], 1)} "
@@ -531,11 +583,22 @@ def render(record, record_path):
 
 def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, lead_vs=None,
         masked=None, watch=None, allow_dirty=False, repo_root=None, tables_dir=None,
-        n_boot=metrics.BOOTSTRAP_N):
+        n_boot=metrics.BOOTSTRAP_N, split="dev", twin_check=None):
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     tables_dir = Path(tables_dir or DEFAULT_TABLES)
+    if split == "test" and twin_check is None:
+        raise DevTableError("--split test needs --twin-check, a twin_check run record (decision 57)")
+    if split != "test" and twin_check is not None:
+        raise DevTableError("--twin-check is only for --split test; dev twins are checked run by run")
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)    # before any loading
     det, cal_record, limits_sha = load_detector(limits_path, model_path, row, repo_root)
+    name = f"{'test' if split == 'test' else 'dev'}_table_{det.name}"
+    sp = split_mod.get(split, name)
+    onset, faults = sp.onset, sp.faults
+    first, last = onset + 1, onset + metrics.NOTIFY_SAMPLES
+    summary_faults = tuple(f for f in faults if f not in EXCLUDED)
+    right_place_faults = tuple(f for f in summary_faults if f in FAMILIES)     # S1 Q4
+    twin_rel, twins_shared = load_twin_check(twin_check, repo_root) if twin_check is not None else (None, True)
     base = None
     if lead_vs is not None:
         if isinstance(det, AlarmDetector):
@@ -557,30 +620,30 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
         hit_right, hit_right_30 = {}, {}
     warmup = det.warmup
     now = datetime.now(timezone.utc)
-    table_path = tables_dir / f"{now.strftime('%Y%m%dT%H%M%SZ')}_dev_table_{det.name}.md"
+    table_path = tables_dir / f"{now.strftime('%Y%m%dT%H%M%SZ')}_{name}.md"
     if table_path.exists():
         raise FileExistsError(f"{table_path} already exists")
 
-    normal = loader.load_normal("dev")
+    normal = sp.load_normal()
     cols = tagmap.column_indices(normal.columns, det.input_tags)      # the detector's inputs
     normal_tracks = {k: t for k, (t, _) in det.score(normal).items()}
     rows, hit = {}, {}
-    for f in FAULTS:
-        faulty = loader.load_faulty(f, "dev")
+    for f in faults:
+        faulty = sp.load_faulty(f)
         if sorted(faulty.runs) != sorted(normal.runs):
-            raise DevTableError(f"fault {f}'s dev run numbers aren't the normal dev numbers")
+            raise DevTableError(f"fault {f}'s {sp.name} run numbers aren't the normal {sp.name} numbers")
         scored = det.score(faulty)
         tracks = {k: t for k, (t, _) in scored.items()}
         per_point = {k: p for k, (_, p) in scored.items()}
         inputs = {k: faulty.runs[k][:, cols] for k in tracks}
-        twins = {k: normal.runs[k][:, cols] for k in tracks}
-        row_, dets = fault_row(f, tracks, inputs, twins, warmup, n_boot, per_point)
+        twins = {k: normal.runs[k][:, cols] for k in tracks} if twins_shared else None
+        row_, dets = fault_row(f, tracks, inputs, twins, warmup, n_boot, per_point, onset)
         if base is not None:
-            base_dets = {k: metrics.detection(t, ONSET, warmup=warmup)
+            base_dets = {k: metrics.detection(t, onset, warmup=warmup)
                          for k, (t, _) in base.score(faulty).items()}
             row_["lead"] = lead_row(f, dets, base_dets, n_boot)
         if masked_by is not None:
-            row_["masked"] = masked_by[f"fault_{f:02d}"]
+            row_["masked"] = NOT_LABELLED if f in UNLABELLED else masked_by[f"fault_{f:02d}"]
         if watch_doc is not None:
             by_group, by_tag = cw.rbc_runs(det.model, det.lim, faulty, names)
             row_["attribution"], right, right_30 = attribution_row(
@@ -594,19 +657,23 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
         hit.update({(f, k): d.detected for k, d in dets.items()})
 
     results = {"faults": rows,
-               "summary": mean_rate(hit, SUMMARY_FAULTS, n_boot),
+               "summary": mean_rate(hit, summary_faults, n_boot),
                "excluded": mean_rate(hit, EXCLUDED, n_boot),
-               "normal": normal_row(normal_tracks, warmup, n_boot)}
+               "normal": normal_row(normal_tracks, warmup, n_boot, onset)}
     if watch_doc is not None:
-        results["right_place"] = {"summary": mean_rate(hit_right, SUMMARY_FAULTS, n_boot),
-                                  "summary_30min": mean_rate(hit_right_30, SUMMARY_FAULTS, n_boot)}
-    config = {"detector": det.name, "pool": "dev", "warmup": warmup, **det.config,
-              "onset": ONSET, "window": metrics.WINDOW_SAMPLES,
-              "notification_window": [FIRST, LAST], "faults": list(FAULTS),
-              "summary_faults": list(SUMMARY_FAULTS),
+        results["right_place"] = {"summary": mean_rate(hit_right, right_place_faults, n_boot),
+                                  "summary_30min": mean_rate(hit_right_30, right_place_faults, n_boot)}
+    config = {"detector": det.name, "pool": sp.name, "warmup": warmup, **det.config,
+              "onset": onset, "window": metrics.WINDOW_SAMPLES,
+              "notification_window": [first, last], "faults": list(faults),
+              "summary_faults": list(summary_faults),
               "calibration_record": cal_record.relative_to(repo_root).as_posix(),
               "limits_sha256": limits_sha,
               "bootstrap": {"resamples": n_boot, "level": 0.95, "method": "percentile"}}
+    if sp.name == "test":
+        config["split"] = "test"
+        config["right_place_faults"] = list(right_place_faults)
+        config["twin_check"] = {"record": twin_rel, "verdict": "shared" if twins_shared else "not shared"}
     if masked_rel is not None:
         config["masked_record"] = masked_rel
     if watch_doc is not None:
@@ -623,7 +690,6 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
 
     # The table is rendered from the values exactly as the record stores them, then the
     # record is written with the table's checksum. Both share one timestamp.
-    name = f"dev_table_{det.name}"
     record_rel = (run_record.RUNS_DIR / f"{now.strftime('%Y%m%dT%H%M%SZ')}_{name}.json").as_posix()
     stored = {"commit": commit, "dirty": dirty, "config": run_record.clean_metrics(config),
               "seeds": run_record.clean_metrics(seeds), "metrics": run_record.clean_metrics(results)}
@@ -636,8 +702,8 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
     if Path(record) != repo_root / record_rel:
         raise DevTableError(f"the table names {record_rel}, but the record is {record}")
     s = results["summary"]
-    print(f"dev: {len(normal.runs)} run numbers x {len(FAULTS)} faults; detector {det.name}")
-    print(f"mean detection, faults 1-15 except 3, 9, 15: {s['rate']:.3f} "
+    print(f"{sp.name}: {len(normal.runs)} run numbers x {len(faults)} faults; detector {det.name}")
+    print(f"mean detection, faults {min(faults)}-{max(faults)} except 3, 9, 15: {s['rate']:.3f} "
           f"(95% interval {s['rate_ci95'][0]:.3f} to {s['rate_ci95'][1]:.3f})")
     print(f"table: {table_path}\nrun record: {record}")
     return results
@@ -658,13 +724,17 @@ def main(argv=None):
     parser.add_argument("--watch", type=Path, default=None,
                         help="a watch file (eval/calibrate_watch.py) for right place and top tags")
     parser.add_argument("--allow-dirty", action="store_true",
-                        help="run on a dirty tree; the record says dirty: true")
+                        help="run on a dirty tree; the record says dirty: true (a test load refuses anyway)")
+    parser.add_argument("--split", choices=split_mod.NAMES, default="dev",
+                        help="test: the sealed testing files, only with EVAL_MODE=1 (Raj runs it)")
+    parser.add_argument("--twin-check", type=Path, default=None,
+                        help="a twin_check run record (eval/twin_check.py); required with --split test")
     args = parser.parse_args(argv)
     is_alarm = args.row is not None
     lead_vs = None if (args.no_lead or is_alarm) else (args.lead_vs or DEFAULT_LEAD)
     try:
         run(args.limits, args.model, row=args.row, lead_vs=lead_vs, masked=args.masked,
-            watch=args.watch, allow_dirty=args.allow_dirty)
+            watch=args.watch, allow_dirty=args.allow_dirty, split=args.split, twin_check=args.twin_check)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError,
             run_record.RunRecordError, drv.CalibrationError, DevTableError) as e:
         print(f"error: {e}", file=sys.stderr)
