@@ -144,7 +144,20 @@ def far_matched_factor(ratios_by_run, target_percent, first) -> float:
     method) of the samples first .. end of every run, pooled (first is 1-based), so FAR(c*)
     is the target to within one sample. Raises ValueError if there are no runs, the target
     isn't in (0, 100), first < 1, or first is past a run's end."""
-    raise NotImplementedError("Raj implements far_matched_factor (week 7 S2, post hoc)")
+    if not ratios_by_run:
+        raise ValueError("no runs")
+    if not (0 < target_percent < 100):
+        raise ValueError(f"the target must be in (0, 100), not {target_percent}")
+    if first < 1:
+        raise ValueError(f"first is 1-based, not {first}")
+    parts = []
+    for run in sorted(ratios_by_run):
+        r = np.asarray(ratios_by_run[run], dtype=float)
+        if first > len(r):
+            raise ValueError(f"first {first} is past run {run}'s end ({len(r)} samples)")
+        parts.append(r[first - 1:])
+    # FAR(c) is the share of pooled samples with r > c, so c* is that share's percentile
+    return float(np.percentile(np.concatenate(parts), 100 - target_percent))
 
 
 def ratio(t2, spe, t2_lim, spe_lim) -> np.ndarray:
