@@ -1,0 +1,336 @@
+{
+  "name": "published_check_far_matched",
+  "time": "2026-10-05T16:58:37+00:00",
+  "commit": "ec2066472cd12b3dab15cd97633517c48354354e",
+  "dirty": false,
+  "config": {
+    "post_hoc": true,
+    "note": "post hoc, dev only: changes no verdict; decision 56's result under the pre-registered rule stands",
+    "ks": [
+      9,
+      17
+    ],
+    "alpha": 0.99,
+    "warmup": 9,
+    "fit_samples": 122750,
+    "fdr_from_sample": 21,
+    "far_from_sample": 10,
+    "matching_rule": "c* = the (100 - target)th percentile of the pooled per-sample max(T\u00b2/T\u00b2lim, SPE/SPElim) on the normal dev runs after the warm-up; both limits scaled by c*",
+    "source_record": "eval/runs/20261005T165013Z_published_check.json",
+    "source_sha256": "eac9fe7c617568dea335fd4a3e7f87bc0d8c6abd1c09d65dfcf70524edf0538b",
+    "paper": "eval/published/yin2012.yaml",
+    "paper_sha256": "8c08799809057711a2cdf61eec1d2588e59dabdb35bcab37248dc925961d4887"
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1"
+  },
+  "outputs": {
+    "table": {
+      "path": "data/tables/20261005T165837Z_published_check_far_matched.md",
+      "sha256": "c5b6287ecd1a14454155a1d0b73fc49bb543122c05fba3226f940efa30e2061a"
+    }
+  },
+  "metrics": {
+    "k": {
+      "9": {
+        "factor": 0.8440923657699876,
+        "t2_limit": 18.290534097464995,
+        "spe_limit": 19.10969039421977,
+        "theoretical": {
+          "t2_limit": 21.66887752951092,
+          "spe_limit": 22.639335657049525
+        },
+        "target_far_percent": 6.13,
+        "far_percent": 6.130346232179226,
+        "paper_table": "k9",
+        "faults": {
+          "1": {
+            "ours": 99.60833333333333,
+            "paper": 99.88,
+            "difference": -0.27166666666666117,
+            "check_rate": 99.49166666666667,
+            "change_from_check": 0.11666666666666003,
+            "judged_in_check": true
+          },
+          "2": {
+            "ours": 97.61666666666666,
+            "paper": 98.75,
+            "difference": -1.13333333333334,
+            "check_rate": 97.34166666666667,
+            "change_from_check": 0.2749999999999915,
+            "judged_in_check": true
+          },
+          "3": {
+            "ours": 6.25,
+            "paper": 12.88,
+            "difference": -6.630000000000001,
+            "check_rate": 1.9083333333333334,
+            "change_from_check": 4.341666666666667,
+            "judged_in_check": false
+          },
+          "4": {
+            "ours": 99.9875,
+            "paper": 100.0,
+            "difference": -0.012500000000002842,
+            "check_rate": 99.9375,
+            "change_from_check": 0.04999999999999716,
+            "judged_in_check": true
+          },
+          "5": {
+            "ours": 48.545833333333334,
+            "paper": 33.63,
+            "difference": 14.915833333333332,
+            "check_rate": 41.6875,
+            "change_from_check": 6.858333333333334,
+            "judged_in_check": true
+          },
+          "6": {
+            "ours": 100.0,
+            "paper": 100.0,
+            "difference": 0.0,
+            "check_rate": 100.0,
+            "change_from_check": 0.0,
+            "judged_in_check": true
+          },
+          "7": {
+            "ours": 100.0,
+            "paper": 100.0,
+            "difference": 0.0,
+            "check_rate": 100.0,
+            "change_from_check": 0.0,
+            "judged_in_check": true
+          },
+          "8": {
+            "ours": 96.2375,
+            "paper": 98.0,
+            "difference": -1.7625000000000028,
+            "check_rate": 95.64583333333333,
+            "change_from_check": 0.5916666666666686,
+            "judged_in_check": true
+          },
+          "9": {
+            "ours": 6.675000000000001,
+            "paper": 8.38,
+            "difference": -1.705,
+            "check_rate": 2.1083333333333334,
+            "change_from_check": 4.566666666666667,
+            "judged_in_check": false
+          },
+          "10": {
+            "ours": 49.108333333333334,
+            "paper": 60.5,
+            "difference": -11.391666666666666,
+            "check_rate": 33.2,
+            "change_from_check": 15.908333333333331,
+            "judged_in_check": true
+          },
+          "11": {
+            "ours": 81.22916666666666,
+            "paper": 78.88,
+            "difference": 2.3491666666666617,
+            "check_rate": 74.65,
+            "change_from_check": 6.5791666666666515,
+            "judged_in_check": true
+          },
+          "12": {
+            "ours": 98.00833333333333,
+            "paper": 99.13,
+            "difference": -1.1216666666666697,
+            "check_rate": 97.41666666666666,
+            "change_from_check": 0.5916666666666686,
+            "judged_in_check": true
+          },
+          "13": {
+            "ours": 91.52083333333333,
+            "paper": 95.38,
+            "difference": -3.859166666666667,
+            "check_rate": 90.51249999999999,
+            "change_from_check": 1.00833333333334,
+            "judged_in_check": true
+          },
+          "14": {
+            "ours": 99.95833333333334,
+            "paper": 100.0,
+            "difference": -0.04166666666665719,
+            "check_rate": 99.94166666666666,
+            "change_from_check": 0.01666666666667993,
+            "judged_in_check": true
+          },
+          "15": {
+            "ours": 7.1,
+            "paper": 14.13,
+            "difference": -7.030000000000001,
+            "check_rate": 2.191666666666667,
+            "change_from_check": 4.908333333333333,
+            "judged_in_check": false
+          }
+        },
+        "fault_10": {
+          "ours": 49.108333333333334,
+          "paper": 60.5,
+          "difference": -11.391666666666666,
+          "check_rate": 33.2,
+          "change_from_check": 15.908333333333331,
+          "judged_in_check": true
+        },
+        "reading_only_within_tolerance": {
+          "within": 10,
+          "of": 12
+        }
+      },
+      "17": {
+        "factor": 0.8365726390150527,
+        "t2_limit": 27.954741465536408,
+        "spe_limit": 6.457208978468776,
+        "theoretical": {
+          "t2_limit": 33.41579698141838,
+          "spe_limit": 7.718647105254645
+        },
+        "target_far_percent": 6.38,
+        "far_percent": 6.382892057026476,
+        "paper_table": "k17",
+        "faults": {
+          "1": {
+            "ours": 99.73333333333333,
+            "paper": 100.0,
+            "difference": -0.2666666666666657,
+            "check_rate": 99.64583333333333,
+            "change_from_check": 0.08750000000000568,
+            "judged_in_check": true
+          },
+          "2": {
+            "ours": 97.72916666666667,
+            "paper": 99.38,
+            "difference": -1.650833333333324,
+            "check_rate": 97.34583333333333,
+            "change_from_check": 0.38333333333333997,
+            "judged_in_check": true
+          },
+          "3": {
+            "ours": 6.654166666666667,
+            "paper": 10.25,
+            "difference": -3.595833333333333,
+            "check_rate": 1.8208333333333333,
+            "change_from_check": 4.833333333333334,
+            "judged_in_check": false
+          },
+          "4": {
+            "ours": 100.0,
+            "paper": 100.0,
+            "difference": 0.0,
+            "check_rate": 99.99583333333332,
+            "change_from_check": 0.004166666666677088,
+            "judged_in_check": true
+          },
+          "5": {
+            "ours": 51.71249999999999,
+            "paper": 34.75,
+            "difference": 16.96249999999999,
+            "check_rate": 42.21666666666667,
+            "change_from_check": 9.495833333333323,
+            "judged_in_check": true
+          },
+          "6": {
+            "ours": 100.0,
+            "paper": 100.0,
+            "difference": 0.0,
+            "check_rate": 100.0,
+            "change_from_check": 0.0,
+            "judged_in_check": true
+          },
+          "7": {
+            "ours": 100.0,
+            "paper": 100.0,
+            "difference": 0.0,
+            "check_rate": 100.0,
+            "change_from_check": 0.0,
+            "judged_in_check": true
+          },
+          "8": {
+            "ours": 96.825,
+            "paper": 98.63,
+            "difference": -1.8049999999999926,
+            "check_rate": 96.35000000000001,
+            "change_from_check": 0.4749999999999943,
+            "judged_in_check": true
+          },
+          "9": {
+            "ours": 7.141666666666667,
+            "paper": 9.88,
+            "difference": -2.738333333333334,
+            "check_rate": 1.9333333333333333,
+            "change_from_check": 5.208333333333333,
+            "judged_in_check": false
+          },
+          "10": {
+            "ours": 64.8875,
+            "paper": 71.0,
+            "difference": -6.112499999999997,
+            "check_rate": 51.28333333333334,
+            "change_from_check": 13.604166666666664,
+            "judged_in_check": true
+          },
+          "11": {
+            "ours": 85.7375,
+            "paper": 83.0,
+            "difference": 2.737499999999997,
+            "check_rate": 80.36666666666666,
+            "change_from_check": 5.370833333333337,
+            "judged_in_check": true
+          },
+          "12": {
+            "ours": 98.21666666666667,
+            "paper": 99.0,
+            "difference": -0.7833333333333314,
+            "check_rate": 97.55833333333334,
+            "change_from_check": 0.6583333333333314,
+            "judged_in_check": true
+          },
+          "13": {
+            "ours": 92.16250000000001,
+            "paper": 95.75,
+            "difference": -3.5874999999999915,
+            "check_rate": 91.3375,
+            "change_from_check": 0.8250000000000028,
+            "judged_in_check": true
+          },
+          "14": {
+            "ours": 99.9625,
+            "paper": 100.0,
+            "difference": -0.037499999999994316,
+            "check_rate": 99.95416666666667,
+            "change_from_check": 0.008333333333339965,
+            "judged_in_check": true
+          },
+          "15": {
+            "ours": 7.504166666666667,
+            "paper": 17.25,
+            "difference": -9.745833333333334,
+            "check_rate": 2.1125000000000003,
+            "change_from_check": 5.3916666666666675,
+            "judged_in_check": false
+          }
+        },
+        "fault_10": {
+          "ours": 64.8875,
+          "paper": 71.0,
+          "difference": -6.112499999999997,
+          "check_rate": 51.28333333333334,
+          "change_from_check": 13.604166666666664,
+          "judged_in_check": true
+        },
+        "reading_only_within_tolerance": {
+          "within": 11,
+          "of": 12
+        }
+      }
+    }
+  }
+}
