@@ -504,10 +504,14 @@ def matcher_summary(rows, family_of):
 
 
 def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty=False, n_boot=None, out=print):
-    """The agent table from a complete agent_run record (eval/agent_metrics.py, Raj's)."""
+    """The agent table from a complete agent_run record (eval/agent_metrics.py, Raj's). A
+    relative record path is read against the repo root, wherever the command runs from."""
     from eval import agent_metrics as am
-    repo_root = Path(repo_root or run_record.REPO_ROOT)
+    repo_root = Path(repo_root or run_record.REPO_ROOT).resolve()
     rec_path = Path(record_path)
+    rec_path = (rec_path if rec_path.is_absolute() else repo_root / rec_path).resolve()
+    if not rec_path.is_relative_to(repo_root):
+        raise AgentTableError(f"{record_path} isn't inside the repo ({repo_root})")
     rec = json.loads(rec_path.read_text())
     if rec.get("name") != "agent_run":
         raise AgentTableError(f"{rec_path} isn't an agent_run record")

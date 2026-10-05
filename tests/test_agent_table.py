@@ -325,3 +325,31 @@ def test_the_command_line_requires_the_billing_tier_for_paid_runs(monkeypatch):
     assert at.main(["--evaluation", "--library-as-of", LIB, "--prompt-sha256", "x", "--billing-tier", "tier-1"]) == 0
     assert seen["billing_tier"] == "tier-1"
     assert at.main(["--dry-run", "--library-as-of", LIB]) == 0 and seen["billing_tier"] is None
+
+
+# ---------- --table's record path ----------
+
+def test_the_table_takes_a_path_relative_to_the_repo_from_anywhere(env, tmp_path, monkeypatch):
+    (m, record), _ = go(env, "tuning", budget=50, client=fake_client(tmp_path))
+    from tests.test_approve_entry import commit
+    commit(env["repo"])
+    rel = record.relative_to(env["repo"]).as_posix()               # eval/runs/<stamp>_agent_run.json
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)                                    # not the repo root
+    results, table_record = at.table(rel, repo_root=env["repo"], tables_dir=env["tables"], n_boot=20,
+                                     out=lambda s: None)
+    assert json.loads(table_record.read_text())["config"]["agent_run"] == rel
+
+
+def test_the_table_still_takes_an_absolute_path_and_refuses_one_outside_the_repo(env, tmp_path):
+    (m, record), _ = go(env, "tuning", budget=50, client=fake_client(tmp_path))
+    from tests.test_approve_entry import commit
+    commit(env["repo"])
+    outside = tmp_path / "copy_agent_run.json"
+    outside.write_text(record.read_text())
+    with pytest.raises(at.AgentTableError, match="isn't inside the repo"):
+        at.table(outside, repo_root=env["repo"], tables_dir=env["tables"], out=lambda s: None)
+    _, table_record = at.table(record, repo_root=env["repo"], tables_dir=env["tables"], n_boot=20,
+                               out=lambda s: None)
+    assert json.loads(table_record.read_text())["config"]["agent_run"] == record.relative_to(env["repo"]).as_posix()

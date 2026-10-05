@@ -3039,3 +3039,17 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Unsure about:** the two committed tuning records predate the field, so they carry no `billing_tier`. This entry and decision 76 say both ran on the free tier. Records are never edited.
 - **Decisions needed:** none.
 - **Next (Raj):** the evaluation run with `--billing-tier tier-1`, `--prompt-sha256` (the frozen prompt) and the `--min-interval` you choose for Tier 1's limits.
+
+### 2026-10-05: week 6, --table resolves a relative record path
+- **The billing-tier request** (decision 76, the log, the required `--billing-tier`) was already done and committed in f8c85ba, so nothing was redone.
+- **Raj's report:** `python -m eval.agent_table --table eval/runs/<stamp>_agent_run.json` stopped with "… is not in the subpath of …". `table()` read the record from the path as given, then called `relative_to(repo_root)` on that relative path against an absolute root.
+- **Changed (`eval/agent_table.py`, `table()`):**
+  - The repo root is resolved, and a relative record path is read against it, wherever the command runs from.
+  - An absolute path still works.
+  - A record outside the repo is refused ("isn't inside the repo"), since the table record names it relative to the repo.
+- **Tests (`tests/test_agent_table.py`, 2 new):**
+  - a relative path works from another working directory, and the table record names it relative to the repo
+  - an absolute path still works, and one outside the repo is refused
+  - **`pytest -q`:** 1816 passed, 4 deselected.
+- **Decisions needed:** none.
+- **Next (Raj):** rerun `--table` on the tuning record.
