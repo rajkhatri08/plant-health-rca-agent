@@ -1,0 +1,26 @@
+# Memorization probes (eval/LEAKAGE.md, wall 2): run once on the pinned model, results saved
+# here. PROPOSED (Claude, week 6 S8), for Raj's approval before the run.
+#
+# Each probe shows the model only agent-visible material (the tag register, the loop map, a
+# library entry), never a benchmark name, raw name or label (tests/test_probes.py scans every
+# rendered prompt), and asks whether it recognises the plant. A probe "recognises" when the
+# answer names the benchmark, its source or a raw name or label (the leak scan's patterns), or
+# claims to know the disturbance number. Anonymisation is partial (LEAKAGE): a recognition is a
+# finding for the README's limitations, not a failure to fix.
+
+version: 1
+question_plant: >-
+  The material below describes a simulated chemical plant. Does it come from a published,
+  well-known simulation model or benchmark process? If you recognise it, name the model or
+  benchmark and the publication that introduced it. If you don't, say so.
+question_fault: >-
+  The text below describes a disturbance in a simulated chemical plant. Does it match a
+  numbered disturbance or fault in a published, well-known benchmark? If you recognise it,
+  name the benchmark and the number. If you don't, say so.
+
+probes:
+  - {id: tags, question: plant, material: tag_register}
+  - {id: loops, question: plant, material: loop_map}
+  - {id: entry-drift, question: fault, material: "entry:reaction-rate-drift"}
+  - {id: entry-cooling, question: fault, material: "entry:reactor-cooling-water-warm-supply"}
+  - {id: entry-feed-loss, question: fault, material: "entry:reactant-1-feed-supply-loss"}

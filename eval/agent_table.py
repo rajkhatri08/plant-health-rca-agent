@@ -298,7 +298,7 @@ def run_plan(planned, *, folder, label, bundle, library, loo_library, client, re
                 raise AgentTableError(f"the graph's evidence differs from eval/cases.py's for {case.id} at {stage}")
             checked.add((case.id, stage))
         if v.get("outcome") not in ("matcher_declined", "declined", "not_in_library", "failed_check", "error",
-                                    "proposed"):
+                                    "proposed", "emergency"):
             raise AgentTableError(f"{case.id} at {stage} ended without an outcome")
         rows.append(row_of(case, stage, repeat, v))
     return rows, True, None

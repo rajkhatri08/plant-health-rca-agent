@@ -27,6 +27,7 @@ from fractions import Fraction
 
 from langgraph.types import interrupt
 
+from app.agent import emergency as emergency_screen  # noqa: F401 (screen uses it)
 from app.agent import faithfulness, records
 from app.agent import llm      # BudgetExceeded and CacheMiss propagate; any other LLMError is an outcome
 from app.agent import schema as sc
@@ -34,7 +35,8 @@ from app.diagnosis import matcher
 
 OFFSETS_MIN = {"provisional": 30, "revised": 60}
 VERDICTS = ("approve", "reject")
-OUTCOMES = ("matcher_declined", "declined", "not_in_library", "failed_check", "error", "proposed")
+OUTCOMES = ("matcher_declined", "declined", "not_in_library", "failed_check", "error", "proposed",
+            "emergency")
 SCHEMA_FAILURE = getattr(sc, "SCHEMA_FAILURE", "schema")    # the code for an answer that breaks the schema
 
 
@@ -64,6 +66,25 @@ def select_candidates(ranking, k) -> list:
         chosen.extend(block)                        # a whole tied block, even past rank k
         covered += len(block)
     return sorted(chosen, key=lambda s: s.ref)      # ref order, never rank order (decision 75)
+
+
+def screen(state, deps) -> dict:
+    """{"screen": {"emergency": bool, "classes": [...]}} from
+    emergency_screen.screen(state["operator_note"]) (decision 78). No clock, no tools, no LLM:
+    it reads only the note. A pass without a note is never an emergency."""
+    raise NotImplementedError("Raj implements the screen node (decision 78)")
+
+
+def route_after_screen(state) -> str:
+    """"emergency" when state["screen"]["emergency"], else "evidence"."""
+    raise NotImplementedError("Raj implements route_after_screen")
+
+
+def emergency(state, deps) -> dict:
+    """{"outcome": "emergency", "note": emergency_screen.EMERGENCY_TEXT, "as_of": ISO}: the pass
+    ends with the site emergency procedure. No evidence, no matcher, no LLM, no diagnosis, no
+    proposal. as_of = notified_at + OFFSETS_MIN[stage] min (the record needs it; no clock)."""
+    raise NotImplementedError("Raj implements the emergency node (decision 78)")
 
 
 def evidence(state, deps) -> dict:
