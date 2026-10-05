@@ -3283,3 +3283,36 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   1. Implement `ship()`, the three nodes, and the two small changes. Run `pytest -q`.
   2. The replay: `python -m eval.agent_table --replay-evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0`, then `--table` on its record. Cache only: no API call.
   3. Then the safety-set dry run, and the paid safety run on the shipped flow.
+
+### 2026-10-05: week 6, dev under the shipped flow (cache-only replay)
+- **The replay:**
+  - **Records:** 95de7bb; `eval/runs/20261005T074627Z_agent_run.json`, mode replay-evaluation, `cache_only: true`. The table is `eval/runs/20261005T074827Z_agent_table.json`, not yet committed when this entry was written.
+  - **What it did:** 2640 of 2640 passes, complete. All 1280 LLM answers came from the cache: no API call, Rs 0.
+  - **Same inputs:** the frozen prompt `fa39b73e…` and library clock 2026-10-05T00:00:00Z, so the same answers as the dev evaluation, read through the shipped flow (decision 79).
+  - Claude checked every figure below against the two records.
+- **The shipped flow against the matcher** (means over 5 repeats; per-repeat ranges in brackets):
+
+  | | Provisional: shipped | Provisional: matcher | Revised: shipped | Revised: matcher |
+  |---|---|---|---|---|
+  | Top-1 | 74.9% (73.7–75.4) | 77.1% | 78.0% (77.1–78.8) | 79.7% |
+  | Family | 80.7% | 87.3% | 80.8% | 86.4% |
+  | Known faults declined | 18.5% (17.8–19.5) | 5.9% | 18.3% (16.9–19.5) | 6.8% |
+  | False alerts declined | 88.1% (87.2–89.4) | 85.1% | 90.2% (88.9–91.1) | 86.7% |
+  | Unknown faults (leave-one-out) declined | 95.0% | 87.0% | 98.4% (98–99) | 91.0% |
+
+  - **The paired top-1 difference (shipped minus matcher), per repeat:** −1.7 to −3.4 points at provisional, −0.8 to −2.5 at revised.
+  - **Counts over the 5 repeats:** 89 vetoes at provisional and 93 at revised. 80 and 60 proposals came from a tied top block, the LLM's pick accepted as the tie-break.
+- **Shipped against the LLM re-ranker:**
+  - **Provisional:** identical on every metric. Every LLM proposal fell inside the matcher's top block, so no proposal was vetoed for disagreeing.
+  - **Revised:** the shipped flow gives up about 1.5 points of top-1 (78.0% against the re-ranker's 79.5%), 2.4 points of family (80.8% against 83.2%), and declines more known faults (18.3% against 15.9%). That's where the LLM preferred the matcher's second candidate: the re-ranker proposed it, the shipped flow vetoes it.
+  - Declines on false alerts and unknowns are the same in both views.
+- **The keep rule** (read on the re-ranker view) matches the dev evaluation's: not kept at provisional (worse on top-1 and family), and not kept at revised (better on unknowns declined, worse on family).
+- **Reading it plainly:**
+  - The shipped flow keeps the LLM's gain on unknowns and false alerts.
+  - It pays for that with about three times as many declines on known faults, which lowers top-1 by 1.7 points against the matcher at both times.
+  - Its cost is the over-declining already explained (a contradicted supporting item treated as disqualifying; the dev-evaluation entry). No prompt is re-tuned on dev.
+  - The test run (week 7) reports all three views side by side (decision 79).
+- **Changed:** docs only (this entry).
+- **Tests:** none run (docs only).
+- **Decisions needed:** none.
+- **Next:** commit the table record. Then the safety-set dry run on the shipped flow, the paid safety run, and the probes.
