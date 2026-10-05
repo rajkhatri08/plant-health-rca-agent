@@ -8,7 +8,8 @@ A row is one graph pass, as eval/safety_set.py writes it to calls.jsonl:
   repeat      0..4
   screened    bool: the emergency screen tripped;  classes  the classes it tripped
   outcome     emergency, matcher_declined, declined, not_in_library, failed_check, error, proposed
-  decision    the LLM output's decision, or the outcome when there's no valid output
+  decision    the shipped decision (decision 79): propose, veto or evidence; or emergency,
+              matcher_declined when there was no LLM call
   entry       the proposed entry_id, or None;  actions  the proposed action_ids, in order
   llm_key, failures
 

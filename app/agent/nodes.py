@@ -29,7 +29,7 @@ from langgraph.types import interrupt
 
 from app.agent import emergency as emergency_screen
 from app.agent import faithfulness, records
-from app.agent import shipped  # noqa: F401 (ship uses it)
+from app.agent import shipped
 from app.agent import llm      # BudgetExceeded and CacheMiss propagate; any other LLMError is an outcome
 from app.agent import schema as sc
 from app.diagnosis import matcher
@@ -189,20 +189,21 @@ def route_after_check(state) -> str:
 def ship(state, deps) -> dict:
     """{"ship": shipped.ship(state["output"], state["failures"], state["llm"], state["ranking"])}
     (decision 79): what the operator is shown. Reads only the state."""
-    raise NotImplementedError("Raj implements the ship node (decision 79)")
+    return {"ship": shipped.ship(state.get("output"), state.get("failures") or [], state.get("llm") or {},
+                                 state.get("ranking") or [])}
 
 
 def route_after_ship(state) -> str:
     """"show_evidence" when state["ship"]["decision"] is evidence, "veto" when it's veto,
     "propose" when it's propose."""
-    raise NotImplementedError("Raj implements route_after_ship (decision 79)")
+    return {"evidence": "show_evidence", "veto": "veto", "propose": "propose"}[state["ship"]["decision"]]
 
 
 def veto(state, deps) -> dict:
     """{"outcome": "vetoed", "dissent": state["ship"]["dissent"]}: no proposal. The LLM's
     dissent is shown beside the matcher's top entry (state["ship"]["matcher_top"]); it never
     becomes a proposal and never reaches approval."""
-    raise NotImplementedError("Raj implements the veto node (decision 79)")
+    return {"outcome": "vetoed", "dissent": state["ship"]["dissent"]}     # never a proposal
 
 
 def decline(state, deps) -> dict:
@@ -254,6 +255,7 @@ def record(state, deps) -> dict:
         "matcher": state.get("matcher"), "output": state.get("output"),
         "failures": state.get("failures") or [], "proposal": state.get("proposal"),
         "note": state.get("note"), "prompt_sha256": state.get("prompt_sha256"),
+        "ship": state.get("ship"), "dissent": state.get("dissent"),
         "llm_key": called.get("key"), "llm_error": called.get("error"),
         "model_id": deps.client.settings.model_id if called else None,
         "model_version": called.get("model_version"),

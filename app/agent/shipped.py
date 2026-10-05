@@ -2,7 +2,7 @@
 explainer and veto. One function, used by the graph (nodes.ship) and by evaluation, so the two
 can't disagree (decision 19). Runtime code: no imports from dataset/, eval/ or ingest/.
 
-Raj implements ship(). The contract:
+Implemented by Raj (with guidance from the Claude.ai chat). The contract:
 
     ship(output, failures, llm, ranking) -> {
         "decision":    "propose" | "veto" | "evidence",
@@ -35,4 +35,15 @@ DECISIONS = ("propose", "veto", "evidence")
 
 
 def ship(output, failures, llm, ranking) -> dict:
-    raise NotImplementedError("Raj implements the shipped flow's rule (decision 79)")
+    top = sorted(x["ref"] for x in (ranking[0] if ranking else []))     # the matcher's top block
+    if "error" in (llm or {}) or failures or output is None:
+        return {"decision": "evidence", "entry_ref": None, "tie_break": False, "matcher_top": top,
+                "dissent": None}                     # rule 1: show the deterministic evidence
+    pick = output.get("entry_ref") if output.get("decision") == "propose" else None
+    if pick is not None and pick in top:             # rule 2: agrees, or breaks a tie at the top
+        return {"decision": "propose", "entry_ref": pick, "tie_break": len(top) > 1, "matcher_top": top,
+                "dissent": None}
+    return {"decision": "veto", "entry_ref": None, "tie_break": False, "matcher_top": top,   # rule 3
+            "dissent": {"llm_decision": output.get("decision"), "llm_entry_ref": pick,
+                        "rationale": output.get("rationale"),
+                        "family_note": output.get("family") if output.get("decision") == "not_in_library" else None}}

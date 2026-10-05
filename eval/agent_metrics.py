@@ -46,7 +46,7 @@ from fractions import Fraction
 
 from eval import diag_metrics as dm          # the Case form and the shared metrics
 
-CORRECT_DECLINES = ("matcher_declined", "declined", "failed_check", "error")
+CORRECT_DECLINES = ("matcher_declined", "declined", "failed_check", "error", "vetoed")
 KEEP_RULE = {"better_by": 0.05, "worse_by": 0.02, "metrics": ("top1", "family", "unknowns_declined")}
 VALID_OUTPUTS = ("declined", "not_in_library", "proposed")       # the LLM gave a valid answer
 LEVELS = ("high", "medium", "low")
