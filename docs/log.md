@@ -3083,3 +3083,49 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Tests:** none run (docs only). The suite was last 1816 passed, 4 deselected.
 - **Decisions needed:** none.
 - **Next (Raj):** the evaluation run: `python -m eval.agent_table --evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --billing-tier tier-1 --min-interval 1`, then `--table` on its record.
+
+### 2026-10-05: week 6, the agent's dev evaluation: the keep rule fails, the matcher's order ships
+- **The run:**
+  - **Record:** b525847, `eval/runs/20261005T021042Z_agent_run.json`.
+  - **Setup:** Tier 1 with Prepay, frozen prompt `fa39b73e…`, library as of 2026-10-05T00:00:00Z, `min_interval_s` 1.0, cap Rs 450.
+  - **Passes:** 2640 of 2640, complete. 1280 LLM calls; 1360 passes the matcher declined without one.
+  - **Spend:** Rs 99.98 (Rs 48.02 provisional, Rs 51.96 revised). 0 errors, 0 schema failures.
+  - **Table:** `eval/runs/20261005T024647Z_agent_table.json`. Not yet committed when this entry was written.
+  - **Cases per stage:** 118 known (10 dev run numbers), the false alerts, and 100 leave-one-out cases (faults 2 and 11), × 5 repeats.
+  - Claude checked every figure below against the two records and `calls.jsonl`.
+- **The keep rule: not kept at either time.**
+  - **Provisional:** worse on top-1, the agent's mean 74.9% against the matcher's 77.1% (−2.2 points; per repeat −3.4 to −1.7). Worse on family, 80.7% against 87.3% (−6.6). Better on unknowns declined by +4.6 points, but not by 5 in every repeat, so it doesn't count as better.
+  - **Revised:**
+    - Better on unknowns declined: 98.4% against 91.0%, +7.4 points (per repeat +7 to +8).
+    - Worse on family: 83.2% against 86.4% (−3.2).
+    - Top-1 is level: 79.5% against 79.7% (−0.2).
+  - **So, per Raj's answer 11 and decision 75:** the shipped flow keeps the matcher's order, and the LLM explains and may decline (a veto). The LLM's re-ranking isn't kept.
+- **The LLM abstains far more on known faults.**
+  - **Wrongly declined:** 17.8–19.5% per repeat at provisional, against the matcher's 5.9%; 15.3–17.0% at revised, against 6.8%. This counts every no-diagnosis outcome.
+  - **Where the LLM's own declines fall,** summed over 5 repeats:
+    - provisional (59 in all): `mixed-feed-supply-loss` 25, `mixed-feed-composition-wander` 15, `reactor-cooling-water-temperature-wander` 13
+    - revised (39): `mixed-feed-supply-loss` 24, then 5 each for `mixed-feed-composition-wander`, `condenser-cooling-water-temperature-wander` and `reaction-rate-drift`
+- **Unknowns and false alerts:**
+  - **Leave-one-out declined:** 95% in every repeat at provisional and 98–99% at revised, against the matcher's 87% and 91%. In the keep rule's own count, failed checks there aren't declines (B2), giving 91.6% and 98.4% on average.
+  - **The family-level answer:** never given (0 of 500 leave-one-out passes per stage).
+  - **False alerts declined:** 87–89% at provisional and 89–91% at revised, against the matcher's 85% and 87%.
+- **The faithfulness check:**
+  - **Failed checks:** 32 at provisional (6–7 per repeat) and 20 at revised (3–5).
+  - **Codes:** citation 39, action 39, entry 26 in total; a failed pass can carry more than one.
+  - **Handling:** all caught, shown as evidence, scored as no diagnosis.
+- **Stability and cost:**
+  - **Stability:** 257 of 265 provisional cases and 254 of 263 revised cases gave one answer in all 5 repeats (mean agreement 99%).
+  - **Latency:** median 1.8 s per call, 95th percentile 2.1–2.2 s, maximum 25 s.
+  - **Cost:** Rs 0.036 and Rs 0.040 per diagnosis.
+- **Why the LLM over-declines (dev-informed; read from its own decline rationales):**
+  - **The cause:** it treats a contradicted supporting item (for example the masked flag, or RX-TI-204 normal) as disqualifying, while the matcher tolerates supporting contradictions by design (decision 69).
+  - **Ruled out:** Raj's first guess, unknown analyzer items, isn't supported by the rationales.
+  - **Recorded as a limitation, and as the first fix for a future prompt version:** state that only required items disqualify.
+  - **Nothing changes now:** the frozen prompt and the verdict stand, and nothing is re-tuned on dev.
+- **Changed:** docs only (this entry).
+- **Tests:** none run (docs only). The suite was last 1816 passed, 4 deselected.
+- **Decisions needed:**
+  - **The verdict as a decision:** like the spike's verdict (decision 74), with the README limitation and the future fix.
+  - **Wiring decision 75's fallback:** the matcher's order is shown; the LLM explains and may veto; its own pick and family-level answer aren't used.
+  - **How the test run scores the shipped flow:** PROTOCOL says test reports both. With the fallback, "the agent" on test means matcher order plus the LLM's veto, and its scoring should be fixed before the frozen test run.
+- **Next:** commit the agent table record. Then the fallback wiring and the safety set (S8).
