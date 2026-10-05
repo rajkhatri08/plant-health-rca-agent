@@ -3013,3 +3013,29 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Unsure about:** the value to use. A 429 means the project's requests-per-minute limit was hit. At R requests per minute, `--min-interval 60/R` keeps every call under it (for example 2 s at 30 per minute). The limit for `gemini-3.1-flash-lite` on Raj's tier is shown in the AI Studio console; I haven't seen it.
 - **Decisions needed:** none.
 - **Next (Raj):** rerun `--table` on the tuning record. Then choose `--min-interval` from your tier's limit before the evaluation run.
+
+### 2026-10-04: week 6, the billing tier recorded; --billing-tier for paid runs
+- **Raj's finding (recorded in decision 76):**
+  - **Every call so far ran on the Gemini free tier:** the smoke call, the schema check and both tuning runs (b210f52; the second, c9a40e3 and c8c1f1e). So:
+    - none was billed to the prepaid credits
+    - they ran under free-tier rate limits, which explains the tuning runs' 429s
+    - Google may use their content to improve its products, which is acceptable: the data is public and simulated
+  - **The rupee figures in those records are our meter's estimates** at the paid-tier prices, not charges: decision 76's smoke (Rs 0.00108) and schema-check (Rs 0.00792) lines, and the tuning runs' `spent_inr` and ledgers.
+  - **The project moved to Tier 1 with Prepay** (checked in AI Studio on 4 October 2026), before the evaluation run.
+- **Changed:**
+  - **`docs/decisions.md`, decision 76:** a billing-tier paragraph saying the above, and that every paid run's record names its tier.
+  - **`eval/agent_table.py`:**
+    - Paid runs (`--tuning`, `--evaluation`) require `--billing-tier`, either `free` or `tier-1`. The value goes into the agent_run record's `config.billing_tier`.
+    - A missing or unknown value is refused before anything loads: by `run()`, and by the command line before `.env` is read.
+    - The dry run and `--project-cost` don't take it.
+  - **`CLAUDE.md`:** the paid commands show `--billing-tier tier-1`.
+- **Tests (`tests/test_agent_table.py`, 7 new):**
+  - a paid run with no, or an unknown, billing tier is refused before loading (3)
+  - the record holds the tier, free or tier-1 (2)
+  - the dry run needs none
+  - the command line requires it for both paid modes, refuses an unknown value, passes it through, and leaves the dry run without it
+  - The test helper now passes `tier-1` to paid runs, and the command-line pacing test gives the flag.
+  - **`pytest -q`:** 1814 passed, 4 deselected.
+- **Unsure about:** the two committed tuning records predate the field, so they carry no `billing_tier`. This entry and decision 76 say both ran on the free tier. Records are never edited.
+- **Decisions needed:** none.
+- **Next (Raj):** the evaluation run with `--billing-tier tier-1`, `--prompt-sha256` (the frozen prompt) and the `--min-interval` you choose for Tier 1's limits.

@@ -740,6 +740,14 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
       - This supersedes the LangChain line in "Tools and workflow" and in decision 74 (CLAUDE.md, Stack).
       - `google-genai` and `python-dotenv` are approved, pinned in `requirements.txt` only, never in `requirements-app.txt`.
       - **Where it lives (confirmed by Raj, 4 October 2026):** the Gemini client and the smoke command are builder side (`eval/gemini.py`). The provider-neutral adapter (settings, prices, cache key, fake, cached and replay clients, the budget meter) is in `app/agent/llm.py`. The deployed API never imports an SDK.
+    - **The billing tier (Raj, 4 October 2026):**
+      - **Every call so far ran on the free tier:** the smoke call, the schema check and both tuning runs. The key's project was on the Gemini free tier for all of them. So:
+        - They weren't billed to Raj's credits.
+        - They ran under free-tier rate limits, hence the 429s.
+        - Their content may be used by Google to improve its products. That's acceptable here: the data is public and simulated.
+      - **The rupee figures in those records** (decision 76's smoke and schema-check lines; the tuning runs' `spent_inr` and ledgers) are our meter's estimates at the paid-tier prices above, not money charged.
+      - **Tier 1 from the evaluation run on:** the project moved to Tier 1 with Prepay (checked in AI Studio on 4 October 2026), before the evaluation run.
+      - **Recorded per run:** every paid run's record names its tier in `config.billing_tier` (free or tier-1), from a required `--billing-tier` flag, so each cost figure says whether it's an estimate on the free tier or a charge on Tier 1.
 
     *Why:*
     - A pinned model, fixed settings and a dated price make the numbers reproducible and the cost checkable.

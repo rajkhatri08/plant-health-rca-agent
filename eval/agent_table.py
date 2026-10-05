@@ -3,8 +3,10 @@ measurement). Builder side: it reads labels and run numbers.
 
     python -m eval.agent_table --dry-run      --library-as-of 2026-10-05T00:00:00+00:00
     python -m eval.agent_table --project-cost --library-as-of …
-    python -m eval.agent_table --tuning       --library-as-of … --budget 50 [--min-interval <s>]
-    python -m eval.agent_table --evaluation   --library-as-of … --prompt-sha256 <hash> [--budget 450]
+    python -m eval.agent_table --tuning       --library-as-of … --budget 50 --billing-tier tier-1
+                                              [--min-interval <s>]
+    python -m eval.agent_table --evaluation   --library-as-of … --prompt-sha256 <hash> --billing-tier tier-1
+                                              [--budget 450]
                                               [--min-interval <s>]
     python -m eval.agent_table --table eval/runs/<stamp>_agent_run.json
 
@@ -44,7 +46,9 @@ Modes:
                  marked incomplete. --evaluation refuses a prompt whose hash isn't the one
                  given (frozen by hash, decision 77). --min-interval spaces the starts of real
                  API calls (cache hits aren't paced; the retry rule of decision 76 is unchanged)
-                 and is recorded as min_interval_s. No metric is computed here, so a metric
+                 and is recorded as min_interval_s. --billing-tier (free or tier-1,
+                 required) names the key's project tier, recorded as billing_tier: on the free
+                 tier the cost figures are the meter's estimates, not charges (decision 76). No metric is computed here, so a metric
                  bug never costs a paid rerun.
 - --table        the agent table from a complete agent_run record: eval/agent_metrics.py
                  (Raj's) per stage and repeat, the matcher on the same cases, the keep rule,
@@ -103,6 +107,7 @@ DEFAULT_OUT = run_record.REPO_ROOT / "data" / "agent_runs"
 PROMPTS = run_record.REPO_ROOT / "app" / "agent" / "prompts"
 CHARS_PER_TOKEN = 4
 NO_UNKNOWNS = "not applicable (no unknown cases)"
+BILLING_TIERS = ("free", "tier-1")       # the key's project tier, recorded per paid run (decision 76)
 DEFAULT_BUDGETS = {"evaluation": 450}       # Rs; tuning's Rs 50 is given explicitly (decision 77)
 EXPECTED_OUTPUT_TOKENS = 300
 DRY_ANSWER = json.dumps({"decision": "decline", "entry_ref": None, "family": None, "confidence": "low",
@@ -365,7 +370,8 @@ def _setup(repo_root, library_as_of, model_path, limits_path, watch_path, normal
 def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DEFAULT_OUT,
         watch_path=cw.DEFAULT_OUT, normals_path=evidence_normals.DEFAULT_OUT, bundle_dir=DEFAULT_BUNDLE,
         out_root=DEFAULT_OUT, budget=None, prompt_hash=None, client=None, render=None, allow_dirty=False,
-        repo_root=None, now=None, eval_runs=None, tune_runs=None, min_interval=0.0, out=print):
+        repo_root=None, now=None, eval_runs=None, tune_runs=None, min_interval=0.0, billing_tier=None,
+        out=print):
     if mode not in ("dry-run", "project-cost", "tuning", "evaluation"):
         raise AgentTableError(f"unknown mode {mode!r}")
     if isinstance(min_interval, bool) or not isinstance(min_interval, (int, float)) or min_interval < 0:
@@ -374,6 +380,9 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     paid = mode in ("tuning", "evaluation")
     if paid:
+        if billing_tier not in BILLING_TIERS:
+            raise AgentTableError(f"paid runs need --billing-tier, one of {BILLING_TIERS} (decision 76), "
+                                  f"got {billing_tier!r}")
         budget = budget if budget is not None else DEFAULT_BUDGETS.get(mode)
         if budget is None:
             raise AgentTableError("--tuning needs --budget (rupees)")
@@ -451,7 +460,8 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
     spent = sum(float(p["cost_inr"]) for p in json.loads(ledger.read_text()).values())
     metrics_ = {"planned": len(planned), "completed": len(rows), "complete": complete, "stopped": why,
                 "llm_calls": sum(r["llm_key"] is not None for r in rows), "spent_inr": round(spent, 5)}
-    config.update(prompt_sha256=prompt_hash, budget_inr=budget, repeats=REPEATS[mode], min_interval_s=min_interval)
+    config.update(prompt_sha256=prompt_hash, budget_inr=budget, repeats=REPEATS[mode], min_interval_s=min_interval,
+                  billing_tier=billing_tier)
     record = run_record.write("agent_run", config=config, seeds={"evaluation": EVAL_SEED, "tuning": TUNE_SEED},
                               metrics=metrics_, outputs={"calls": calls, "ledger": ledger},
                               commit=commit, dirty=dirty, repo_root=repo_root, now=now)
@@ -609,6 +619,8 @@ def main(argv=None):
     parser.add_argument("--library-as-of", default=None)
     parser.add_argument("--budget", type=float, default=None, help="rupees (decision 76)")
     parser.add_argument("--prompt-sha256", default=None)
+    parser.add_argument("--billing-tier", choices=BILLING_TIERS, default=None,
+                        help="paid runs (required): the key's project tier, recorded as billing_tier (decision 76)")
     parser.add_argument("--min-interval", type=float, default=0.0,
                         help="paid runs: minimum seconds between the starts of two real API calls (cache hits "
                              "aren't paced); recorded in the run record")
@@ -624,12 +636,15 @@ def main(argv=None):
         return 0
     if not args.library_as_of:
         parser.error("--library-as-of is required (decision 77)")
+    if args.mode in ("tuning", "evaluation") and args.billing_tier is None:
+        parser.error("--tuning and --evaluation need --billing-tier (free or tier-1; decision 76)")
     if args.mode in ("tuning", "evaluation"):
         from dotenv import load_dotenv                       # the paid runs read the key from .env
         load_dotenv(override=False)
     try:
         run(args.mode, library_as_of=args.library_as_of, budget=args.budget, prompt_hash=args.prompt_sha256,
-            bundle_dir=args.bundle, allow_dirty=args.allow_dirty, min_interval=args.min_interval)
+            bundle_dir=args.bundle, allow_dirty=args.allow_dirty, min_interval=args.min_interval,
+            billing_tier=args.billing_tier)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError, run_record.RunRecordError,
             drv.CalibrationError, evidence_normals.NormalsError, cases_mod.CasesError, AgentTableError,
             diag_table.DiagTableError, bundle_mod.BundleError, llm.LLMError) as e:

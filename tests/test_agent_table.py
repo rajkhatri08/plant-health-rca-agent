@@ -39,7 +39,7 @@ def go(e, mode, **kw):
     lines = []
     args = dict(library_as_of=LIB, model_path=e["model_path"], limits_path=e["out"], watch_path=e["watch"],
                 normals_path=e["normals"], bundle_dir=e["bundle"], out_root=e["runs_out"], repo_root=e["repo"],
-                eval_runs=2, tune_runs=1, out=lines.append, render=ah.render)
+                eval_runs=2, tune_runs=1, out=lines.append, render=ah.render, billing_tier="tier-1")
     result = at.run(mode, **{**args, **kw})
     return result, lines
 
@@ -286,5 +286,42 @@ def test_the_command_line_takes_min_interval(monkeypatch):
     monkeypatch.setattr(at, "run", lambda mode, **kw: seen.update(mode=mode, **kw))
     import dotenv
     monkeypatch.setattr(dotenv, "load_dotenv", lambda **kw: None)
-    assert at.main(["--tuning", "--library-as-of", LIB, "--budget", "50", "--min-interval", "4"]) == 0
+    assert at.main(["--tuning", "--library-as-of", LIB, "--budget", "50", "--min-interval", "4",
+                    "--billing-tier", "tier-1"]) == 0
     assert seen["mode"] == "tuning" and seen["min_interval"] == 4.0 and seen["budget"] == 50.0
+
+
+# ---------- the billing tier (decision 76) ----------
+
+@pytest.mark.parametrize("tier", [None, "paid", "Tier-1"])
+def test_a_paid_run_needs_a_known_billing_tier_before_loading(env, tmp_path, tier):
+    with pytest.raises(at.AgentTableError, match="billing-tier"):
+        go(env, "tuning", budget=50, client=fake_client(tmp_path), billing_tier=tier)
+    assert env["calls"] == []
+
+
+@pytest.mark.parametrize("tier", ["free", "tier-1"])
+def test_the_run_records_its_billing_tier(env, tmp_path, tier):
+    (m, record), _ = go(env, "tuning", budget=50, client=fake_client(tmp_path), billing_tier=tier)
+    assert json.loads(record.read_text())["config"]["billing_tier"] == tier
+
+
+def test_the_dry_run_needs_no_billing_tier(env):
+    (results, record), _ = go(env, "project-cost", billing_tier=None)
+    assert results["evaluation"]["complete"]
+
+
+def test_the_command_line_requires_the_billing_tier_for_paid_runs(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(at, "run", lambda mode, **kw: seen.update(mode=mode, **kw))
+    import dotenv
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda **kw: None)
+    for mode in ("--tuning", "--evaluation"):
+        with pytest.raises(SystemExit):
+            at.main([mode, "--library-as-of", LIB, "--budget", "50"])
+    with pytest.raises(SystemExit):
+        at.main(["--tuning", "--library-as-of", LIB, "--budget", "50", "--billing-tier", "paid"])
+    assert seen == {}
+    assert at.main(["--evaluation", "--library-as-of", LIB, "--prompt-sha256", "x", "--billing-tier", "tier-1"]) == 0
+    assert seen["billing_tier"] == "tier-1"
+    assert at.main(["--dry-run", "--library-as-of", LIB]) == 0 and seen["billing_tier"] is None
