@@ -1,0 +1,19 @@
+# Builder side only: which run app/replay/episode2.csv holds. Never copy into app/.
+episode: 2
+fault: 4
+run: 29
+pool: dev
+rule: the masked fault (decision 62; eval/runs/20260928T155738Z_masked_faults.json)
+  on the lowest dev run number (Raj, week 6 S9)
+csv: app/replay/episode2.csv
+csv_sha256: 673c9df0f87e28d1bfee39df9c4505ef4b8aac28e314589e977830be2671721e
+rows: 20500
+samples: 500
+tags: 33
+analyzers: 19
+fast_rows: 16500
+analyzer_rows: 4000
+start: '2026-01-05T06:00:00Z'
+step_min: 3
+commit: 180ada67f072989799817c0d385e3e98b05e10e9
+dirty: false
