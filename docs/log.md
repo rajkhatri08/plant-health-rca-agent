@@ -3690,3 +3690,51 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The plan said "every record's config gets split".** Done for test records only, so dev records stay as they were; `pool` already says dev.
 - **Decisions needed:** none.
 - **Next:** S1c, the non-LLM diagnosis test path (`diag_table --split test`, the fingerprint record).
+
+### 2026-10-05: week 7 session 1c, the diagnosis test path and the forest fingerprint, diag_table --split test (code only; nothing run on sealed data)
+- **Changed:**
+  - **`eval/cases.py`:** `score_pool(inp, runs, onset=ONSET)` takes the onset (160 on test); dev is unchanged.
+  - **`eval/split.py`:** `test_draw()` makes one draw of 10 of run numbers 1..500 at seed 20261006, the same way `agent_table` draws its dev subsets (S0 answer 14). `TEST_SEED` and `TEST_DRAW` are there.
+  - **`eval/diag_table.py`:**
+    - **`derive_rules()`:** the one place the rules are set on dev, per diagnosis time: the matcher's threshold and k, and each forest fitted with its threshold. `diagnose()` (the dev table), the fingerprint and the test run all use it. The dev path's logic and output are unchanged; the existing dev tests pass untouched.
+    - **`--library-as-of <ISO>`** pins the library clock, which was always `now` before. It must carry a time zone.
+    - **`--fingerprint` (dev, needs `--library-as-of`)** also writes a `diag_fingerprint` record (S1 Q2). Per time it holds:
+      - the SHA-256 of the matcher's rankings of every dev known-fault and false-alert case (entries, exact fits, contradictions)
+      - each forest's SHA-256 over its class order and full `predict_proba` on the same cases (float64 bytes)
+      - the thresholds and k as exact strings (the matcher's as a Fraction, the forests' as `repr`)
+      - case counts
+    - **`--split test --fingerprint-record <record> --library-as-of <ISO>`**, in this order, before any test load:
+      1. the leave-one-out refs are checked against the library (`check_loo_refs`, S0 answer 16, each at r1)
+      2. the fingerprint record must be clean, with the same library as-of, library and input records
+      3. every rule is re-derived on dev (open data) and must match the fingerprint exactly; otherwise it stops and names the differing items (S0 answer 13)
+
+      Then it loads the testing files (purpose `test_diag_table`) and scores them at onset 160 with those rules, never deriving anything on test:
+      - **Known faults:** the existing metrics, plus end-to-end top-1 (correct divided by all known-fault runs).
+      - **Faults 16–20:** correct only when declined, overall and by fault; random declines 0.
+      - **Leave-one-out on 1, 4, 5 and 13, one at a time:** that entry removed, both forests refit without its class (11 classes), the full library's thresholds; declined and family, per fault and method.
+      - **False alerts:** every notification on the normal testing runs.
+      - **Scopes:** "full" (every detected test run) and "subsample" (the 10 drawn numbers, for every fault and the normal runs). The paired bootstrap (seed 20261001) is on the subsample only (S0 answer 12).
+    - **Outputs:** per-case rows (time, method, kind, fault, run, in draw, right, declined, top block) go to `<sealed>/test_outputs/<stamp>_test_diag_table/cases.jsonl` (S0 answer 21). The `test_diag_table` record holds aggregates, names the cases file as `sealed:…` with its SHA-256, and records "LLM only: not run" (S0 answer 18). The Markdown table goes to `data/tables/`.
+- **Tests:**
+  - **`tests/test_diag_table_test_split.py` (new, 23 tests):** a fake `load_testing` serves synthetic 300-sample testing runs, with a tmp sealed folder. The tests cover:
+    - the draw (seed, size, the same method as `agent_table`)
+    - the leave-one-out refs and their library check
+    - the fingerprint record's contents, that it's reproducible, and that a changed forest seed changes it
+    - argument refusals before any load
+    - dev and training loads strictly before the first test load, with test faults loaded in order 1–14, then 16–20, then the normal runs
+    - a tampered hash stops the run before any test load, naming the item
+    - a fingerprint with another as-of, library, dirty flag or name is refused before anything loads
+    - the test rules equal the fingerprint's
+    - both scopes, unknowns by fault, four leave-one-out rows with 11 classes, paired on the subsample only
+    - per-case rows in the sealed folder and not in the record
+    - the table text
+    - a dirty tree
+    - `main`
+  - Full suite: `pytest -q` exit 0.
+- **Unsure about:**
+  - **The fingerprint covers the forests' probabilities on dev cases, not their internals.** Two forests that agree on every dev case to the last bit are treated as the same. That's the strongest check that needs no stored model (no pickles).
+  - **Run time on test:** the command re-runs the whole dev gather (dev, authoring, ceiling and false alerts), then scores 17 testing faults × 500 runs and 500 normal runs, with RBC per run. Expect a long run.
+  - **`known_fault_runs` for the subsample** is 10 × 12. That's right on test, where every drawn number exists in every file.
+- **Decisions needed:** none.
+- **For Raj before S3 (dev only, no sealed data):** commit, then run `python -m eval.diag_table --library-as-of 2026-10-05T00:00:00+00:00 --fingerprint`, and commit the two records it writes. TEST_PLAN names the `diag_fingerprint` record, and S3 checks its matcher thresholds and k against the agent run's (1/3, 5/11, k = 2).
+- **Next:** S1d, the agent test path (`agent_table --split test`).

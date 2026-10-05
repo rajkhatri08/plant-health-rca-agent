@@ -72,6 +72,32 @@ Conventions (confirmed by Raj, 4 October 2026; decision 77):
 - The cost projection assumes CHARS_PER_TOKEN input characters per token and
   EXPECTED_OUTPUT_TOKENS output tokens per call; the worst case is the budget meter's bound.
 Refuses a dirty tree (before loading anything) unless --allow-dirty; never overwrites.
+
+The test split (week 7 S1d; Raj runs every command with EVAL_MODE=1, never Claude):
+    python -m eval.agent_table --split test --dry-run --library-as-of … --prompt-sha256 <hash>
+                               --fingerprint-record eval/runs/<stamp>_diag_fingerprint.json
+    python -m eval.agent_table --split test --evaluation --library-as-of … --prompt-sha256 <hash>
+                               --fingerprint-record … --dry-run-record eval/runs/<stamp>_test_agent_dry_run.json
+                               --billing-tier tier-1 --min-interval 1 [--repeats 5|3] [--budget 500]
+    python -m eval.agent_table --table eval/runs/<stamp>_test_agent_run.json
+- Before any test load: the prompt's hash, the leave-one-out refs (S0 answer 16), and the
+  matcher's thresholds and k re-derived on dev, which must equal the diag_fingerprint record's.
+- Cases, on the seed-20261006 draw of 10 run numbers (S0 answer 14): known (12 faults, full
+  library), unknown (16-20, full library; correct only when declined), loo (1, 4, 5 and 13,
+  each on its own library without that entry), and every notification on the drawn normal
+  runs (S0 answer 15; more than TEST_FALSE_CAP stops the run).
+- --dry-run: a FakeClient through the graph (test prompts stay in the sealed folder) and the
+  cost projection at 5 and at 3 repeats; repeats_allowed is 5 if its expected cost is at most
+  Rs 400, else 3 if that is, else none (S0 answer 17). Writes a test_agent_dry_run record.
+- --evaluation (paid): needs the dry run's record from this commit, its repeats_allowed, a
+  budget of at most Rs 500 (default 500), and the billing tier. The LLM cache, calls.jsonl, the
+  ledger and the databases go to the sealed folder (S0 answers 21, 22); the test_agent_run
+  record names them as "sealed:…" with their SHA-256s.
+- --table on a test_agent_run: the shipped flow, the re-ranker and the matcher from the same
+  passes (decision 79), faults 16-20 and leave-one-out by fault, the keep rule reported but not
+  applied (S0 answer 19), cold start "not applicable", LLM only "not run" (S0 answer 18). The
+  Markdown in data/tables/ leaves out the unstable cases; a copy listing them goes to the
+  sealed folder.
 """
 
 import argparse
@@ -99,6 +125,7 @@ from eval import calibrate_watch as cw
 from eval import cases as cases_mod
 from eval import dev_table, diag_table, evidence_normals, run_record
 from eval import diag_metrics as dm
+from eval import split as split_mod
 from ingest import export_replay as ex
 from ingest import tags as tagmap
 
@@ -116,6 +143,12 @@ NO_UNKNOWNS = "not applicable (no unknown cases)"
 BILLING_TIERS = ("free", "tier-1")       # the key's project tier, recorded per paid run (decision 76)
 DEFAULT_BUDGETS = {"evaluation": 450}       # Rs; tuning's Rs 50 is given explicitly (decision 77)
 EXPECTED_OUTPUT_TOKENS = 300
+TEST_BUDGET = 500                           # Rs, the test run's hard cap (PROTOCOL; S0 answer 17)
+TEST_PROJECTION_CAP = 400                   # Rs: the dry run's expected cost must be at most this
+TEST_REPEATS = (5, 3)                       # 5; cut to 3 only if 5 projects over the cap (never cases)
+TEST_FALSE_CAP = 50                         # S0 answer 15: more false-alert cases stops the run
+UNKNOWN_FAULTS = diag_table.UNKNOWN_FAULTS
+LOO_TEST = diag_table.LOO_TEST
 DRY_ANSWER = json.dumps({"decision": "decline", "entry_ref": None, "family": None, "confidence": "low",
                          "cited_evidence": [], "action_ids": [], "rationale": "dry run"})
 
@@ -150,6 +183,11 @@ class Case:
     features: dict             # eval/cases.py's features at the notification
     values: object             # the run, raw columns (for the history)
     columns: tuple
+    lib: str | None = None     # the library variant; None: "loo" for a loo case, else "full"
+
+    @property
+    def variant(self):
+        return self.lib or ("loo" if self.kind == "loo" else "full")
 
     @property
     def history_id(self):
@@ -241,13 +279,15 @@ def without(library, entry_ids):
 # ---------- running the graph ----------
 
 class Sizer:
-    """Records each prompt's size before passing the call on (for the cost projection)."""
+    """Records each prompt's size (and its repeat) before passing the call on (for the cost
+    projection)."""
 
     def __init__(self, inner):
-        self.inner, self.settings, self.sizes = inner, inner.settings, []
+        self.inner, self.settings, self.sizes, self.repeats = inner, inner.settings, [], []
 
     def complete(self, prompt, schema, *, repeat):
         self.sizes.append((len(prompt), llm.input_bound(prompt, schema)))
+        self.repeats.append(repeat)
         return self.inner.complete(prompt, schema, repeat=repeat)
 
 
@@ -288,9 +328,12 @@ def reranker_row(r):
     return {**r, "outcome": "declined" if r["llm_decision"] == "decline" else "not_in_library", "entry": None}
 
 
-def run_plan(planned, *, folder, label, bundle, library, loo_library, client, render, rules, library_as_of):
+def run_plan(planned, *, folder, label, bundle, library, loo_library, client, render, rules, library_as_of,
+             libraries=None):
     """Every planned pass through the graph. Returns (rows, complete, stop reason). A
-    BudgetExceeded stops the run; every other failure raises."""
+    BudgetExceeded stops the run; every other failure raises. One graph per library variant:
+    "full" and "loo" on dev; on test, libraries names them ("full" and one per left-out fault)
+    and each case runs on its own (Case.variant)."""
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     rec = records.RecordStore(folder / "records.db")
@@ -299,14 +342,15 @@ def run_plan(planned, *, folder, label, bundle, library, loo_library, client, re
     if len(ks) != 1:
         raise AgentTableError(f"k differs between diagnosis times ({ks}); the graph takes one k")
     histories = Histories(list({c.id: c for c, _, _ in planned}.values()), bundle)
+    libraries = libraries or {"full": library, "loo": loo_library}
     graphs = {}
-    for name, lib in (("full", library), ("loo", loo_library)):
+    for name, lib in libraries.items():
         deps = ag.Deps(tools=tools.Tools(bundle, lib, histories), library=lib, client=client,
                        records=rec, render=render, thresholds=thresholds, k=ks[0])
         graphs[name] = ag.build(ag.open_checkpointer(folder / f"checkpoints_{name}.db"), deps)
     rows, checked = [], set()
     for case, stage, repeat in planned:
-        g = graphs["loo" if case.kind == "loo" else "full"]
+        g = graphs[case.variant]
         episode = ag.opaque_id("ep", label, case.id, stage, repeat)
         try:
             s = ag.start(g, episode, case.history_id, case.notified_at().isoformat(), library_as_of,
@@ -323,7 +367,10 @@ def run_plan(planned, *, folder, label, bundle, library, loo_library, client, re
         if v.get("outcome") not in ("matcher_declined", "declined", "not_in_library", "failed_check", "error",
                                     "proposed", "emergency", "vetoed"):
             raise AgentTableError(f"{case.id} at {stage} ended without an outcome")
-        rows.append(row_of(case, stage, repeat, v))
+        row = row_of(case, stage, repeat, v)
+        if case.lib is not None:
+            row["variant"] = case.lib
+        rows.append(row)
     return rows, True, None
 
 
@@ -394,13 +441,24 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
         watch_path=cw.DEFAULT_OUT, normals_path=evidence_normals.DEFAULT_OUT, bundle_dir=DEFAULT_BUNDLE,
         out_root=DEFAULT_OUT, budget=None, prompt_hash=None, client=None, render=None, allow_dirty=False,
         repo_root=None, now=None, eval_runs=None, tune_runs=None, min_interval=0.0, billing_tier=None,
-        cache_dir=None, out=print):
+        cache_dir=None, out=print, split="dev", fingerprint_record=None, dry_run_record=None, repeats=None):
     if mode not in ("dry-run", "project-cost", "tuning", "evaluation", "replay-evaluation"):
         raise AgentTableError(f"unknown mode {mode!r}")
     if isinstance(min_interval, bool) or not isinstance(min_interval, (int, float)) or min_interval < 0:
         raise AgentTableError(f"--min-interval must be seconds >= 0, got {min_interval!r}")
     min_interval = float(min_interval)
     repo_root = Path(repo_root or run_record.REPO_ROOT)
+    if split == "test":
+        return run_test(mode, library_as_of=library_as_of, fingerprint_record=fingerprint_record,
+                        dry_run_record=dry_run_record, repeats=TEST_REPEATS[0] if repeats is None else repeats,
+                        model_path=model_path, limits_path=limits_path, watch_path=watch_path,
+                        normals_path=normals_path, bundle_dir=bundle_dir, budget=budget, prompt_hash=prompt_hash,
+                        client=client, render=render, repo_root=repo_root, now=now, min_interval=min_interval,
+                        billing_tier=billing_tier, out=out)
+    if split != "dev":
+        raise AgentTableError(f"unknown split {split!r}")
+    if fingerprint_record is not None or dry_run_record is not None or repeats is not None:
+        raise AgentTableError("--fingerprint-record, --dry-run-record and --repeats are only for --split test")
     paid = mode in ("tuning", "evaluation")
     if paid:
         if billing_tier not in BILLING_TIERS:
@@ -518,6 +576,222 @@ def paid_stack(provider, budget, min_interval, *, cache_dir=None, clock=None, sl
                             cache_dir or llm.DEFAULT_CACHE)
 
 
+# ---------- the test split (week 7 S1d; Raj runs it with EVAL_MODE=1) ----------
+
+def drawn(runs, draw):
+    """The runs with these numbers only (scoring is per run, so nothing else changes)."""
+    missing = [k for k in draw if k not in runs.runs]
+    if missing:
+        raise AgentTableError(f"{runs.name} fault {runs.fault} has no run {missing[:3]}")
+    return loader.Runs(runs.name, runs.fault, runs.pool, runs.columns, {k: runs.runs[k] for k in draw})
+
+
+def gather_test(inp, sp, draw, right_of, family_of_fault):
+    """{"known", "unknown", "loo", "false"} on the drawn testing runs (S0 answer 14): the
+    detected runs of the 12 known faults (full library); of 16-20 (full library, a decline is
+    right); of 1, 4, 5 and 13 again as leave-one-out, each on its own library variant
+    (S0 answer 16); and every notification on the drawn normal runs (S0 answer 15)."""
+    out = {"known": [], "unknown": [], "loo": [], "false": []}
+    for f in cases_mod.KNOWN_FAULTS + UNKNOWN_FAULTS:
+        runs = drawn(sp.load_faulty(f), draw)
+        if runs.pool != "test":
+            raise AgentTableError(f"asked for the test split, the loader gave {runs.pool}")
+        for r in cases_mod.score_pool(inp, runs, onset=sp.onset):
+            if not r["detected"]:
+                continue
+            base = dict(run=r["run"], fault=f, t=r["notification_sample"], features=r["features"],
+                        values=runs.runs[r["run"]], columns=tuple(runs.columns))
+            if f in UNKNOWN_FAULTS:
+                out["unknown"].append(Case(id=f"unknown:{f}:{r['run']}:{base['t']}", kind="unknown", family=None,
+                                           right=None, **base))
+                continue
+            out["known"].append(Case(id=f"known:{f}:{r['run']}:{base['t']}", kind="known",
+                                     family=family_of_fault[f], right=right_of[f], **base))
+            if f in LOO_TEST:
+                out["loo"].append(Case(id=f"loo:{f}:{r['run']}:{base['t']}", kind="loo", family=family_of_fault[f],
+                                       right=None, lib=f"loo_{f}", **base))
+    normal = drawn(sp.load_normal(), draw)
+    for r in cases_mod.score_normal(inp, normal):
+        for n in r["notifications"]:
+            out["false"].append(Case(id=f"false:0:{r['run']}:{n['sample']}", kind="false", run=r["run"], fault=0,
+                                     family=None, right=None, t=n["sample"], features=n["features"],
+                                     values=normal.runs[r["run"]], columns=tuple(normal.columns)))
+    return out
+
+
+def plan_test(cases, repeats):
+    """[(case, stage, repeat)]: every test case, at each stage its reading exists, repeats times."""
+    chosen = cases["known"] + cases["unknown"] + cases["loo"] + cases["false"]
+    return [(c, st, r) for c in chosen for st in STAGES if st in c.features for r in range(repeats)]
+
+
+def check_rules_against_fingerprint(rules, fingerprint_path, repo_root, lib_t, revs, inp):
+    """The matcher's thresholds and k, re-derived on dev, must be the diag_fingerprint
+    record's exactly (S1 Q2, S0 answer 11); its library and inputs must be this run's.
+    Returns the record's repo path."""
+    config = {"as_of": lib_t.strftime(ap.TS), "library": {e: f"{e}@r{r.revision}" for e, r in revs.items()},
+              **inp.records, "limits_sha256": inp.limits_sha256}
+    try:
+        rel, fp = diag_table.load_fingerprint(fingerprint_path, repo_root, config)
+    except diag_table.DiagTableError as e:
+        raise AgentTableError(str(e)) from None
+    for st in STAGES:
+        mine = {"threshold": str(rules[st]["threshold"]), "accepted": str(rules[st]["accepted"]),
+                "short": bool(rules[st]["short"]), "k": rules[st]["k"]}
+        theirs = {**{x: fp[st]["matcher"][x] for x in ("threshold", "accepted", "short")}, "k": fp[st]["k"]}
+        if mine != theirs:
+            raise AgentTableError(f"the matcher's rules re-derived on dev at {st} ({mine}) aren't the fingerprint's "
+                                  f"({theirs}); nothing from the test split was loaded")
+    return rel
+
+
+def load_dry_run(path, repo_root, commit):
+    """(repo path, metrics) of the test dry run the paid run relies on: same commit, clean."""
+    path = Path(path)
+    if not path.name.endswith("_test_agent_dry_run.json"):
+        raise AgentTableError(f"{path} isn't a test_agent_dry_run record")
+    rec = json.loads(path.read_text())
+    if rec.get("dirty") is not False or rec.get("commit") != commit:
+        raise AgentTableError(f"{path} isn't from this commit on a clean tree; run the test dry run again")
+    return path.resolve().relative_to(Path(repo_root).resolve()).as_posix(), rec["metrics"]
+
+
+def run_test(mode, *, library_as_of, fingerprint_record, dry_run_record, repeats, model_path, limits_path,
+             watch_path, normals_path, bundle_dir, budget, prompt_hash, client, render, repo_root, now,
+             min_interval, billing_tier, out):
+    """The test split's dry run and paid run (S0 answers 4, 14-17, 21, 22). Order: the
+    request checked, the tree, the dev rules against the fingerprint, and only then the test
+    loads."""
+    if mode not in ("dry-run", "evaluation"):
+        raise AgentTableError("--split test takes --dry-run or --evaluation (the paid run) only")
+    if fingerprint_record is None:
+        raise AgentTableError("--split test needs --fingerprint-record (the diag_fingerprint record)")
+    if repeats not in TEST_REPEATS:
+        raise AgentTableError(f"--repeats on test is one of {TEST_REPEATS} (S0 answer 17)")
+    injected = client is not None or render is not None
+    render = render or load_render()
+    actual = (prompt_hash or "test") if injected else prompt_sha256(repo_root / "app" / "agent" / "prompts")
+    if prompt_hash is None or prompt_hash != actual:
+        raise AgentTableError(f"the prompt's hash is {actual}, not the frozen {prompt_hash} (--prompt-sha256)")
+    paid = mode == "evaluation"
+    if paid:
+        if billing_tier not in BILLING_TIERS:
+            raise AgentTableError(f"the paid run needs --billing-tier, one of {BILLING_TIERS}")
+        budget = TEST_BUDGET if budget is None else budget
+        if budget > TEST_BUDGET:
+            raise AgentTableError(f"the test budget is at most Rs {TEST_BUDGET} (PROTOCOL)")
+        if dry_run_record is None:
+            raise AgentTableError("the paid run needs --dry-run-record, the test dry run on this commit")
+    elif repeats != TEST_REPEATS[0]:
+        raise AgentTableError("the dry run projects both repeat counts itself; give no --repeats")
+    commit, dirty = run_record.check_clean(repo_root)                    # before any loading
+    dry_rel = None
+    if paid:
+        dry_rel, dry = load_dry_run(dry_run_record, repo_root, commit)
+        if dry.get("repeats_allowed") is None:
+            raise AgentTableError(f"{dry_rel}: even 3 repeats project over Rs {TEST_PROJECTION_CAP}; stop and tell Raj")
+        if repeats != dry["repeats_allowed"]:
+            raise AgentTableError(f"{dry_rel} allows {dry['repeats_allowed']} repeats (S0 answer 17), not {repeats}")
+    now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    stamp = now.strftime("%Y%m%dT%H%M%SZ")
+
+    library, revs, right_of, family_of_fault, inp, b = _setup(
+        repo_root, library_as_of, model_path, limits_path, watch_path, normals_path, bundle_dir)
+    lib_t = datetime.fromisoformat(library_as_of)
+    try:
+        diag_table.check_loo_refs(revs, right_of)
+    except diag_table.DiagTableError as e:
+        raise AgentTableError(str(e)) from None
+    rules = matcher_rules(revs, gather(inp, right_of, family_of_fault)["known"], right_of, family_of_fault)
+    fp_rel = check_rules_against_fingerprint(rules, fingerprint_record, repo_root, lib_t, revs, inp)
+
+    sp = split_mod.get("test", f"test_agent_{'run' if paid else 'dry_run'}")      # the first test load is below
+    draw = split_mod.test_draw()
+    cases = gather_test(inp, sp, draw, right_of, family_of_fault)
+    n_false = len(cases["false"])
+    if n_false > TEST_FALSE_CAP:
+        raise AgentTableError(f"{n_false} false-alert cases on the drawn normal runs, over {TEST_FALSE_CAP} "
+                              "(S0 answer 15): stop and tell Raj")
+    libraries = {"full": library, **{f"loo_{f}": without(library, [right_of[f]]) for f in LOO_TEST}}
+    common = dict(bundle=b, library=library, loo_library=None, libraries=libraries, rules=rules,
+                  library_as_of=library_as_of)
+    counts = {k: len(v) for k, v in cases.items()}
+    config = {"mode": mode, "split": "test", "library_as_of": library_as_of,
+              "library": {e: f"{e}@r{r.revision}" for e, r in revs.items()},
+              "left_out": {str(f): f"{right_of[f]}@r{revs[right_of[f]].revision}" for f in LOO_TEST},
+              "unknown_faults": list(UNKNOWN_FAULTS), "bundle": b.name, **inp.records,
+              "limits_sha256": inp.limits_sha256, "fingerprint_record": fp_rel,
+              "subsample": {"seed": split_mod.TEST_SEED, "runs": split_mod.TEST_DRAW},
+              "rules": {st: {"threshold": str(r["threshold"]), "accepted": float(r["accepted"]),
+                             "short": r["short"], "k": r["k"]} for st, r in rules.items()},
+              "settings": llm.SETTINGS.as_dict(), "schema_version": ag.sc.SCHEMA_VERSION,
+              "prices": {"read_on": llm.PRICES[llm.SETTINGS.model_id].read_on,
+                         "usd_per_m_input": str(llm.PRICES[llm.SETTINGS.model_id].usd_per_m_input),
+                         "usd_per_m_output": str(llm.PRICES[llm.SETTINGS.model_id].usd_per_m_output),
+                         "usd_inr": str(llm.USD_INR), "usd_inr_on": llm.USD_INR_ON},
+              "prompt_sha256": prompt_hash, "projection_cap_inr": TEST_PROJECTION_CAP, "false_cap": TEST_FALSE_CAP}
+    seeds = {"subsample": split_mod.TEST_SEED}
+
+    if not paid:
+        planned = plan_test(cases, TEST_REPEATS[0])
+        scratch = sp.out_dir(None, f"{stamp}_test_agent_dry_run")      # test prompts never leave the sealed folder
+        scratch.mkdir(parents=True, exist_ok=False)
+        with tempfile.TemporaryDirectory(dir=scratch) as tmp:
+            sizer = Sizer(llm.CachedClient(llm.FakeClient(lambda p, s, r: DRY_ANSWER), Path(tmp) / "cache"))
+            rows, complete, why = run_plan(planned, folder=Path(tmp) / "run", label=f"test-dry:{stamp}",
+                                           client=sizer, render=render, **common)
+        by_repeats = {str(n): projection([s for s, r in zip(sizer.sizes, sizer.repeats) if r < n])
+                      for n in TEST_REPEATS}
+        allowed = next((n for n in TEST_REPEATS if by_repeats[str(n)]["expected_inr"] <= TEST_PROJECTION_CAP), None)
+        metrics_ = {"cases": counts, "planned": len(planned), "completed": len(rows), "complete": complete,
+                    "outcomes": {o: sum(r["outcome"] == o for r in rows) for o in sorted({r["outcome"] for r in rows})},
+                    "llm_calls": sum(r["llm_key"] is not None for r in rows),
+                    "projection": by_repeats, "repeats_allowed": allowed}
+        record = run_record.write("test_agent_dry_run", config=config, seeds=seeds, metrics=metrics_, outputs={},
+                                  commit=commit, dirty=dirty, repo_root=repo_root, now=now)
+        out(f"test dry run: cases {counts}; {len(rows)} of {len(planned)} passes complete")
+        for n in TEST_REPEATS:
+            p = by_repeats[str(n)]
+            out(f"{n} repeats: {p['calls']} LLM calls; projected Rs {p['expected_inr']:.2f} expected, "
+                f"Rs {p['worst_inr']:.2f} at most")
+        out(f"paid run: --repeats {allowed}" if allowed else
+            f"STOP: even 3 repeats project over Rs {TEST_PROJECTION_CAP}; tell Raj")
+        out(f"run record: {record}")
+        return metrics_, record
+
+    folder = sp.out_dir(None, f"{stamp}_test_agent_run")
+    if folder.exists():
+        raise FileExistsError(f"{folder} exists; runs are never overwritten")
+    if client is None:
+        from eval import gemini
+        client = paid_stack(gemini.GeminiClient(llm.SETTINGS), budget, min_interval,
+                            cache_dir=sp.cache_dir(llm.DEFAULT_CACHE))
+    planned = plan_test(cases, repeats)
+    rows, complete, why = run_plan(planned, folder=folder, label=f"test:{stamp}", client=client, render=render,
+                                   **common)
+    calls = folder / "calls.jsonl"
+    calls.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
+    ledger = folder / "ledger.json"
+    ledger.write_text(json.dumps({k: p for _, k, p in records.RecordStore(folder / "records.db").all("ledger")},
+                                 indent=2, sort_keys=True))
+    spent = sum(float(p["cost_inr"]) for p in json.loads(ledger.read_text()).values())
+    metrics_ = {"cases": counts, "planned": len(planned), "completed": len(rows), "complete": complete,
+                "stopped": why, "llm_calls": sum(r["llm_key"] is not None for r in rows), "spent_inr": round(spent, 5)}
+    config.update(budget_inr=budget, repeats=repeats, min_interval_s=min_interval, billing_tier=billing_tier,
+                  dry_run_record=dry_rel)
+    record = run_record.write("test_agent_run", config=config, seeds=seeds, metrics=metrics_,
+                              outputs={"calls": calls, "ledger": ledger},
+                              commit=commit, dirty=dirty, repo_root=repo_root, now=now)
+    out(f"test run: {len(rows)} of {len(planned)} passes{'' if complete else ' (INCOMPLETE: ' + str(why) + ')'}; "
+        f"Rs {spent:.4f} spent\nrun record: {record}")
+    return metrics_, record
+
+
+def output_path(repo_root, path):
+    """A record's output path: "sealed:<p>" under the sealed folder, otherwise in the repo."""
+    return loader.SEALED_ROOT / path.removeprefix("sealed:") if path.startswith("sealed:") else Path(repo_root) / path
+
+
 def matcher_case(r):
     """The matcher's own answer on a pass (the graph's match node), as a diag_metrics.Case."""
     return dm.Case(run=r["run"], fault=r["fault"], family=r["family"], right=r["right"],
@@ -550,14 +824,15 @@ def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty
     if not rec_path.is_relative_to(repo_root):
         raise AgentTableError(f"{record_path} isn't inside the repo ({repo_root})")
     rec = json.loads(rec_path.read_text())
-    if rec.get("name") != "agent_run":
-        raise AgentTableError(f"{rec_path} isn't an agent_run record")
+    if rec.get("name") not in ("agent_run", "test_agent_run"):
+        raise AgentTableError(f"{rec_path} isn't an agent_run or test_agent_run record")
+    test = rec["name"] == "test_agent_run"
     if not rec["metrics"]["complete"]:
         raise AgentTableError(f"{rec_path} is incomplete ({rec['metrics']['stopped']}); it's never reported")
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)
     files = {}
     for name in ("calls", "ledger"):
-        p = repo_root / rec["outputs"][name]["path"]
+        p = output_path(repo_root, rec["outputs"][name]["path"])
         if run_record.sha256(p) != rec["outputs"][name]["sha256"]:
             raise AgentTableError(f"{p} isn't the file the record names")
         files[name] = p
@@ -581,7 +856,20 @@ def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty
         base = by_rep[reps[0]]
         m = matcher_summary(base, family_of)
         loo_by_rep = {k: [r for r in rer_by_rep[k] if r["kind"] == "loo"] for k in reps}
-        if all(loo_by_rep.values()):
+        if test:
+            # On test, "unknown" means a fault with no entry: 16-20 and the leave-one-out cases
+            # (PROTOCOL). Unknown rows are read as loo rows for the keep rule's B2 (decision 77).
+            # The keep rule is reported, not applied (S0 answer 19): decision 79 already ships.
+            unknown_rows = {k: [r if r["kind"] == "loo" else {**r, "kind": "loo"} for r in rer_by_rep[k]
+                                if r["kind"] in ("loo", "unknown")] for k in reps}
+            keep_agent = [{"top1": reranker[k]["top1"], "family": reranker[k]["family"],
+                           "unknowns_declined": dm.decline_share([am.to_case(r, keep_rule=True)
+                                                                  for r in unknown_rows[k]])} for k in reps]
+            m_unknown = [matcher_case(r) for r in base if r["kind"] in ("loo", "unknown")]
+            keep_matcher = {"top1": m["top1"], "family": m["family"], "unknowns_declined": dm.decline_share(m_unknown)}
+            keep = {**am.keep_rule(keep_agent, keep_matcher), "applicable": True, "applied": False,
+                    "unknowns": "faults 16-20 and leave-one-out (1, 4, 5, 13)"}
+        elif all(loo_by_rep.values()):
             # The keep rule is about the LLM's re-ranking role, so it's read on the re-ranker view.
             keep_agent = [{"top1": reranker[k]["top1"], "family": reranker[k]["family"],
                            "unknowns_declined": dm.decline_share([am.to_case(r, keep_rule=True)
@@ -615,21 +903,60 @@ def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty
                        "vetoes": sum(r["outcome"] == "vetoed" for r in srows),
                        "tie_breaks": sum(bool(r.get("tie_break")) and r["outcome"] == "proposed" for r in srows),
                        "latency_cost": am.latency_cost(srows, ledger)}
+        if test:
+            results[st]["unknowns"] = {view: {str(k): unknown_summary(v[k]) for k in reps}
+                                       for view, v in (("shipped", by_rep), ("reranker", rer_by_rep))}
+            results[st]["unknowns"]["matcher"] = unknown_summary(base, matcher=True)
+            results[st]["latency_cost"]["cold_start"] = "not applicable (a batch run; S0 answer 19)"
+            results[st]["llm_only"] = "not run (S0 answer 18)"
     now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    stamp = now.strftime("%Y%m%dT%H%M%SZ")
     tables_dir = Path(tables_dir or diag_table.DEFAULT_TABLES)
     tables_dir.mkdir(parents=True, exist_ok=True)
-    md = tables_dir / f"{now.strftime('%Y%m%dT%H%M%SZ')}_agent_table.md"
-    md.write_text(markdown(results, rec))
+    name = "test_agent_table" if test else "agent_table"
+    md = tables_dir / f"{stamp}_{name}.md"
+    outputs = {"table": md}
+    if test:
+        # The unstable cases name test runs: listed only in a copy in the sealed folder (S0 answer 21).
+        md.write_text(markdown(results, rec, list_unstable=False))
+        sealed_md = loader.SEALED_ROOT / "test_outputs" / f"{stamp}_{name}" / f"{name}.md"
+        sealed_md.parent.mkdir(parents=True, exist_ok=False)
+        sealed_md.write_text(markdown(results, rec))
+        outputs["table_with_cases"] = sealed_md
+    else:
+        md.write_text(markdown(results, rec))
     recorded = _plain(results)
     for st in recorded:                     # run records hold short lists only: the cases are in the table
         a = recorded[st]["agreement"]
         a["unstable"] = len(a["unstable"])
-    record = run_record.write("agent_table", config={"agent_run": rec_path.relative_to(repo_root).as_posix(),
-                                                      "agent_run_sha256": run_record.sha256(rec_path)},
+    run_key = "test_agent_run" if test else "agent_run"
+    record = run_record.write(name, config={run_key: rec_path.relative_to(repo_root).as_posix(),
+                                            f"{run_key}_sha256": run_record.sha256(rec_path)},
                               seeds={"bootstrap": BOOTSTRAP_SEED}, metrics=diag_table.numbers(recorded),
-                              outputs={"table": md}, commit=commit, dirty=dirty, repo_root=repo_root, now=now)
+                              outputs=outputs, commit=commit, dirty=dirty, repo_root=repo_root, now=now)
     out(f"table: {md}\nrun record: {record}")
     return results, record
+
+
+def unknown_summary(rows, matcher=False) -> dict:
+    """Faults 16-20 and the leave-one-out cases, correct only when declined (PROTOCOL v2):
+    overall and by fault, from one repeat's rows (or the matcher's own answer on them)."""
+    case = matcher_case if matcher else am_case
+    out = {}
+    for kind, faults in (("unknown", UNKNOWN_FAULTS), ("loo", tuple(LOO_TEST))):
+        cs = [case(r) for r in rows if r["kind"] == kind]
+        out[kind] = {"cases": len(cs), "declined": dm.decline_share(cs) if cs else None,
+                     "by_fault": {str(f): _declined_share([c for c in cs if c.fault == f]) for f in faults}}
+    return out
+
+
+def am_case(r):
+    from eval import agent_metrics as am
+    return am.to_case(r)
+
+
+def _declined_share(cs):
+    return {"cases": len(cs), "declined": dm.decline_share(cs) if cs else None}
 
 
 def base_row(by_rep):
@@ -650,8 +977,10 @@ def _pct(x):
     return "—" if x is None else f"{100 * float(x):.1f}"
 
 
-def markdown(results, rec) -> str:
-    lines = ["# Agent table (dev)", "", f"Run: {rec['config']['mode']}, library as of {rec['config']['library_as_of']}, "
+def markdown(results, rec, list_unstable=True) -> str:
+    test = rec.get("name") == "test_agent_run"
+    lines = [f"# Agent table ({'test' if test else 'dev'})", "",
+             f"Run: {rec['config']['mode']}, library as of {rec['config']['library_as_of']}, "
              f"prompt {rec['config'].get('prompt_sha256', '')[:12]}…; rates in %.", ""]
     for st, r in results.items():
         lines += [f"## {st.capitalize()}", "", "| Method | Top-1 | Top-3 | Family | Wrongly declined | "
@@ -670,9 +999,27 @@ def markdown(results, rec) -> str:
         verdict = (f"Keep rule: {kr['reason']}." if not kr["applicable"] else
                    f"Keep rule: {'KEEP' if kr['keep'] else 'not kept'}; better on {kr['better_on'] or 'none'}, "
                    f"worse on {kr['worse_on'] or 'none'}.")
-        lines += ["", verdict, "",
-                  f"Unstable across repeats: {len(r['agreement']['unstable'])} of {r['agreement']['cases']} cases.", ""]
-        lines += [f"- {case} ({stage})" for case, stage in r["agreement"]["unstable"]]
+        if kr.get("applied") is False:
+            verdict += f" Reported, not applied (unknowns: {kr['unknowns']})."
+        lines += ["", verdict, ""]
+        if "unknowns" in r:
+            u = r["unknowns"]
+            lines += ["Unknown faults (16–20) and leave-one-out, correct only when declined (shipped flow and "
+                      "re-ranker per repeat; the matcher alone):", "",
+                      "| View | 16–20 declined | " + " | ".join(str(f) for f in UNKNOWN_FAULTS) +
+                      " | Leave-one-out declined | " + " | ".join(str(f) for f in LOO_TEST) + " |",
+                      "|---|---|" + "---|" * len(UNKNOWN_FAULTS) + "---|" + "---|" * len(LOO_TEST)]
+            rows_ = [("matcher", u["matcher"])] + [(f"{view}, repeat {k}", s) for view in ("shipped", "reranker")
+                                                    for k, s in u[view].items()]
+            for label, s in rows_:
+                lines.append(f"| {label} | {_pct(s['unknown']['declined'])} | " +
+                             " | ".join(_pct(s["unknown"]["by_fault"][str(f)]["declined"]) for f in UNKNOWN_FAULTS) +
+                             f" | {_pct(s['loo']['declined'])} | " +
+                             " | ".join(_pct(s["loo"]["by_fault"][str(f)]["declined"]) for f in LOO_TEST) + " |")
+            lines += ["", f"LLM only: {r['llm_only']}. Cold start: {r['latency_cost']['cold_start']}.", ""]
+        lines += [f"Unstable across repeats: {len(r['agreement']['unstable'])} of {r['agreement']['cases']} cases.", ""]
+        if list_unstable:
+            lines += [f"- {case} ({stage})" for case, stage in r["agreement"]["unstable"]]
         lines.append("")
     return "\n".join(lines)
 
@@ -693,6 +1040,14 @@ def main(argv=None):
                              "aren't paced); recorded in the run record")
     parser.add_argument("--bundle", type=Path, default=DEFAULT_BUNDLE)
     parser.add_argument("--allow-dirty", action="store_true")
+    parser.add_argument("--split", choices=split_mod.NAMES, default="dev",
+                        help="test: the sealed testing files, only with EVAL_MODE=1 (Raj runs it)")
+    parser.add_argument("--fingerprint-record", type=Path, default=None,
+                        help="test: the diag_fingerprint record the dev matcher rules must reproduce")
+    parser.add_argument("--dry-run-record", type=Path, default=None,
+                        help="test, paid run: the test_agent_dry_run record from this commit")
+    parser.add_argument("--repeats", type=int, default=None,
+                        help="test, paid run: 5, or 3 only when the dry run allows it (S0 answer 17)")
     args = parser.parse_args(argv)
     if args.table is not None:
         try:
@@ -711,7 +1066,8 @@ def main(argv=None):
     try:
         run(args.mode, library_as_of=args.library_as_of, budget=args.budget, prompt_hash=args.prompt_sha256,
             bundle_dir=args.bundle, allow_dirty=args.allow_dirty, min_interval=args.min_interval,
-            billing_tier=args.billing_tier)
+            billing_tier=args.billing_tier, split=args.split, fingerprint_record=args.fingerprint_record,
+            dry_run_record=args.dry_run_record, repeats=args.repeats)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError, run_record.RunRecordError,
             drv.CalibrationError, evidence_normals.NormalsError, cases_mod.CasesError, AgentTableError,
             diag_table.DiagTableError, bundle_mod.BundleError, llm.LLMError) as e:
