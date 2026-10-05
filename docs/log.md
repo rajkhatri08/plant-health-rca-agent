@@ -3612,3 +3612,48 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Answer 26:** `not_in_library` is also an output-schema decision value (`schema.py`, `faithfulness.py`, `shipped.py`, the prompt). Only the node function goes; the schema value stays, because decision 79 scores it as a veto.
   - **Answers 21 and 22:** the drivers' test path must write per-case rows and the LLM cache under the sealed folder, and committed records must hold aggregates only. S1 adds a test for this.
 - **Decisions needed (S3):** the PROTOCOL v2 additions from answers 3, 11–17 and 19 (the test subsample seed, the false-alert rule, the leave-one-out refs, the repeat cut, the crash rule), made before tagging.
+
+### 2026-10-05: week 7 session 1a, the sealed loader, split plumbing, twin check, probe spend, unused nodes (code only; nothing run on sealed data)
+- **Raj's answers to S1's questions (before any code):**
+  - **Q1, plots:** the cumulative detection curve and the AMOC curve, required by PROTOCOL but not built even on dev, are built on dev before the freeze (S1e). Raj writes the AMOC sweep; Claude writes the cumulative curve, the plotting and the sweep's stub and tests.
+  - **Q2, forest fingerprint:** a new pre-freeze dev record, `diag_fingerprint`, which Raj runs before S3. It holds SHA-256 hashes of each forest's per-case probabilities and of the matcher's rankings, at library as-of 2026-10-05T00:00Z (r2), plus the exact thresholds and k. The test command recomputes them on dev and stops on any mismatch, before any test load.
+  - **Q3, twins:** all or nothing. "Detected before divergence" is reported on test only if every run of every fault matches its twin on samples 1–160; otherwise the whole column reads "not reported". Per-fault counts are recorded either way.
+  - **Q4, right place on test:** summarised over the 12 family faults, as on dev; 16–20 read "n/a". The detection summary covers 1–20 except 3, 9 and 15.
+- **Changed:**
+  - **`dataset/loader.py`:**
+    - `load_testing(fault, *, purpose)` loads all 500 runs of one testing-file fault (0 = normal, 1–20), pool "test".
+    - **Refused:** unless `EVAL_MODE` is exactly "1" (`eval_mode()`); on a dirty tree or with no git state; if the conversion report's SHA-256 differs from the manifest's `sealed_reports`; if the file's SHA-256 differs from the report's.
+    - **Logged:** every attempt past the mode check appends one line to `eval/test_access.log` (time, action "load", file, fault, purpose, commit, dirty) before anything is opened, so refused and failed loads are logged too.
+    - **Faults 16–20 from the training file** stay refused always (S0 answer 5).
+    - `_read` is shared by the open and sealed paths.
+    - The loader's `git_state` uses the same rule as `run_record`, kept in `dataset/` because dataset imports nothing from eval.
+  - **`eval/split.py` (new):** `Split` (dev or test) holds the onset (20 or 160), the faults (1–15 or 1–20), the loads, and where outputs go: under `data/` on dev; under `<sealed>/test_outputs/<label>` and `<sealed>/llm_cache` on test. The drivers will take `--split` in S1b–S1d.
+  - **`eval/run_record.py`:**
+    - `eval/test_access.log` no longer counts as dirty, so the second test command runs after the first has appended to it.
+    - A sealed output is recorded as `sealed:<path>` plus its SHA-256, never as an absolute path.
+    - `library_versions` adds scikit-learn.
+  - **`eval/twin_check.py` (new; Raj runs it with `EVAL_MODE=1`):**
+    - Per fault 1–20, it counts the runs whose samples 1–160 equal their normal twin's exactly on the 33 fast tags, using Raj's `metrics.first_divergence`.
+    - The verdict is "shared" or "not shared" (Q3). The record holds counts only, and the command prints counts only.
+    - No `--allow-dirty`, since the loader would refuse a dirty tree anyway.
+  - **`eval/probes.py`:** each answer records `cached` and `cost_inr` (0 when cached), and the record's metrics carry `spent_inr` (carried from week 6).
+  - **`app/agent/nodes.py`:** `route_after_check` and the `not_in_library` node are deleted (S0 answer 26), along with their docstring mention and `test_route_after_check`. The schema value `not_in_library` and the outcome strings stay.
+- **Tests:**
+  - **New loader tests:** a synthetic sealed folder (`SealedRepo`, committed to git) covering:
+    - mode exactly "1", and off in every test
+    - 500 runs with one log line each
+    - the access log not dirtying the tree
+    - dirty and untracked trees refused and logged
+    - no git refused
+    - changed file and changed report refused
+    - a missing file
+    - training-file 16–20 refused even in eval mode
+    - bad requests refused before logging
+  - **Other new tests:** `tests/test_split.py`, `tests/test_twin_check.py`, run-record (sealed paths, the access-log exclusion, scikit-learn), probes (spend, and a cached rerun costs 0).
+  - No test sets `EVAL_MODE`: `eval_mode` is replaced, or read from a dict.
+  - Full suite: `pytest -q` exit 0 (2095 collected).
+- **Unsure about:**
+  - **`eval/baselines/alarms.py`** has an uncommitted blank line at about line 190 that Claude didn't make (Raj had the file open). Left as it is. It makes the tree dirty, so it needs a commit or a revert before any recorded run.
+  - **The access-log exclusion** is a small relaxation of "dirty". It's limited to that one append-only file.
+- **Decisions needed:** none.
+- **Next:** S1b, the detection test path (`dev_table --split test`).

@@ -13,7 +13,8 @@ sent, so a probe can never hand the model the answer. The model answers in a sma
 --run (paid; Raj runs it): the pinned settings (decision 76), 1 repeat, behind the budget meter
 (default Rs 5) and the cache, --billing-tier required and recorded. Writes
 eval/probes/<stamp>_answers.json (committed: the answers are the finding) and a probes run
-record. --dry-run: a FakeClient that recognises nothing; checks the plumbing, writes nothing.
+record, with the spend (spent_inr; each answer's cost_inr, 0 when it came from the cache;
+week 7). --dry-run: a FakeClient that recognises nothing; checks the plumbing, writes nothing.
 """
 
 import argparse
@@ -112,16 +113,20 @@ def run(mode, *, probes_path=PROBES, out_dir=OUT_DIR, budget=None, billing_tier=
     if client is None:
         from eval import gemini
         client = at.paid_stack(gemini.GeminiClient(llm.SETTINGS), budget, float(min_interval))
-    answers, results = {}, {}
+    answers, results, spent = {}, {}, 0
     for pid, text in ps:
         r = client.complete(text, PROBE_SCHEMA, repeat=0)
+        cost = 0 if r.cached else llm.cost_inr(llm.SETTINGS, r.tokens_in, r.tokens_out, r.tokens_thinking)
+        spent += cost
         answers[pid] = {"prompt": text, "raw": r.raw, "model_version": r.model_version,
-                        "tokens_in": r.tokens_in, "tokens_out": r.tokens_out, "tokens_thinking": r.tokens_thinking}
+                        "tokens_in": r.tokens_in, "tokens_out": r.tokens_out, "tokens_thinking": r.tokens_thinking,
+                        "cached": r.cached, "cost_inr": str(cost)}
         results[pid] = verdict(r.raw, r.parsed)
     answers_path.parent.mkdir(parents=True, exist_ok=True)
     answers_path.write_text(json.dumps({"answers": answers, "results": results}, indent=2, sort_keys=True) + "\n")
     metrics = {"probes": len(ps), "recognised": sum(v["recognised"] for v in results.values()),
                "model_says": sum(v["model_says"] for v in results.values()),
+               "spent_inr": round(float(spent), 5),
                "by_probe": {k: {"recognised": v["recognised"], "model_says": v["model_says"], "leaks": len(v["leaks"])}
                             for k, v in results.items()}}
     config = {"probes_sha256": run_record.sha256(probes_path), "settings": llm.SETTINGS.as_dict(),
@@ -129,8 +134,8 @@ def run(mode, *, probes_path=PROBES, out_dir=OUT_DIR, budget=None, billing_tier=
               "min_interval_s": float(min_interval)}
     record = run_record.write("probes", config=config, seeds={}, metrics=metrics, outputs={"answers": answers_path},
                               commit=commit, dirty=dirty, repo_root=repo_root, now=now)
-    out(f"probes: {metrics['recognised']} of {metrics['probes']} recognised the plant\nanswers: {answers_path}\n"
-        f"run record: {record}")
+    out(f"probes: {metrics['recognised']} of {metrics['probes']} recognised the plant; spent Rs "
+        f"{metrics['spent_inr']}\nanswers: {answers_path}\nrun record: {record}")
     return results, record
 
 

@@ -76,3 +76,30 @@ def test_a_run_saves_answers_and_a_record(tmp_path, git_repo):
     assert rec["metrics"]["recognised"] == 5
     saved = json.loads((git_repo / rec["outputs"]["answers"]["path"]).read_text())
     assert set(saved["answers"]) == set(results) and all("prompt" in a for a in saved["answers"].values())
+
+
+def test_a_run_records_its_spend_and_a_cached_rerun_costs_nothing(tmp_path, git_repo):
+    # Week 7 (carried from week 6): the probes record carries spent_inr; each answer its cost.
+    import shutil
+    from datetime import datetime, timezone
+    from decimal import Decimal
+    from pathlib import Path
+    real = Path(pr.__file__).resolve().parents[1]
+    shutil.copytree(real / "library", git_repo / "library")
+    (git_repo / "eval" / "probes").mkdir(parents=True)
+    shutil.copyfile(pr.PROBES, git_repo / "eval" / "probes" / "probes.yaml")
+    commit(git_repo)
+    client = llm.CachedClient(llm.FakeClient(lambda p, s, r: pr.FAKE_ANSWER), tmp_path / "cache")
+    kw = dict(probes_path=git_repo / "eval" / "probes" / "probes.yaml", out_dir=git_repo / "eval" / "probes",
+              billing_tier="tier-1", repo_root=git_repo, client=client, out=lambda s: None)
+    _, first = pr.run("run", now=datetime(2026, 10, 5, 10, tzinfo=timezone.utc), **kw)
+    commit(git_repo)                                     # the answers file is committed, as Raj does
+    _, second = pr.run("run", now=datetime(2026, 10, 5, 11, tzinfo=timezone.utc), **kw)
+    rec1, rec2 = (json.loads(r.read_text()) for r in (first, second))
+    saved = json.loads((git_repo / rec1["outputs"]["answers"]["path"]).read_text())["answers"]
+    expected = sum(llm.cost_inr(llm.SETTINGS, a["tokens_in"], a["tokens_out"], a["tokens_thinking"])
+                   for a in saved.values())
+    assert expected > 0 and rec1["metrics"]["spent_inr"] == round(float(expected), 5)
+    assert all(not a["cached"] and Decimal(a["cost_inr"]) > 0 for a in saved.values())
+    again = json.loads((git_repo / rec2["outputs"]["answers"]["path"]).read_text())["answers"]
+    assert rec2["metrics"]["spent_inr"] == 0 and all(a["cached"] and a["cost_inr"] == "0" for a in again.values())

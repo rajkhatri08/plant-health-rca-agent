@@ -238,18 +238,6 @@ def test_route_after_match(matcher_decision, branch):
     assert nodes.route_after_match({"matcher": {"decision": matcher_decision}}) == branch
 
 
-@pytest.mark.parametrize("state, branch", [
-    ({"llm": {"error": "x"}, "output": None, "failures": []}, "show_evidence"),
-    ({"llm": {}, "output": None, "failures": [{"code": "schema", "detail": "x"}]}, "show_evidence"),
-    ({"llm": {}, "output": ah.ANSWERS["propose"], "failures": [{"code": "citation", "detail": "x"}]}, "show_evidence"),
-    ({"llm": {}, "output": ah.ANSWERS["decline"], "failures": []}, "decline"),
-    ({"llm": {}, "output": ah.ANSWERS["not_in_library"], "failures": []}, "not_in_library"),
-    ({"llm": {}, "output": ah.ANSWERS["propose"], "failures": []}, "propose"),
-])
-def test_route_after_check(state, branch):
-    assert nodes.route_after_check(state) == branch
-
-
 @pytest.mark.parametrize("outcome, branch", [("proposed", "approval"), ("declined", "end"), ("vetoed", "end"),
                                              ("emergency", "end"),
                                              ("matcher_declined", "end"), ("not_in_library", "end"),

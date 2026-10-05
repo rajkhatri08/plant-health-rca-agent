@@ -5,7 +5,7 @@ Runtime code: no imports from dataset/, eval/ or ingest/.
 
 A node is a plain function from the state (graph.State) and deps (graph.Deps) to a dict of
 the fields it changes; LangGraph saves a checkpoint after each step. A routing function
-(route_after_match, route_after_check, route_after_record, after_approval) takes the state
+(route_after_match, route_after_ship, route_after_record, after_approval) takes the state
 only, returns a branch name and changes nothing. Everything a node puts in the state is
 plain JSON (strings, numbers, booleans, lists, dicts, None): fit is written "a/b".
 
@@ -178,14 +178,6 @@ def check(state, deps) -> dict:
     return {"failures": [{"code": f.code, "detail": f.detail} for f in found]}
 
 
-def route_after_check(state) -> str:
-    """"show_evidence" when the LLM gave an error or there's any failure; otherwise the
-    output's decision: "decline", "not_in_library" or "propose"."""
-    if "error" in (state.get("llm") or {}) or state.get("failures"):
-        return "show_evidence"
-    return state["output"]["decision"]              # decline, not_in_library or propose
-
-
 def ship(state, deps) -> dict:
     """{"ship": shipped.ship(state["output"], state["failures"], state["llm"], state["ranking"])}
     (decision 79): what the operator is shown. Reads only the state."""
@@ -210,12 +202,6 @@ def decline(state, deps) -> dict:
     """{"outcome": "matcher_declined"} when the matcher declined (no LLM call), else
     {"outcome": "declined"} (the LLM declined)."""
     return {"outcome": "matcher_declined" if state["matcher"]["decision"] == "decline" else "declined"}
-
-
-def not_in_library(state, deps) -> dict:
-    """{"outcome": "not_in_library"}: the family-level answer, shown flagged "mechanism not in
-    library", with no proposal and no approval."""
-    return {"outcome": "not_in_library"}
 
 
 def show_evidence(state, deps) -> dict:

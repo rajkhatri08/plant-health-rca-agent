@@ -5,6 +5,8 @@ column 0 = run number, column 1 = sample, column 2 = fault.
 """
 
 import hashlib
+import json
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -163,10 +165,12 @@ def test_fault_must_be_int(repo, fault):
         loader_mod.load_faulty(fault, "dev")
 
 
-@pytest.mark.parametrize("args", [(), ("fault_free_testing",), ("faulty_testing", 1)])
-def test_test_split_refused(repo, args):
-    with pytest.raises(LoaderError, match="sealed"):
-        loader_mod.load_testing(*args)
+@pytest.mark.parametrize("fault", [0, 1, 16])
+def test_test_split_refused_without_eval_mode(repo, fault):
+    # conftest unsets EVAL_MODE; nothing is logged, because nothing was attempted.
+    with pytest.raises(LoaderError, match="EVAL_MODE=1"):
+        loader_mod.load_testing(fault, purpose="test")
+    assert not (repo.root / "eval" / "test_access.log").exists()
 
 
 def test_check_path_refuses_sealed_folder(repo):
@@ -226,3 +230,156 @@ def test_default_roots_reach_nothing():
     # conftest points the loader at paths that don't exist.
     with pytest.raises(LoaderError):
         loader_mod.load_normal("fit")
+
+
+# The test split (week 7 S1): only under EVAL_MODE, on a clean tree, logged, checksummed.
+# A synthetic sealed folder under tmp_path. No test sets EVAL_MODE: eval_mode is replaced.
+
+TEST_SAMPLES = 4
+
+
+class SealedRepo(OpenRepo):
+    """An OpenRepo with testing files (faults 0, 1, 16) and their conversion reports in its
+    sealed folder, committed to git so the clean-tree check can pass."""
+
+    def __init__(self, root):
+        super().__init__(root)
+        self.converted = self.sealed / "converted"
+        self.reports = {}
+        files = {"fault_free_testing": {}, "faulty_testing": {}}
+        for fault in (0, 1, 16):
+            name = "fault_free_testing" if fault == 0 else "faulty_testing"
+            path = output_path(self.converted, name, fault)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(_table(fault, samples=TEST_SAMPLES, seed=100 + fault), path)
+            files[name][str(path.relative_to(self.converted))] = {
+                "rows": RUNS * TEST_SAMPLES, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        for name, f in files.items():
+            report = self.converted / f"conversion_report_{name}.json"
+            report.write_text(json.dumps({"name": name, "side": "sealed", "files": f}))
+            self.reports[name] = hashlib.sha256(report.read_bytes()).hexdigest()
+        self.save_manifest()
+        (self.root / ".gitignore").write_text("data/\n")
+        for args in (["init", "-q"], ["add", "."], ["commit", "-q", "-m", "init"]):
+            subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t",
+                            "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)
+
+    def save_manifest(self):
+        super().save_manifest()
+        path = self.root / "dataset" / "manifest.yaml"
+        manifest = yaml.safe_load(path.read_text())
+        manifest["raw_files"]["fault_free_testing"] = {"faults": [0], "runs_per_fault": RUNS,
+                                                       "samples_per_run": TEST_SAMPLES}
+        manifest["raw_files"]["faulty_testing"] = {"faults": list(range(1, 21)), "runs_per_fault": RUNS,
+                                                   "samples_per_run": TEST_SAMPLES}
+        manifest["conversion"]["sealed_reports"] = getattr(self, "reports", {})
+        path.write_text(yaml.safe_dump(manifest))
+
+    def log(self):
+        log = self.root / "eval" / "test_access.log"
+        return [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+
+
+@pytest.fixture
+def sealed_repo(tmp_path, monkeypatch):
+    r = SealedRepo(tmp_path)
+    monkeypatch.setattr(loader_mod, "REPO_ROOT", r.root)
+    monkeypatch.setattr(loader_mod, "SEALED_ROOT", r.sealed)
+    monkeypatch.setattr(loader_mod, "eval_mode", lambda environ=None: True)
+    return r
+
+
+@pytest.mark.parametrize("environ, on", [({"EVAL_MODE": "1"}, True), ({}, False), ({"EVAL_MODE": "0"}, False),
+                                         ({"EVAL_MODE": "true"}, False), ({"EVAL_MODE": " 1"}, False)])
+def test_eval_mode_is_exactly_one(environ, on):
+    assert loader_mod.eval_mode(environ) is on
+
+
+def test_eval_mode_is_off_in_every_test():
+    assert loader_mod.eval_mode() is False
+
+
+@pytest.mark.parametrize("fault, name", [(0, "fault_free_testing"), (1, "faulty_testing"), (16, "faulty_testing")])
+def test_test_load_returns_all_500_runs_and_logs_it(sealed_repo, fault, name):
+    runs = loader_mod.load_testing(fault, purpose="dev_table pca_static")
+    assert (runs.name, runs.fault, runs.pool, runs.columns) == (name, fault, "test", VARIABLES)
+    assert sorted(runs.runs) == list(range(1, RUNS + 1))
+    for k, a in runs.runs.items():
+        assert a.shape == (TEST_SAMPLES, len(VARIABLES)) and a.dtype == np.float32
+        assert (a[:, 0] == k).all() and (a[:, 1] == np.arange(1, TEST_SAMPLES + 1)).all()
+        assert (a[:, 2] == fault).all()
+    [line] = sealed_repo.log()
+    assert line["action"] == "load" and (line["file"], line["fault"]) == (name, fault)
+    assert line["purpose"] == "dev_table pca_static" and line["dirty"] is False and len(line["commit"]) == 40
+
+
+def test_each_load_adds_one_line_and_the_log_doesnt_dirty_the_tree(sealed_repo):
+    # The second load runs after the first wrote the (uncommitted) log: still clean.
+    loader_mod.load_testing(0, purpose="a")
+    loader_mod.load_testing(1, purpose="b")
+    assert [(x["fault"], x["purpose"], x["dirty"]) for x in sealed_repo.log()] == [(0, "a", False), (1, "b", False)]
+
+
+def test_dirty_tree_refused_and_logged(sealed_repo):
+    (sealed_repo.root / "dataset" / "splits.yaml").write_text("pools: {}\n")
+    with pytest.raises(LoaderError, match="dirty"):
+        loader_mod.load_testing(1, purpose="x")
+    [line] = sealed_repo.log()
+    assert line["dirty"] is True
+
+
+def test_untracked_file_makes_the_tree_dirty(sealed_repo):
+    (sealed_repo.root / "eval").mkdir(exist_ok=True)
+    (sealed_repo.root / "eval" / "scratch.py").write_text("x = 1\n")
+    with pytest.raises(LoaderError, match="dirty"):
+        loader_mod.load_testing(1, purpose="x")
+
+
+def test_no_git_refused(sealed_repo, monkeypatch):
+    monkeypatch.setattr(loader_mod, "git_state", lambda root: (None, None))
+    with pytest.raises(LoaderError, match="dirty"):
+        loader_mod.load_testing(1, purpose="x")
+
+
+def test_changed_test_file_refused_after_logging(sealed_repo):
+    path = output_path(sealed_repo.converted, "faulty_testing", 1)
+    pq.write_table(_table(1, samples=TEST_SAMPLES, seed=999), path)
+    with pytest.raises(LoaderError, match="conversion report"):
+        loader_mod.load_testing(1, purpose="x")
+    assert len(sealed_repo.log()) == 1
+
+
+def test_changed_report_refused(sealed_repo):
+    report = sealed_repo.converted / "conversion_report_faulty_testing.json"
+    doc = json.loads(report.read_text())
+    doc["files"]["faulty_testing/fault_01.parquet"]["sha256"] = "0" * 64
+    report.write_text(json.dumps(doc))
+    with pytest.raises(LoaderError, match="SHA-256 in the manifest"):
+        loader_mod.load_testing(1, purpose="x")
+
+
+def test_missing_test_file_refused(sealed_repo):
+    with pytest.raises(LoaderError, match="not found"):
+        loader_mod.load_testing(2, purpose="x")
+
+
+@pytest.mark.parametrize("fault", [16, 17, 20])
+def test_training_file_faults_16_to_20_stay_refused_even_in_eval_mode(sealed_repo, fault):
+    # S0 answer 5: the unknown-fault test uses the testing file only.
+    with pytest.raises(LoaderError, match="sealed"):
+        loader_mod.load_faulty(fault, "dev")
+    assert sealed_repo.log() == []
+
+
+@pytest.mark.parametrize("fault, purpose, match", [(21, "x", "faults 0-20"), (-1, "x", "faults 0-20"),
+                                                   (True, "x", "must be an int"), ("1", "x", "must be an int"),
+                                                   (1, "", "purpose"), (1, "  ", "purpose"), (1, None, "purpose")])
+def test_bad_test_requests_refused_before_logging(sealed_repo, fault, purpose, match):
+    with pytest.raises(LoaderError, match=match):
+        loader_mod.load_testing(fault, purpose=purpose)
+    assert sealed_repo.log() == []
+
+
+def test_purpose_is_required():
+    with pytest.raises(TypeError):
+        loader_mod.load_testing(1)

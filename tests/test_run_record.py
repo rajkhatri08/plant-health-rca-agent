@@ -122,6 +122,39 @@ def test_missing_manifest_is_refused(git_repo):
                  repo_root=git_repo, now=NOW)
 
 
+def test_sealed_output_is_recorded_inside_the_sealed_folder_never_absolute(git_repo, tmp_path, monkeypatch):
+    # Week 7 (S0 answer 21): a committed record never names where test outputs live.
+    from dataset import loader
+    sealed = tmp_path / "sealed"
+    monkeypatch.setattr(loader, "SEALED_ROOT", sealed)
+    out = sealed / "test_outputs" / "x_agent_run" / "calls.jsonl"
+    out.parent.mkdir(parents=True)
+    out.write_bytes(b"rows")
+    commit, dirty = rr.check_clean(git_repo)
+    path = rr.write("agent_run", config={}, seeds={}, metrics={}, outputs={"calls": out},
+                    commit=commit, dirty=dirty, repo_root=git_repo, now=NOW)
+    text = path.read_text()
+    assert json.loads(text)["outputs"]["calls"] == {
+        "path": "sealed:test_outputs/x_agent_run/calls.jsonl", "sha256": hashlib.sha256(b"rows").hexdigest()}
+    assert str(sealed) not in text
+
+
+def test_the_access_log_doesnt_make_the_tree_dirty(git_repo):
+    # The loader appends to it on every test load; the next command must still run clean.
+    (git_repo / "eval").mkdir(exist_ok=True)
+    (git_repo / "eval" / "test_access.log").write_text('{"action": "load"}\n')
+    assert rr.check_clean(git_repo)[1] is False
+    (git_repo / "eval" / "other.log").write_text("x\n")
+    with pytest.raises(rr.RunRecordError):
+        rr.check_clean(git_repo)
+
+
+def test_library_versions_name_scikit_learn():
+    # The forests' refit must be reproducible (S0 answer 13), so the version is recorded.
+    from importlib import metadata
+    assert rr.library_versions()["scikit-learn"] == metadata.version("scikit-learn")
+
+
 def test_tests_cannot_reach_the_real_repo():
     # conftest points REPO_ROOT at a path that doesn't exist.
     assert not rr.REPO_ROOT.exists()

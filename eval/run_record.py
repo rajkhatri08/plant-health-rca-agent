@@ -7,7 +7,11 @@ run wrote, and the metrics.
 
 Rules:
 - A dirty tree (or no git) is refused unless allow_dirty is passed; the record then says
-  dirty: true, so a number from it can't pass as clean. eval/runs/ itself doesn't count.
+  dirty: true, so a number from it can't pass as clean. eval/runs/ itself doesn't count, nor
+  does eval/test_access.log, which the loader appends to on every test load (week 7).
+- An output in the sealed folder is recorded as "sealed:<path inside it>" with its SHA-256,
+  never as an absolute path, so a committed record doesn't name where test outputs live
+  on Raj's machine (S0 answer 21).
 - Metrics are numbers, strings, booleans or short lists of numbers (at most MAX_LIST).
   No arrays of data values. ±inf is written as the string "inf" / "-inf" (a delay median
   can be +inf); NaN is refused.
@@ -26,8 +30,11 @@ from pathlib import Path
 
 import numpy as np
 
+from dataset import loader
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNS_DIR = Path("eval") / "runs"
+ACCESS_LOG = Path("eval") / "test_access.log"
 MAX_LIST = 64
 _NAME = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 
@@ -37,8 +44,8 @@ class RunRecordError(RuntimeError):
 
 
 def git_state(repo_root):
-    """(commit, dirty). Dirty counts every tracked or untracked change except eval/runs/.
-    (None, None) if git fails."""
+    """(commit, dirty). Dirty counts every tracked or untracked change except eval/runs/ and
+    eval/test_access.log. (None, None) if git fails."""
     def git(*args):
         try:
             return subprocess.run(["git", "-C", str(repo_root), *args], capture_output=True,
@@ -47,7 +54,8 @@ def git_state(repo_root):
             return None
 
     commit = git("rev-parse", "HEAD")
-    status = git("status", "--porcelain", "--", ".", f":(exclude){RUNS_DIR.as_posix()}")
+    status = git("status", "--porcelain", "--", ".", f":(exclude){RUNS_DIR.as_posix()}",
+                 f":(exclude){ACCESS_LOG.as_posix()}")
     if commit is None or status is None:
         return None, None
     return commit.strip(), bool(status.strip())
@@ -106,22 +114,27 @@ def clean_metrics(metrics, prefix=""):
 
 
 def library_versions():
-    return {"python": platform.python_version(), "numpy": metadata.version("numpy")}
+    return {"python": platform.python_version(), "numpy": metadata.version("numpy"),
+            "scikit-learn": metadata.version("scikit-learn")}
 
 
 def write(name, *, config, seeds, metrics, outputs, commit, dirty, repo_root=None, now=None):
     """Write eval/runs/<stamp>_<name>.json and return its path.
 
     outputs maps a label to a file the run wrote; each is recorded by path (relative to
-    the repo when inside it) and SHA-256. commit and dirty come from check_clean()."""
+    the repo when inside it, "sealed:<path>" when inside the sealed folder) and SHA-256.
+    commit and dirty come from check_clean()."""
     if not _NAME.match(name):
         raise RunRecordError(f"record name must match {_NAME.pattern}, got {name!r}")
     repo_root = Path(repo_root or REPO_ROOT)
     now = now or datetime.now(timezone.utc)
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
+    sealed = loader.SEALED_ROOT.resolve()
 
     def rel(p):
         p = Path(p).resolve()
+        if p.is_relative_to(sealed):
+            return f"sealed:{p.relative_to(sealed).as_posix()}"
         return p.relative_to(repo_root.resolve()).as_posix() if p.is_relative_to(repo_root.resolve()) else str(p)
 
     manifest = repo_root / "dataset" / "manifest.yaml"
