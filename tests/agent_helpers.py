@@ -35,6 +35,7 @@ H_DRIFT = ag.opaque_id("h", "drift")
 H_QUIET = ag.opaque_id("h", "quiet")
 EP = ag.opaque_id("ep", "test-episode", 1)
 DRIFT_REF = "reaction-rate-drift@r1"
+OTHER_REF = "reactor-cooling-water-temperature-wander@r1"     # the second candidate on H_DRIFT
 DRIFT_CANDIDATES = ["reaction-rate-drift@r1", "reactor-cooling-water-temperature-wander@r1"]
 
 
@@ -101,6 +102,10 @@ ANSWERS = {
     "not_in_library": {"decision": "not_in_library", "entry_ref": None, "family": "reaction kinetics",
                        "confidence": "medium", "cited_evidence": _cite(("location.top_group", "reactor")),
                        "action_ids": [], "rationale": "A kinetics change, but not the drift the entry describes."},
+    "propose_other": {"decision": "propose", "entry_ref": "reactor-cooling-water-temperature-wander@r1",
+                      "family": "reactor cooling", "confidence": "medium",
+                      "cited_evidence": _cite(("location.top_group", "reactor"), ("provisional.tags.RX-PI-202", "low")),
+                      "action_ids": [], "rationale": "RX-PI-202 low fits a cooling water change at the reactor."},
     "unfaithful": {"decision": "propose", "entry_ref": DRIFT_REF, "family": "reaction kinetics",
                    "confidence": "high",
                    "cited_evidence": _cite(("provisional.tags.RX-PI-202", "high"), ("location.top_group", "reactor")),

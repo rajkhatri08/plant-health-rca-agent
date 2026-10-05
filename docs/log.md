@@ -3213,3 +3213,73 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   1. Review the proposals.
   2. Implement `screen`, `route_after_screen` and `emergency` in `app/agent/nodes.py`, and the three functions in `eval/safety_metrics.py`.
   3. Then `python -m eval.safety_set --dry-run --from-run eval/runs/20261005T021042Z_agent_run.json` and `python -m eval.probes --dry-run`. Both read only, and spend nothing.
+
+### 2026-10-05: week 6, decision 79 (the shipped flow), S8's approvals; the flow wired; a cache-only replay (code only; no API call)
+- **Raj:** implemented the screen nodes and the safety metrics (with guidance from the Claude.ai chat; 3f2053b).
+- **Recorded:**
+  - **Decision 78, S8's proposals 1–8, approved by Raj:**
+    - the emergency screen as written ("purge venting as usual" tripping it is accepted)
+    - screening first
+    - the note refusals
+    - the case list
+    - "identical"
+    - unsafe work (the PROTOCOL v2 wording, closing the point open since S1)
+    - the probes
+    - the shipped flow first
+  - **Decision 79, the shipped flow (Raj, before test):**
+    - **The proposal** is the matcher's top entry. The LLM's pick within a tied top block is a tie-break.
+    - **A veto:** an LLM pick outside the top block, a decline, or not_in_library. No proposal is made. The LLM's rationale is shown as dissent beside the matcher's top entry, with a not_in_library family as a note.
+    - **Failures and errors** show the evidence, as before.
+    - **Actions** are the LLM's checked action_ids when it agrees, with preconditions attached by code.
+    - **Scoring:** a veto is a decline.
+    - **Test reports three side by side:** the shipped flow, the matcher alone and the LLM re-ranker.
+  - **`eval/PROTOCOL.md` (v2 notes):** the shipped flow and the three-way test report; the agent under Methods as shipped and as re-ranker; the unsafe-work row's wording; the screen marked approved.
+- **Changed:**
+  - **`app/agent/shipped.py`:** `ship(output, failures, llm, ranking)`, the rule as one function for the graph and evaluation. A stub for Raj, with its contract.
+  - **`app/agent/graph.py` (harness):**
+    - **The new wiring:** check → ship → (route_after_ship) show_evidence | veto | propose. The decline node is now the matcher's own decline only.
+    - **Gone:** the LLM's decline and the family-level branch. Both are vetoes now.
+    - **State:** `ship` and `dissent` added.
+  - **`app/agent/nodes.py` (stubs for Raj):** `ship`, `route_after_ship`, `veto`. "vetoed" joins `OUTCOMES`. `route_after_check` and `not_in_library` are no longer wired; Raj may remove them.
+  - **`eval/agent_table.py`:**
+    - **Rows** add `ship_decision`, `tie_break`, `dissent`, `llm_decision` and `llm_entry`.
+    - **`reranker_row()`** rebuilds the LLM re-ranker's view of a pass. A run before decision 79 already is that view.
+    - **`--table`** reports, per stage and repeat:
+      - **three views:** the shipped flow (as the agent), the re-ranker and the matcher
+      - **paired bootstraps** for shipped and for re-ranker against the matcher
+      - **counts** of vetoes and tie-breaks
+      - **the keep rule** read on the re-ranker view
+      - **confidence, agreement and the not_in_library figure** on the LLM's own answers; misses on what's shown
+    - **`--replay-evaluation`:**
+      - The evaluation plan runs through today's graph with every answer from the LLM cache (`ReplayClient`): no API call and no spend.
+      - A cache miss stops the run, recorded incomplete.
+      - The prompt hash must be the evaluation's.
+      - The record says `cache_only: true`.
+  - **`eval/safety_set.py`:**
+    - **Rows** carry the shipped decision (propose, veto, evidence; or emergency, matcher_declined), so "identical" compares what's shown.
+    - **Bases** are chosen on the LLM's own answer.
+  - **`CLAUDE.md`:** the replay command.
+- **Tests:**
+  - **`tests/test_shipped.py` (18):** agreement; a tie-break for either pick in a tied block; a pick outside or below the top block is a veto; decline and not_in_library are vetoes; failures and errors show evidence; dissent never becomes a proposal, over every non-agreeing answer and both ranking shapes.
+  - **`tests/test_agent_graph.py`:**
+    - the new wiring; `route_after_ship`; agreeing proposes the matcher's top entry
+    - an LLM pick below the top block is a veto, not a proposal
+    - dissent can never become a proposal: nothing waits, `decide()` and resuming do nothing, no approval or act record, and the revised pass proposes nothing either
+    - a failed check has no dissent
+    - the LLM's decline and not_in_library are vetoes; the diagnosis record carries `ship` and `dissent`
+  - **`tests/test_agent_table.py`:** a replay answers every pass from the cache and spends nothing; an empty cache stops on the first miss; a replay refuses another prompt; the re-ranker view; the table's three views and the Markdown rows.
+  - **`tests/test_agent_metrics.py` (2 new):** a veto is wrong on a known case and a decline on an unknown.
+  - **A feasibility check:** with straightforward scratch versions of `ship` and the three nodes, plus the two small changes Raj's code needs, all 225 tests in the seven affected files pass. The two changes are `record` writing `ship` and `dissent`, and "vetoed" in `CORRECT_DECLINES`. The scratch versions were removed and Raj's files restored, checked byte-identical.
+  - **`pytest -q`:** 1905 passed, 84 failing (79 failures, 5 errors):
+    - 82 from the stubs (graph 40, shipped 18, driver 16, safety set 5, structural 3)
+    - 2 from `test_agent_metrics`: a veto on a false alert or leave-one-out case must count as a decline, and `CORRECT_DECLINES` lacks "vetoed" (Raj's one-word change)
+- **For Raj, beyond the stubs:**
+  - **`eval/agent_metrics.py`:** add "vetoed" to `CORRECT_DECLINES`.
+  - **`record` in `nodes.py`:** add `"ship": state.get("ship")` and `"dissent": state.get("dissent")` to the payload (the record test checks both).
+  - **`eval/safety_metrics.py`'s docstring** still says "decision: the LLM output's decision"; it's now the shipped decision.
+- **The idea (for Raj):** a veto is a one-way door. The LLM can stop the matcher's proposal but never substitute its own, so the shipped flow can't do worse than the matcher at saying "I don't know", and can't do better or worse at naming the fault except through vetoes and tie-breaks. The replay re-scores dev under that rule through the same graph, from the cached answers, so the comparison costs nothing and uses no new model output.
+- **Decisions needed:** none new.
+- **Next (Raj):**
+  1. Implement `ship()`, the three nodes, and the two small changes. Run `pytest -q`.
+  2. The replay: `python -m eval.agent_table --replay-evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0`, then `--table` on its record. Cache only: no API call.
+  3. Then the safety-set dry run, and the paid safety run on the shipped flow.

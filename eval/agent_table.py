@@ -8,6 +8,7 @@ measurement). Builder side: it reads labels and run numbers.
     python -m eval.agent_table --evaluation   --library-as-of … --prompt-sha256 <hash> --billing-tier tier-1
                                               [--budget 450]
                                               [--min-interval <s>]
+    python -m eval.agent_table --replay-evaluation --library-as-of … --prompt-sha256 <hash>
     python -m eval.agent_table --table eval/runs/<stamp>_agent_run.json
 
 One scoring engine (decision 19): cases come from eval/cases.py unchanged, and every
@@ -50,6 +51,11 @@ Modes:
                  required) names the key's project tier, recorded as billing_tier: on the free
                  tier the cost figures are the meter's estimates, not charges (decision 76). No metric is computed here, so a metric
                  bug never costs a paid rerun.
+- --replay-evaluation  the evaluation plan through today's graph (the shipped flow, decision
+                 79) with every answer from the LLM cache (data/llm_cache): no API call, no spend.
+                 A cache miss stops the run, recorded incomplete. The prompt must be the
+                 evaluation's (--prompt-sha256). Writes an agent_run record (mode
+                 replay-evaluation, cache_only) like a paid run's.
 - --table        the agent table from a complete agent_run record: eval/agent_metrics.py
                  (Raj's) per stage and repeat, the matcher on the same cases, the keep rule,
                  the paired bootstrap (seed 20261001, a fresh generator per comparison),
@@ -264,7 +270,22 @@ def row_of(case, stage, repeat, v):
             "llm_key": llm_.get("key"), "cached": llm_.get("cached"), "latency_ms": llm_.get("latency_ms"),
             "tokens_in": llm_.get("tokens_in"), "tokens_out": llm_.get("tokens_out"),
             "tokens_thinking": llm_.get("tokens_thinking"), "model_version": llm_.get("model_version"),
-            "error": llm_.get("error")}
+            "error": llm_.get("error"),
+            # the shipped flow (decision 79) and, for the re-ranker view, the LLM's own answer
+            "ship_decision": (v.get("ship") or {}).get("decision"), "tie_break": (v.get("ship") or {}).get("tie_break"),
+            "dissent": v.get("dissent") is not None,
+            "llm_decision": out.get("decision"), "llm_entry": (out.get("entry_ref") or "").split("@")[0] or None}
+
+
+def reranker_row(r):
+    """The LLM re-ranker's view of a pass (decisions 75, 77): the LLM's own valid answer, as
+    the re-ranker graph showed it before decision 79. A row from a run before the shipped flow
+    (no "llm_decision") is already that view."""
+    if "llm_decision" not in r or r["outcome"] not in ("proposed", "vetoed"):
+        return r
+    if r["llm_decision"] == "propose":
+        return {**r, "outcome": "proposed", "entry": r["llm_entry"]}
+    return {**r, "outcome": "declined" if r["llm_decision"] == "decline" else "not_in_library", "entry": None}
 
 
 def run_plan(planned, *, folder, label, bundle, library, loo_library, client, render, rules, library_as_of):
@@ -292,13 +313,15 @@ def run_plan(planned, *, folder, label, bundle, library, loo_library, client, re
                          repeat=repeat, stage=stage)
         except llm.BudgetExceeded as e:
             return rows, False, str(e)
+        except llm.CacheMiss as e:                         # a replay found no answer: never filled in
+            return rows, False, f"cache miss: {e}"
         v = s["values"]
         if (case.id, stage) not in checked:
             if v.get("evidence") != expected_evidence(case.features, stage):
                 raise AgentTableError(f"the graph's evidence differs from eval/cases.py's for {case.id} at {stage}")
             checked.add((case.id, stage))
         if v.get("outcome") not in ("matcher_declined", "declined", "not_in_library", "failed_check", "error",
-                                    "proposed", "emergency"):
+                                    "proposed", "emergency", "vetoed"):
             raise AgentTableError(f"{case.id} at {stage} ended without an outcome")
         rows.append(row_of(case, stage, repeat, v))
     return rows, True, None
@@ -371,8 +394,8 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
         watch_path=cw.DEFAULT_OUT, normals_path=evidence_normals.DEFAULT_OUT, bundle_dir=DEFAULT_BUNDLE,
         out_root=DEFAULT_OUT, budget=None, prompt_hash=None, client=None, render=None, allow_dirty=False,
         repo_root=None, now=None, eval_runs=None, tune_runs=None, min_interval=0.0, billing_tier=None,
-        out=print):
-    if mode not in ("dry-run", "project-cost", "tuning", "evaluation"):
+        cache_dir=None, out=print):
+    if mode not in ("dry-run", "project-cost", "tuning", "evaluation", "replay-evaluation"):
         raise AgentTableError(f"unknown mode {mode!r}")
     if isinstance(min_interval, bool) or not isinstance(min_interval, (int, float)) or min_interval < 0:
         raise AgentTableError(f"--min-interval must be seconds >= 0, got {min_interval!r}")
@@ -391,6 +414,15 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
         if mode == "evaluation" and prompt_hash != actual:
             raise AgentTableError(f"the prompt's hash is {actual}, not the frozen {prompt_hash} (decision 77)")
         prompt_hash = actual
+    if mode == "replay-evaluation":
+        # Cache only (decision 79): the evaluation's prompts through today's graph, answered from
+        # the LLM cache; a miss stops the run, nothing is called. The prompt must be the frozen one.
+        injected = render is not None or client is not None          # tests: a stand-in template or client
+        render = render or load_render()
+        actual = (prompt_hash or "test") if injected else prompt_sha256(repo_root / "app" / "agent" / "prompts")
+        if prompt_hash != actual:
+            raise AgentTableError(f"the prompt's hash is {actual}, not the evaluation's {prompt_hash}; a replay "
+                                  "needs the same prompts")
     commit, dirty = run_record.check_clean(repo_root, allow_dirty)          # before any loading
     now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
@@ -416,7 +448,7 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
                          "usd_inr": str(llm.USD_INR), "usd_inr_on": llm.USD_INR_ON}}
     common = dict(bundle=b, library=library, loo_library=loo_library, rules=rules, library_as_of=library_as_of)
 
-    if not paid:
+    if mode in ("dry-run", "project-cost"):
         results = {}
         with tempfile.TemporaryDirectory() as tmp:
             for subset, numbers in (("evaluation", ev), ("tuning", tu)):
@@ -446,10 +478,12 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
     folder = Path(out_root) / f"{stamp}_{mode}"
     if folder.exists():
         raise FileExistsError(f"{folder} exists; runs are never overwritten")
-    if client is None:
+    if client is None and mode == "replay-evaluation":
+        client = llm.ReplayClient(cache_dir or llm.DEFAULT_CACHE)
+    elif client is None:
         from eval import gemini
         client = paid_stack(gemini.GeminiClient(llm.SETTINGS), budget, min_interval)
-    planned = plan(cases, ev if mode == "evaluation" else tu, mode)
+    planned = plan(cases, tu if mode == "tuning" else ev, "tuning" if mode == "tuning" else "evaluation")
     rows, complete, why = run_plan(planned, folder=folder, label=f"{mode}:{stamp}", client=client, render=render,
                                    **common)
     calls = folder / "calls.jsonl"
@@ -460,8 +494,11 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
     spent = sum(float(p["cost_inr"]) for p in json.loads(ledger.read_text()).values())
     metrics_ = {"planned": len(planned), "completed": len(rows), "complete": complete, "stopped": why,
                 "llm_calls": sum(r["llm_key"] is not None for r in rows), "spent_inr": round(spent, 5)}
-    config.update(prompt_sha256=prompt_hash, budget_inr=budget, repeats=REPEATS[mode], min_interval_s=min_interval,
+    config.update(prompt_sha256=prompt_hash, budget_inr=budget,
+                  repeats=REPEATS["tuning" if mode == "tuning" else "evaluation"], min_interval_s=min_interval,
                   billing_tier=billing_tier)
+    if mode == "replay-evaluation":
+        config.update(cache_only=True, billing_tier=None, budget_inr=None)
     record = run_record.write("agent_run", config=config, seeds={"evaluation": EVAL_SEED, "tuning": TUNE_SEED},
                               metrics=metrics_, outputs={"calls": calls, "ledger": ledger},
                               commit=commit, dirty=dirty, repo_root=repo_root, now=now)
@@ -534,12 +571,19 @@ def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty
         srows = [r for r in rows if r["stage"] == st]
         reps = sorted({r["repeat"] for r in srows})
         by_rep = {k: [r for r in srows if r["repeat"] == k] for k in reps}
+        # Three views of the same passes (decision 79): what ships (the rows as they ran), the LLM
+        # re-ranker (the LLM's own answer), and the matcher alone. A run from before the shipped
+        # flow has no separate re-ranker view: it ran as the re-ranker.
+        shipped_view = "llm_decision" in base_row(by_rep)
+        rer_by_rep = {k: [reranker_row(r) for r in v] for k, v in by_rep.items()}
         agent = {k: am.summary(v, family_of) for k, v in by_rep.items()}
+        reranker = {k: am.summary(v, family_of) for k, v in rer_by_rep.items()}
         base = by_rep[reps[0]]
         m = matcher_summary(base, family_of)
-        loo_by_rep = {k: [r for r in by_rep[k] if r["kind"] == "loo"] for k in reps}
+        loo_by_rep = {k: [r for r in rer_by_rep[k] if r["kind"] == "loo"] for k in reps}
         if all(loo_by_rep.values()):
-            keep_agent = [{"top1": agent[k]["top1"], "family": agent[k]["family"],
+            # The keep rule is about the LLM's re-ranking role, so it's read on the re-ranker view.
+            keep_agent = [{"top1": reranker[k]["top1"], "family": reranker[k]["family"],
                            "unknowns_declined": dm.decline_share([am.to_case(r, keep_rule=True)
                                                                   for r in loo_by_rep[k]])} for k in reps]
             keep_matcher = {"top1": m["top1"], "family": m["family"], "unknowns_declined": m["loo_declined"]}
@@ -548,18 +592,28 @@ def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty
             # A run without leave-one-out cases (the tuning subset, decision 77) has no
             # "unknowns declined", so the keep rule can't be read on it.
             keep = {"applicable": False, "reason": NO_UNKNOWNS, "keep": None, "better_on": [], "worse_on": []}
-        paired = {}
         m_known = [matcher_case(r) for r in base if r["kind"] == "known"]
-        for k in reps:
-            a_known = [am.to_case(r) for r in by_rep[k] if r["kind"] == "known"]
-            d, lo, hi = dm.paired_top1_bootstrap(a_known, m_known, np.random.default_rng(BOOTSTRAP_SEED),
-                                                 **({"n": n_boot} if n_boot else {}))
-            paired[str(k)] = {"difference": d, "lo": lo, "hi": hi}
+
+        def paired_for(view):
+            out_ = {}
+            for k in reps:
+                a_known = [am.to_case(r) for r in view[k] if r["kind"] == "known"]
+                d, lo, hi = dm.paired_top1_bootstrap(a_known, m_known, np.random.default_rng(BOOTSTRAP_SEED),
+                                                     **({"n": n_boot} if n_boot else {}))
+                out_[str(k)] = {"difference": d, "lo": lo, "hi": hi}
+            return out_
+        rer_rows = [r for k in reps for r in rer_by_rep[k]]
         results[st] = {"agent": {str(k): v for k, v in agent.items()}, "matcher": m,
-                       "keep_rule": keep, "paired": paired,
-                       "confidence": am.confidence_table(srows), "agreement": am.agreement(srows),
+                       "reranker": {str(k): v for k, v in reranker.items()}, "shipped_flow": shipped_view,
+                       "keep_rule": keep, "paired": paired_for(by_rep),
+                       "paired_reranker": paired_for(rer_by_rep),
+                       # the LLM's own answers: its stated confidence, its stability, its family notes
+                       "confidence": am.confidence_table(rer_rows), "agreement": am.agreement(rer_rows),
+                       "not_in_library": am.not_in_library_secondary([r for r in rer_rows if r["kind"] == "loo"]),
+                       # what's shown: why a known case missed
                        "misses": am.miss_labels(srows),
-                       "not_in_library": am.not_in_library_secondary([r for r in srows if r["kind"] == "loo"]),
+                       "vetoes": sum(r["outcome"] == "vetoed" for r in srows),
+                       "tie_breaks": sum(bool(r.get("tie_break")) and r["outcome"] == "proposed" for r in srows),
                        "latency_cost": am.latency_cost(srows, ledger)}
     now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
     tables_dir = Path(tables_dir or diag_table.DEFAULT_TABLES)
@@ -576,6 +630,11 @@ def table(record_path, *, repo_root=None, tables_dir=None, now=None, allow_dirty
                               outputs={"table": md}, commit=commit, dirty=dirty, repo_root=repo_root, now=now)
     out(f"table: {md}\nrun record: {record}")
     return results, record
+
+
+def base_row(by_rep):
+    """Any one row (the views are decided per run)."""
+    return next(r for v in by_rep.values() for r in v)
 
 
 def _plain(x):
@@ -600,9 +659,13 @@ def markdown(results, rec) -> str:
         m = r["matcher"]
         lines.append(f"| matcher | {_pct(m['top1'])} | {_pct(m['top3'])} | {_pct(m['family'])} | "
                      f"{_pct(m['wrongly_declined'])} | {_pct(m['false_alert_declined'])} | {_pct(m['loo_declined'])} |")
-        for k, a in r["agent"].items():
-            lines.append(f"| agent, repeat {k} | {_pct(a['top1'])} | {_pct(a['top3'])} | {_pct(a['family'])} | "
-                         f"{_pct(a['wrongly_declined'])} | {_pct(a['false_alert_declined'])} | {_pct(a['loo_declined'])} |")
+        views = [("shipped", r["agent"]), ("re-ranker", r["reranker"])] if r.get("shipped_flow") else \
+            [("agent", r["agent"])]
+        for name, by in views:
+            for k, a in by.items():
+                lines.append(f"| {name}, repeat {k} | {_pct(a['top1'])} | {_pct(a['top3'])} | {_pct(a['family'])} | "
+                             f"{_pct(a['wrongly_declined'])} | {_pct(a['false_alert_declined'])} | "
+                             f"{_pct(a['loo_declined'])} |")
         kr = r["keep_rule"]
         verdict = (f"Keep rule: {kr['reason']}." if not kr["applicable"] else
                    f"Keep rule: {'KEEP' if kr['keep'] else 'not kept'}; better on {kr['better_on'] or 'none'}, "
@@ -617,7 +680,7 @@ def markdown(results, rec) -> str:
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     modes = parser.add_mutually_exclusive_group(required=True)
-    for m in ("dry-run", "project-cost", "tuning", "evaluation"):
+    for m in ("dry-run", "project-cost", "tuning", "evaluation", "replay-evaluation"):
         modes.add_argument(f"--{m}", dest="mode", action="store_const", const=m)
     modes.add_argument("--table", type=Path, default=None, help="an agent_run record")
     parser.add_argument("--library-as-of", default=None)

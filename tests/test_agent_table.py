@@ -79,7 +79,7 @@ def test_the_dry_run_is_complete_and_records_no_result(env):
     for subset in ("evaluation", "tuning"):
         r = results[subset]
         assert r["complete"] and r["completed"] == r["planned"] > 0
-        assert set(r["outcomes"]) <= {"matcher_declined", "declined", "failed_check"}
+        assert set(r["outcomes"]) <= {"matcher_declined", "vetoed", "failed_check"}   # the fake declines: a veto
     ev = results["evaluation"]
     assert ev["cases"]["loo"] > 0 and ev["cases"]["false"] > 0 and ev["llm_calls"] > 0
     assert ev["projection"]["calls"] == ev["llm_calls"] and ev["projection"]["expected_inr"] > 0
@@ -353,3 +353,64 @@ def test_the_table_still_takes_an_absolute_path_and_refuses_one_outside_the_repo
     _, table_record = at.table(record, repo_root=env["repo"], tables_dir=env["tables"], n_boot=20,
                                out=lambda s: None)
     assert json.loads(table_record.read_text())["config"]["agent_run"] == record.relative_to(env["repo"]).as_posix()
+
+
+
+# ---------- the shipped flow: replay from the cache, three views (decision 79) ----------
+
+def test_a_replay_answers_every_pass_from_the_cache_and_spends_nothing(env, tmp_path):
+    from tests.test_approve_entry import commit
+    cache = tmp_path / "cache"
+    (m, record), _ = go(env, "evaluation", client=llm.CachedClient(llm.FakeClient(lambda p, s, r: at.DRY_ANSWER),
+                                                                   cache), prompt_hash="test")
+    commit(env["repo"])
+    (rm, replay), lines = go(env, "replay-evaluation", cache_dir=cache, prompt_hash="test",
+                             now=at.datetime(2026, 10, 5, 12, 0, tzinfo=at.timezone.utc))
+    rec = json.loads(replay.read_text())
+    assert rm["complete"] and rm["completed"] == m["completed"] and rm["spent_inr"] == 0.0
+    assert rec["config"]["mode"] == "replay-evaluation" and rec["config"]["cache_only"] is True
+    assert rec["config"]["billing_tier"] is None
+    rows = [json.loads(x) for x in (env["repo"] / rec["outputs"]["calls"]["path"]).read_text().splitlines()]
+    assert all(r["cached"] for r in rows if r["llm_key"])
+    assert {r["outcome"] for r in rows} <= {"matcher_declined", "vetoed", "failed_check", "proposed"}
+
+
+def test_a_replay_with_an_empty_cache_stops_on_the_first_miss(env, tmp_path):
+    (rm, replay), lines = go(env, "replay-evaluation", cache_dir=tmp_path / "empty", prompt_hash="test")
+    assert not rm["complete"] and "cache miss" in rm["stopped"] and rm["spent_inr"] == 0.0
+    assert "INCOMPLETE" in lines[0]
+
+
+def test_a_replay_refuses_another_prompt(env, tmp_path):
+    (env["repo"] / "app" / "agent" / "prompts").mkdir(parents=True)
+    (env["repo"] / "app" / "agent" / "prompts" / "diagnosis.txt").write_text("template")
+    with pytest.raises(at.AgentTableError, match="a replay needs the same prompts"):
+        go(env, "replay-evaluation", cache_dir=tmp_path, prompt_hash="0" * 64, render=None)
+    assert env["calls"] == []
+
+
+def test_the_reranker_view_of_a_pass():
+    base = {"outcome": "vetoed", "entry": None, "llm_decision": "propose", "llm_entry": "b"}
+    assert at.reranker_row(base)["outcome"] == "proposed" and at.reranker_row(base)["entry"] == "b"
+    assert at.reranker_row({**base, "llm_decision": "decline", "llm_entry": None})["outcome"] == "declined"
+    assert at.reranker_row({**base, "llm_decision": "not_in_library", "llm_entry": None})["outcome"] == "not_in_library"
+    agreed = {"outcome": "proposed", "entry": "a", "llm_decision": "propose", "llm_entry": "a"}
+    assert at.reranker_row(agreed) == {**agreed}
+    for outcome in ("matcher_declined", "failed_check", "error", "emergency"):
+        assert at.reranker_row({**base, "outcome": outcome})["outcome"] == outcome
+    old = {"outcome": "declined", "entry": None}                                    # a run before decision 79
+    assert at.reranker_row(old) is old
+
+
+def test_the_table_reports_shipped_reranker_and_matcher(env, tmp_path):
+    from tests.test_approve_entry import commit
+    (m, record), _ = go(env, "evaluation", client=fake_client(tmp_path), prompt_hash="test")
+    commit(env["repo"])
+    results, _ = at.table(record, repo_root=env["repo"], tables_dir=env["tables"], n_boot=20, out=lambda s: None)
+    for st, r in results.items():
+        assert r["shipped_flow"] is True and set(r["reranker"]) == set(r["agent"]) == {"0", "1"}
+        assert r["vetoes"] > 0 and set(r["paired_reranker"]) == {"0", "1"}
+        a, rr = r["agent"]["0"], r["reranker"]["0"]
+        assert a["known"] == rr["known"] == r["matcher"]["known"]
+    (md,) = env["tables"].glob("*_agent_table.md")
+    assert "| shipped, repeat 0 |" in md.read_text() and "| re-ranker, repeat 0 |" in md.read_text()

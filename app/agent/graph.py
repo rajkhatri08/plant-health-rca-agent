@@ -6,20 +6,21 @@ Runtime code: no imports from dataset/, eval/ or ingest/.
 
 The graph, fixed in code (decision 73, criterion 1):
 
-    START -> screen --route_after_screen--> emergency ----------------------------> record
-                  \\-> evidence -> match --route_after_match--> decline ---------------\\
-                                      \\-> adjudicate -> check --route_after_check--+--> record
-                                            (the one LLM call)  \\-> decline        |
-                                                                 \\-> not_in_library|
-                                                                 \\-> show_evidence |
-                                                                 \\-> propose ------/
+    START -> screen --route_after_screen--> emergency -----------------------------> record
+                  \\-> evidence -> match --route_after_match--> decline (matcher) ------\\
+                                      \\-> adjudicate -> check -> ship --route_after_ship--+--> record
+                                            (the one LLM call)        \\-> show_evidence   |
+                                                                       \\-> veto ----------|
+                                                                       \\-> propose -------/
     record --route_after_record--> approval --after_approval--> act -> END
                          \\-> END                      \\-> END (reject)
 
 The five routing functions are the only branch points, and each is a tested function of
 the state. The emergency screen (decision 78) runs first: a note reporting an emergency ends
 the pass with the site emergency procedure, before any evidence, matcher or LLM. The LLM is
-called only when the matcher would propose (decision 75).
+called only when the matcher would propose (decision 75). The shipped flow (decision 79):
+ship applies app/agent/shipped.ship, so only an LLM pick inside the matcher's top block
+becomes a proposal; any other answer is a veto with dissent, which never reaches approval.
 
 Episodes are LangGraph threads (thread_id = episode). Checkpoints go to a SQLite file
 (SqliteSaver), so a new process resumes from the same state. approval pauses with
@@ -56,14 +57,14 @@ from app.agent import emergency, nodes, records
 from app.agent import schema as sc
 from shared import leak_scan
 
-NODES = ("screen", "emergency", "evidence", "match", "adjudicate", "check", "decline", "not_in_library", "show_evidence",
-         "propose", "record", "approval", "act")
+NODES = ("screen", "emergency", "evidence", "match", "adjudicate", "check", "ship", "decline", "veto",
+         "show_evidence", "propose", "record", "approval", "act")
 STAGES = ("provisional", "revised")
 TRACING_VARS = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2", "LANGCHAIN_TRACING")
 OPAQUE = {"episode": re.compile(r"^ep-[0-9a-f]{16}$"), "history_id": re.compile(r"^h-[0-9a-f]{16}$")}
 # Fields a pass sets; re_enter clears them so the revised pass starts clean.
 PASS_FIELDS = ("screen", "as_of", "evidence", "ranking", "candidates", "matcher", "prompt_sha256", "llm", "output",
-               "failures", "outcome", "note", "proposal", "recorded", "approval", "done")
+               "failures", "ship", "dissent", "outcome", "note", "proposal", "recorded", "approval", "done")
 
 
 class State(TypedDict, total=False):
@@ -86,6 +87,8 @@ class State(TypedDict, total=False):
     llm: dict
     output: Any
     failures: list
+    ship: dict                  # shipped.ship's result (decision 79)
+    dissent: Any                # the LLM's dissent on a veto, or None
     outcome: str
     note: Any
     proposal: Any
@@ -165,10 +168,10 @@ def build(checkpointer, deps: Deps):
     g.add_edge("evidence", "match")
     g.add_conditional_edges("match", nodes.route_after_match, {"decline": "decline", "adjudicate": "adjudicate"})
     g.add_edge("adjudicate", "check")
-    g.add_conditional_edges("check", nodes.route_after_check,
-                            {"decline": "decline", "not_in_library": "not_in_library",
-                             "show_evidence": "show_evidence", "propose": "propose"})
-    for terminal in ("decline", "not_in_library", "show_evidence", "propose"):
+    g.add_edge("check", "ship")
+    g.add_conditional_edges("ship", nodes.route_after_ship,
+                            {"show_evidence": "show_evidence", "veto": "veto", "propose": "propose"})
+    for terminal in ("decline", "veto", "show_evidence", "propose"):
         g.add_edge(terminal, "record")
     g.add_conditional_edges("record", nodes.route_after_record, {"approval": "approval", "end": END})
     g.add_conditional_edges("approval", nodes.after_approval, {"act": "act", "end": END})

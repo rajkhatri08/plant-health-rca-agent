@@ -29,6 +29,7 @@ from langgraph.types import interrupt
 
 from app.agent import emergency as emergency_screen
 from app.agent import faithfulness, records
+from app.agent import shipped  # noqa: F401 (ship uses it)
 from app.agent import llm      # BudgetExceeded and CacheMiss propagate; any other LLMError is an outcome
 from app.agent import schema as sc
 from app.diagnosis import matcher
@@ -36,7 +37,7 @@ from app.diagnosis import matcher
 OFFSETS_MIN = {"provisional": 30, "revised": 60}
 VERDICTS = ("approve", "reject")
 OUTCOMES = ("matcher_declined", "declined", "not_in_library", "failed_check", "error", "proposed",
-            "emergency")
+            "emergency", "vetoed")       # the shipped flow (decision 79) gives "vetoed", not "declined" or "not_in_library"
 SCHEMA_FAILURE = getattr(sc, "SCHEMA_FAILURE", "schema")    # the code for an answer that breaks the schema
 
 
@@ -183,6 +184,25 @@ def route_after_check(state) -> str:
     if "error" in (state.get("llm") or {}) or state.get("failures"):
         return "show_evidence"
     return state["output"]["decision"]              # decline, not_in_library or propose
+
+
+def ship(state, deps) -> dict:
+    """{"ship": shipped.ship(state["output"], state["failures"], state["llm"], state["ranking"])}
+    (decision 79): what the operator is shown. Reads only the state."""
+    raise NotImplementedError("Raj implements the ship node (decision 79)")
+
+
+def route_after_ship(state) -> str:
+    """"show_evidence" when state["ship"]["decision"] is evidence, "veto" when it's veto,
+    "propose" when it's propose."""
+    raise NotImplementedError("Raj implements route_after_ship (decision 79)")
+
+
+def veto(state, deps) -> dict:
+    """{"outcome": "vetoed", "dissent": state["ship"]["dissent"]}: no proposal. The LLM's
+    dissent is shown beside the matcher's top entry (state["ship"]["matcher_top"]); it never
+    becomes a proposal and never reaches approval."""
+    raise NotImplementedError("Raj implements the veto node (decision 79)")
 
 
 def decline(state, deps) -> dict:

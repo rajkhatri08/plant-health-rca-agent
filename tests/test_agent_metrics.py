@@ -166,3 +166,18 @@ def test_latency_and_cost():
     assert out["calls"] == 3 and out["latency_ms"]["median"] == 200.0 and out["latency_ms"]["max"] == 300.0
     assert out["latency_ms"]["p95"] == pytest.approx(290.0)
     assert out["cost_inr"] == pytest.approx(0.40) and out["cost_per_diagnosis"] == pytest.approx(0.10)
+
+
+
+# ---------- the shipped flow's veto (decision 79) ----------
+
+def test_a_veto_on_a_known_case_is_wrong():
+    c = am.to_case(row(outcome="vetoed"))
+    assert c.declined and dm.topk_credit([c], 1) == 0
+
+
+@pytest.mark.parametrize("kind", ["false", "loo"])
+def test_a_veto_on_an_unknown_is_a_decline(kind):
+    # A veto shows no proposal, so on a false alert or a leave-one-out case it's right.
+    assert am.to_case(row(kind=kind, outcome="vetoed")).declined is True
+    assert am.to_case(row(kind=kind, outcome="vetoed"), keep_rule=True).declined is True

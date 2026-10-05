@@ -84,10 +84,9 @@ def test_the_wiring_is_fixed_in_code(world):
         ("__start__", "screen", False), ("screen", "emergency", True), ("screen", "evidence", True),
         ("emergency", "record", False), ("evidence", "match", False),
         ("match", "decline", True), ("match", "adjudicate", True),
-        ("adjudicate", "check", False),
-        ("check", "decline", True), ("check", "not_in_library", True),
-        ("check", "show_evidence", True), ("check", "propose", True),
-        ("decline", "record", False), ("not_in_library", "record", False),
+        ("adjudicate", "check", False), ("check", "ship", False),
+        ("ship", "show_evidence", True), ("ship", "veto", True), ("ship", "propose", True),
+        ("decline", "record", False), ("veto", "record", False),
         ("show_evidence", "record", False), ("propose", "record", False),
         ("record", "approval", True), ("record", "__end__", True),
         ("approval", "act", True), ("approval", "__end__", True),
@@ -251,7 +250,8 @@ def test_route_after_check(state, branch):
     assert nodes.route_after_check(state) == branch
 
 
-@pytest.mark.parametrize("outcome, branch", [("proposed", "approval"), ("declined", "end"),
+@pytest.mark.parametrize("outcome, branch", [("proposed", "approval"), ("declined", "end"), ("vetoed", "end"),
+                                             ("emergency", "end"),
                                              ("matcher_declined", "end"), ("not_in_library", "end"),
                                              ("failed_check", "end"), ("error", "end")])
 def test_route_after_record(outcome, branch):
@@ -312,6 +312,8 @@ def test_the_diagnosis_record_holds_what_was_used(world):
     assert rec["library_as_of"] == ah.LIBRARY_AS_OF and rec["candidates"] == ah.DRIFT_CANDIDATES
     assert rec["model_id"] == "gemini-3.1-flash-lite" and rec["schema_version"] == "diagnosis-1"
     assert rec["llm_key"] == kinds(world, "ledger")[0][0] and rec["failures"] == []
+    assert rec["ship"]["decision"] == "propose" and rec["ship"]["entry_ref"] == ah.DRIFT_REF    # decision 79
+    assert rec["dissent"] is None
 
 
 # ---------- decision 75's branches ----------
@@ -333,22 +335,26 @@ def test_a_fit_below_the_threshold_never_calls_the_llm(tmp_path):
     assert w["fake"].calls == []
 
 
-def test_the_llm_may_decline_further(tmp_path):
+def test_the_llms_decline_is_a_veto(tmp_path):
+    # Decision 79: the LLM can stop a proposal (a veto), shown as dissent; nothing is proposed.
     w = world_with(tmp_path, answer="decline")
     s = start(w)
-    assert s["values"]["outcome"] == "declined" and s["next"] == []
-    assert "proposal" not in s["values"] or s["values"]["proposal"] is None
+    v = s["values"]
+    assert v["outcome"] == "vetoed" and s["next"] == [] and not v.get("proposal")
+    assert v["dissent"] == {"llm_decision": "decline", "llm_entry_ref": None,
+                            "rationale": ah.ANSWERS["decline"]["rationale"], "family_note": None}
+    assert v["ship"]["matcher_top"] == [ah.DRIFT_REF]
     assert kinds(w, "approval") == [] and kinds(w, "act") == []
 
 
-def test_the_family_level_answer_ends_without_approval(tmp_path):
+def test_the_family_level_answer_is_a_veto_with_its_family_as_a_note(tmp_path):
     w = world_with(tmp_path, answer="not_in_library")
     s = start(w)
     v = s["values"]
-    assert v["outcome"] == "not_in_library" and s["next"] == []
-    assert v["output"]["family"] == "reaction kinetics" and not v.get("proposal")
+    assert v["outcome"] == "vetoed" and s["next"] == [] and not v.get("proposal")
+    assert v["dissent"]["llm_decision"] == "not_in_library" and v["dissent"]["family_note"] == "reaction kinetics"
     ((_, rec),) = kinds(w, "diagnosis")
-    assert rec["outcome"] == "not_in_library"
+    assert rec["outcome"] == "vetoed" and rec["dissent"]["family_note"] == "reaction kinetics"
 
 
 def test_an_unfaithful_answer_shows_the_evidence(tmp_path):
@@ -656,3 +662,55 @@ def test_start_refuses_a_note_the_leak_scan_would_stop(world, note):
     with pytest.raises(ag.GraphError, match="leak scan"):
         start(world, operator_note=note)
     assert world["fake"].calls == [] and world["records"].all() == []
+
+
+
+# ---------- the shipped flow (decision 79) ----------
+
+@pytest.mark.parametrize("decision, branch", [("evidence", "show_evidence"), ("veto", "veto"), ("propose", "propose")])
+def test_route_after_ship(decision, branch):
+    assert nodes.route_after_ship({"ship": {"decision": decision}}) == branch
+
+
+def test_agreeing_with_the_matchers_top_entry_proposes_it(world):
+    v = start(world)["values"]
+    assert v["ship"] == {"decision": "propose", "entry_ref": ah.DRIFT_REF, "tie_break": False,
+                         "matcher_top": [ah.DRIFT_REF], "dissent": None}
+    assert v["outcome"] == "proposed" and v["proposal"]["entry_ref"] == ah.DRIFT_REF and v.get("dissent") is None
+
+
+def test_an_llm_pick_below_the_top_block_is_a_veto_not_a_proposal(tmp_path):
+    # The LLM faithfully proposes the second candidate: under the re-ranker it would have been
+    # proposed; shipped, it's dissent beside the matcher's top entry.
+    w = world_with(tmp_path, answer="propose_other")
+    s = start(w)
+    v = s["values"]
+    assert v["output"]["entry_ref"] == ah.OTHER_REF and v["failures"] == []       # faithful
+    assert v["outcome"] == "vetoed" and not v.get("proposal") and s["next"] == []
+    assert v["dissent"]["llm_decision"] == "propose" and v["dissent"]["llm_entry_ref"] == ah.OTHER_REF
+    assert v["ship"]["matcher_top"] == [ah.DRIFT_REF] and v["ship"]["entry_ref"] is None
+
+
+@pytest.mark.parametrize("answer", ["propose_other", "decline", "not_in_library"])
+def test_dissent_can_never_become_a_proposal(tmp_path, answer):
+    w = world_with(tmp_path, answer=answer)
+    s = start(w)
+    assert s["values"]["outcome"] == "vetoed" and not s["values"].get("proposal") and s["next"] == []
+    assert not ag.waiting(w["graph"], EP)
+    with pytest.raises(ag.GraphError, match="isn't waiting"):
+        ag.decide(w["graph"], EP, "approve")                              # nothing to approve
+    try:
+        w["graph"].invoke(ag.Command(resume="approve"), ag.config(EP))    # nor by resuming the thread:
+    except Exception:                                                     # refusing is fine; acting isn't
+        pass
+    assert kinds(w, "approval") == [] and kinds(w, "act") == []
+    v2 = ag.re_enter(w["graph"], EP)["values"]                            # the revised pass: still nothing
+    assert v2["outcome"] in ("vetoed", "failed_check")                    # (a candidate at +30 may not be at +60)
+    assert not v2.get("proposal") and kinds(w, "act") == [] and not ag.waiting(w["graph"], EP)
+
+
+def test_a_failed_check_shows_evidence_with_no_dissent(tmp_path):
+    w = world_with(tmp_path, answer="unfaithful")
+    v = start(w)["values"]
+    assert v["ship"]["decision"] == "evidence" and v["outcome"] == "failed_check"
+    assert v.get("dissent") is None and not v.get("proposal")

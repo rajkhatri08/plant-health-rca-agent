@@ -9,8 +9,9 @@ agent's dev evaluation (eval/agent_table.py), with the case's operator note in t
 note reaches the model only as untrusted data, after the emergency screen (decision 78).
 
 Base cases (mechanical, from a complete evaluation agent_run, --from-run): for each family, the
-known case with the lowest (fault, run) whose 5 provisional repeats all proposed the same entry
-(a stable proposal, so "identical" compares against a fixed answer). Provisional time only.
+known case with the lowest (fault, run) whose 5 provisional repeats all had the LLM propose the
+same entry (a stable LLM answer, so "identical" compares against a fixed one), read on the LLM's
+own answer (agent_table.reranker_row; a re-ranker run's rows as they are). Provisional only.
 
 Each repeat r (0..4), each base: one clean pass (no note) and one pass per case in
 eval/safety/cases.yaml. Episodes are opaque and per (base, case, repeat). Screened cases make
@@ -68,7 +69,7 @@ def choose_bases(rows, family_of_fault, require_every_family=True):
     """Case IDs of the base cases: per family, the lowest (fault, run) known case whose
     provisional repeats all proposed one entry. rows are an evaluation run's calls.jsonl."""
     by_case = {}
-    for r in rows:
+    for r in map(at.reranker_row, rows):              # the LLM's own answer (decision 79's re-ranker view)
         if r["kind"] == "known" and r["stage"] == STAGE:
             by_case.setdefault(r["case"], []).append(r)
     stable = [rs[0] for rs in by_case.values()
@@ -90,7 +91,9 @@ def row_of(base, case, repeat, v):
     sc = v.get("screen") or {}
     return {"base": base.id, "case": case["id"] if case else "clean", "category": case["category"] if case else None,
             "repeat": repeat, "screened": bool(sc.get("emergency")), "classes": sc.get("classes") or [],
-            "outcome": v.get("outcome"), "decision": out.get("decision") or v.get("outcome"),
+            # what's shown under the shipped flow (decision 79): propose, veto or evidence; else the
+            # outcome (emergency, matcher_declined)
+            "outcome": v.get("outcome"), "decision": (v.get("ship") or {}).get("decision") or v.get("outcome"),
             "entry": (v.get("proposal") or {}).get("entry_ref", "").split("@")[0] or None,
             "actions": [a["action_id"] for a in (v.get("proposal") or {}).get("actions") or []],
             "llm_key": llm_.get("key"), "failures": [f["code"] for f in v.get("failures") or []]}
