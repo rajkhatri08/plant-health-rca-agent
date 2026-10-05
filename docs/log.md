@@ -3053,3 +3053,33 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **`pytest -q`:** 1816 passed, 4 deselected.
 - **Decisions needed:** none.
 - **Next (Raj):** rerun `--table` on the tuning record.
+
+### 2026-10-05: week 6, three tuning iterations and the prompt freeze
+- **The prompt is frozen (decision 77):** SHA-256 `fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0`, from commit 3514ce1.
+  - Checked by Claude: `eval.agent_table.prompt_sha256()` on the committed `app/agent/prompts/` gives that hash.
+  - Checked by Claude: `app/agent/prompts/` is unchanged between 3514ce1 and HEAD (0ea7262).
+  - The evaluation run passes it as `--prompt-sha256`, and the driver refuses any other template.
+- **The tuning iterations.** All on the tuning subset: known cases only, 1 repeat, 68 planned passes (34 per diagnosis time), Rs 50 cap. Prompt iteration happens only here (decision 77).
+  1. **First iteration** (b210f52; `eval/runs/20261004T154913Z_agent_run.json`; prompt `5d0756a7…`; free tier, unpaced):
+     - **Run:** 68 of 68 passes; meter estimate Rs 5.42 (not charged: free tier, decision 76).
+     - **Results:** 60 proposed, 59 right, against the matcher's top-1 credit of 59.5 on the same passes; 0 faithfulness failures.
+     - **Schema failures:** 4, all "decline has no family" (the model filled family on a decline).
+     - **Errors:** 2, "ClientError 429 RESOURCE_EXHAUSTED" after 3 attempts (free-tier rate limits).
+     - **Change:** explicit field rules by decision in the prompt (f23108a). Pacing (`--min-interval`) was added to the driver.
+  2. **Second iteration** (c9a40e3; `eval/runs/20261004T163318Z_agent_run.json`; prompt `9c9a9ce3…`; free tier, `min_interval_s` 4.0):
+     - **Run:** 68 of 68 passes; meter estimate Rs 5.68 (not charged).
+     - **The issue:** over-declining on twin entries (Raj's reading).
+     - **A second record of the same prompt** (c8c1f1e; `eval/runs/20261004T164517Z_agent_run.json`): 68 of 68 passes, Rs 0.00 spent, which fits a rerun answered entirely from the cache.
+     - **Change:** compare the candidates item by item, and decline only when nothing fits or two fit equally (3514ce1).
+  3. **Third iteration** (0ea7262; `eval/runs/20261005T020027Z_agent_run.json`; prompt `fa39b73e…`; Tier 1 with Prepay, `min_interval_s` 1.0):
+     - **Run:** 68 of 68 passes, 66 LLM calls, Rs 5.87.
+     - **Provisional:** the agent 30 of 34 right, against the matcher's 29.0.
+     - **Revised:** 32 of 34, against 30.5.
+     - No failures, no errors.
+     - This prompt is the one frozen.
+- **Reading the tuning numbers:** tuning is 3 run numbers, known cases only, so it can't read the keep rule (no unknown cases) and isn't a result. It was tuned on these very cases, so it's optimistic by construction. The evaluation run on the disjoint subset, with every false-alert and leave-one-out case and 5 repeats, is the dev result.
+- **Tuning spend:** about Rs 17 by the meter. Only the third run (Rs 5.87) was charged, on Tier 1. Rs 450 remains the evaluation run's cap.
+- **Changed:** docs only (this entry).
+- **Tests:** none run (docs only). The suite was last 1816 passed, 4 deselected.
+- **Decisions needed:** none.
+- **Next (Raj):** the evaluation run: `python -m eval.agent_table --evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --billing-tier tier-1 --min-interval 1`, then `--table` on its record.
