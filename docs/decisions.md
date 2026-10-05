@@ -250,6 +250,16 @@ Each entry says what was decided and why. New decisions go at the bottom, with a
     - **scipy** becomes a direct dependency for eval only (the F and normal quantiles), at the pin already resolved (1.18.1); never in requirements-app.txt.
     - **Who writes what:** Raj the limits and the per-sample rates; Claude the stubs, tests, the paper file and the driver (`eval/published_check.py`).
 
+    **Result (5 October 2026; `eval/runs/20261005T165013Z_published_check.json`, commit cc09596, clean):**
+    - **Under the pre-registered rule, the check doesn't agree.** 11 of the 12 detectable faults are within 10 points, at k = 9 against Table 4 and at k = 17 against Table 7.
+    - **The one miss is fault 10:** 33.2% against 60.5% at k = 9, and 51.3% against 71.0% at k = 17.
+    - **False alarms:** our FAR on the normal dev runs is 1.86% at k = 9 (1.74% at k = 17). That's close to the about 2% that two 99% limits imply, against the paper's 6.13% (6.38%). The paper's operating point flags about three times as many normal samples as ours.
+    - **The undetectable faults 3, 9 and 15** sit at about our FAR for us (1.8–2.2%) and at about the paper's FAR plus noise for the paper (8–17%). That's consistent with the two operating points differing.
+    - **Fault 10:** it's the most marginal of the judged faults, so it's the most sensitive to where the limit sits. That's the hypothesis to test, not the explanation. It's tested by the post-hoc diagnostic below; whatever that shows, this verdict stands.
+    - **Diagnostic (post hoc, dev only, changes no verdict):** both theoretical limits are scaled by one common factor c* so that our FAR on the normal dev runs equals the paper's (6.13% at k = 9, 6.38% at k = 17), and every fault's rate is reported at c*.
+      - **How c* is set:** the (100 − target)th percentile of the pooled per-sample ratio max(T²/T²lim, SPE/SPElim) over the normal dev runs after the warm-up. This rule is fixed before it runs.
+      - **Who writes it:** Raj writes the factor; Claude the driver (`python -m eval.published_check --far-matched`).
+
 ## Week 3 decisions, 28 September 2026
 
 57. **Detection is scored from the documented onset; twin divergence is a diagnostic only (Raj's decision).**

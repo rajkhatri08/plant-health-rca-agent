@@ -24,12 +24,20 @@ sample 20, 480 post-onset samples, against the paper's 800 after sample 160); ou
 is 250 runs against the paper's one normal run; the significance level is assumed; the
 FAR skips the warm-up (PROTOCOL).
 
+Post-hoc diagnostic (decision 56, Result; dev only, changes no verdict):
+    python -m eval.published_check --far-matched eval/runs/<stamp>_published_check.json
+scales both theoretical limits by one factor c* (Raj's far_matched_factor) so that our FAR on
+the normal dev runs equals the paper's (6.13% at k = 9, 6.38% at k = 17), and reports every
+fault's rate at c* beside the paper's and the check's. Writes a published_check_far_matched
+record with no verdict field.
+
 The limits and the rates are Raj's (t2_limit_f, spe_limit_jm, flagged, per_sample_rate);
 the driver is Claude's. Open data only: it never loads the test split. Writes a
 published_check record (aggregates only) and a Markdown table under data/tables/.
 """
 
 import argparse
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -124,6 +132,25 @@ def per_sample_rate(flags_by_run, first) -> float:
         hits += int(part.sum())
         total += part.size
     return hits / total                                              # pooled over samples
+
+
+def far_matched_factor(ratios_by_run, target_percent, first) -> float:
+    """The post-hoc diagnostic's common factor c* (decision 56, Result; Raj implements this).
+
+    ratios_by_run maps a run number to its per-sample ratio r = max(T²/T²lim, SPE/SPElim) over
+    the whole run, at the theoretical limits. At factor c a sample is flagged when r > c (both
+    limits scaled by c), so the false alarm rate FAR(c) is the share of samples with r > c,
+    falling as c rises. c* is the (100 - target_percent)th percentile (numpy's default linear
+    method) of the samples first .. end of every run, pooled (first is 1-based), so FAR(c*)
+    is the target to within one sample. Raises ValueError if there are no runs, the target
+    isn't in (0, 100), first < 1, or first is past a run's end."""
+    raise NotImplementedError("Raj implements far_matched_factor (week 7 S2, post hoc)")
+
+
+def ratio(t2, spe, t2_lim, spe_lim) -> np.ndarray:
+    """Per sample, max(T²/T²lim, SPE/SPElim): the plant ratio of app/detector/alerting.py."""
+    from app.detector import alerting
+    return alerting.plant_ratio(t2, spe, t2_lim, spe_lim)
 
 
 # ---------- the comparison (Claude's) ----------
@@ -233,6 +260,135 @@ def run(*, warmup=9, ks=KS, paper_path=PAPER, allow_dirty=False, repo_root=None,
     return results, record
 
 
+# ---------- the post-hoc diagnostic: limits scaled to the paper's FAR (decision 56, Result) ----------
+
+FAR_MATCHED_KS = (9, 17)
+POST_HOC_NOTE = ("post hoc, dev only: changes no verdict; decision 56's result under the pre-registered rule "
+                 "stands")
+
+
+def load_source(path, repo_root, warmup, paper_path):
+    """(repo path, record) of the published_check run the diagnostic reads alongside: clean,
+    same warm-up, alpha and paper file."""
+    path = Path(path)
+    if not path.name.endswith("_published_check.json"):
+        raise PublishedCheckError(f"{path} isn't a published_check run record")
+    rec = json.loads(path.read_text())
+    cfg = rec["config"]
+    if rec.get("dirty") is not False:
+        raise PublishedCheckError(f"{path} was made on a dirty tree")
+    if (cfg["warmup"], cfg["alpha"], cfg["paper_sha256"]) != (warmup, ALPHA, run_record.sha256(paper_path)):
+        raise PublishedCheckError(f"{path} used another warm-up, alpha or paper file")
+    if not all(str(k) in rec["metrics"]["k"] for k in FAR_MATCHED_KS):
+        raise PublishedCheckError(f"{path} doesn't hold k = {FAR_MATCHED_KS}")
+    return _rel(path, repo_root), rec
+
+
+def run_far_matched(source, *, warmup=9, paper_path=PAPER, allow_dirty=False, repo_root=None, tables_dir=None,
+                    now=None, out=print):
+    """Both theoretical limits scaled by one factor c* so that our FAR on the normal dev runs
+    equals the paper's (Tables 5 and 8), then every fault's per-sample rate at c* beside the
+    paper's and beside the check's own rate. Post hoc: no verdict."""
+    repo_root = Path(repo_root or run_record.REPO_ROOT)
+    commit, dirty = run_record.check_clean(repo_root, allow_dirty)    # before any loading
+    paper = load_paper(paper_path)
+    source_rel, src = load_source(source, repo_root, warmup, paper_path)
+    now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    tables_dir = Path(tables_dir or DEFAULT_TABLES)
+    table_path = tables_dir / f"{now.strftime('%Y%m%dT%H%M%SZ')}_published_check_far_matched.md"
+    if table_path.exists():
+        raise FileExistsError(f"{table_path} already exists")
+
+    tags = tuple(tagmap.fast_tags())
+    fit_runs = loader.load_normal("fit")
+    X = fit_pca.fit_matrix(fit_runs, warmup, tags)
+    n = X.shape[0]
+    models, limits = {}, {}
+    for k in FAR_MATCHED_KS:
+        models[k] = pca.fit(X, tags, k)
+        limits[k] = (t2_limit_f(k, n, ALPHA), spe_limit_jm(models[k].all_eigenvalues[k:], ALPHA))
+    del X, fit_runs
+
+    normal = loader.load_normal("dev")
+    factor, scaled, far = {}, {}, {}
+    for k in FAR_MATCHED_KS:
+        scored = drv.score_runs(models[k], normal)
+        target = float(paper["far_percent"][COMPARED[k]])
+        factor[k] = far_matched_factor({r: ratio(t2, spe, *limits[k]) for r, (t2, spe) in scored.items()},
+                                       target, warmup + 1)
+        scaled[k] = (factor[k] * limits[k][0], factor[k] * limits[k][1])
+        far[k] = per_sample_rate({r: flagged(t2, spe, *scaled[k]) for r, (t2, spe) in scored.items()}, warmup + 1)
+    fdr = {k: {} for k in FAR_MATCHED_KS}
+    for f in FAULTS:
+        runs = loader.load_faulty(f, "dev")
+        if sorted(runs.runs) != sorted(normal.runs):
+            raise PublishedCheckError(f"fault {f}'s dev run numbers aren't the normal dev numbers")
+        for k in FAR_MATCHED_KS:
+            scored = drv.score_runs(models[k], runs)
+            fdr[k][f] = per_sample_rate({r: flagged(t2, spe, *scaled[k]) for r, (t2, spe) in scored.items()},
+                                        ONSET + 1)
+    del normal
+
+    results = {"k": {}}
+    for k in FAR_MATCHED_KS:
+        key = COMPARED[k]
+        check = src["metrics"]["k"][str(k)]["fdr_percent"]
+        faults = {}
+        for f in FAULTS:
+            ours, theirs = 100 * fdr[k][f], float(paper["fdr_percent"][key][f])
+            faults[str(f)] = {"ours": ours, "paper": theirs, "difference": ours - theirs,
+                              "check_rate": float(check[str(f)]), "change_from_check": ours - float(check[str(f)]),
+                              "judged_in_check": f in DETECTABLE}
+        within = sum(abs(faults[str(f)]["difference"]) <= TOLERANCE for f in DETECTABLE)
+        results["k"][str(k)] = {"factor": factor[k], "t2_limit": scaled[k][0], "spe_limit": scaled[k][1],
+                                "theoretical": {"t2_limit": limits[k][0], "spe_limit": limits[k][1]},
+                                "target_far_percent": float(paper["far_percent"][key]),
+                                "far_percent": 100 * far[k], "paper_table": key, "faults": faults,
+                                "fault_10": faults["10"],
+                                "reading_only_within_tolerance": {"within": within, "of": len(DETECTABLE)}}
+    config = {"post_hoc": True, "note": POST_HOC_NOTE, "ks": list(FAR_MATCHED_KS), "alpha": ALPHA,
+              "warmup": warmup, "fit_samples": n, "fdr_from_sample": ONSET + 1, "far_from_sample": warmup + 1,
+              "matching_rule": "c* = the (100 - target)th percentile of the pooled per-sample max(T²/T²lim, "
+                               "SPE/SPElim) on the normal dev runs after the warm-up; both limits scaled by c*",
+              "source_record": source_rel, "source_sha256": run_record.sha256(source),
+              "paper": _rel(paper_path, repo_root), "paper_sha256": run_record.sha256(paper_path)}
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    table_path.write_text(markdown_far_matched(results, config))
+    record = run_record.write("published_check_far_matched", config=config, seeds={}, metrics=results,
+                              outputs={"table": table_path}, commit=commit, dirty=dirty, repo_root=repo_root,
+                              now=now)
+    for k in FAR_MATCHED_KS:
+        e = results["k"][str(k)]
+        f10 = e["fault_10"]
+        out(f"k = {k}: c* = {e['factor']:.4f}, FAR {e['far_percent']:.2f}% (paper {e['target_far_percent']}%); "
+            f"fault 10 {f10['ours']:.1f}% vs paper {f10['paper']}% (check {f10['check_rate']:.1f}%)")
+    out(f"post hoc, no verdict\ntable: {table_path}\nrun record: {record}")
+    return results, record
+
+
+def markdown_far_matched(results, config) -> str:
+    lines = ["# Published-number check: FAR-matched diagnostic (post hoc)", "",
+             f"{config['note'][0].upper()}{config['note'][1:]}. Matching rule: {config['matching_rule']}. "
+             f"Source check: `{config['source_record']}`.", ""]
+    for k in config["ks"]:
+        e = results["k"][str(k)]
+        lines += [f"## k = {k} (paper {e['paper_table']})", "",
+                  f"c* = {e['factor']:.4f}: T²lim {e['theoretical']['t2_limit']:.3f} → {e['t2_limit']:.3f}, "
+                  f"SPElim {e['theoretical']['spe_limit']:.3f} → {e['spe_limit']:.3f}. FAR {e['far_percent']:.2f}% "
+                  f"(target {e['target_far_percent']}%).", "",
+                  "| Fault | Ours at c* | Paper | Difference | Check (99%) | Change from check |",
+                  "|---|---|---|---|---|---|"]
+        for f in FAULTS:
+            r = e["faults"][str(f)]
+            lines.append(f"| {f}{'' if r['judged_in_check'] else ' (not judged)'} | {_p(r['ours'])} | "
+                         f"{_p(r['paper'])} | {r['difference']:+.2f} | {_p(r['check_rate'])} | "
+                         f"{r['change_from_check']:+.2f} |")
+        w = e["reading_only_within_tolerance"]
+        lines += ["", f"For reading only (no verdict): {w['within']} of {w['of']} detectable faults within "
+                      f"{TOLERANCE:g} points at c*.", ""]
+    return "\n".join(lines)
+
+
 def _rel(path, repo_root):
     path, root = Path(path).resolve(), Path(repo_root).resolve()
     return path.relative_to(root).as_posix() if path.is_relative_to(root) else path.name
@@ -289,9 +445,15 @@ def main(argv=None):
     parser.add_argument("--k", type=int, nargs="+", default=list(KS))
     parser.add_argument("--allow-dirty", action="store_true",
                         help="run on a dirty tree; the record says dirty: true")
+    parser.add_argument("--far-matched", type=Path, default=None, metavar="PUBLISHED_CHECK_RECORD",
+                        help="the post-hoc diagnostic (decision 56): limits scaled to the paper's FAR, "
+                             "read beside this published_check record; no verdict")
     args = parser.parse_args(argv)
     try:
-        run(warmup=args.warmup, ks=args.k, allow_dirty=args.allow_dirty)
+        if args.far_matched is not None:
+            run_far_matched(args.far_matched, warmup=args.warmup, allow_dirty=args.allow_dirty)
+        else:
+            run(warmup=args.warmup, ks=args.k, allow_dirty=args.allow_dirty)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError, run_record.RunRecordError,
             drv.CalibrationError, PublishedCheckError, NotImplementedError) as e:
         print(f"error: {e}", file=sys.stderr)

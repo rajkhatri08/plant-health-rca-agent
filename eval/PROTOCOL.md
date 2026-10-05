@@ -73,6 +73,11 @@ Source: the Rieth et al. Tennessee Eastman dataset (DOI, checksums and licence i
   - **Agreement:** k = 9 against Table 4 is the headline, k = 17 against Table 7 a second verdict; each agrees when all 12 detectable faults (not 3, 9, 15) are within 10 points; every miss is explained in decision 56. k = 12 is reported alongside Table 4, and FAR beside Tables 5 and 8 (6.13% and 6.38%), without a criterion.
   - **Known differences:** our dev runs are training runs (fault after sample 20, about 480 post-onset samples, against the paper's 800 after sample 160); our fit pool is 250 normal runs against the paper's one; the significance level is assumed; FAR skips the warm-up.
   - It runs on dev before the freeze, never on test.
+  - **Result (5 October 2026, `eval/runs/20261005T165013Z_published_check.json`):**
+    - **It doesn't agree** under this rule: 11 of 12 detectable faults are within 10 points, at k = 9 and at k = 17.
+    - **The miss is fault 10:** 33.2% against 60.5% (k = 9), and 51.3% against 71.0% (k = 17).
+    - **Our FAR** is 1.86% against the paper's 6.13%.
+    - Decision 56 has the reading and a post-hoc diagnostic that changes no verdict.
 
 ## Detection metrics
 - **Detected:** a new notification after onset, within the useful window. An alert already active at onset doesn't count, and alerts before onset are false alerts. A notification is a sample where the alert turns on; an alert already on at the first scored sample after warm-up counts as a notification at that sample.

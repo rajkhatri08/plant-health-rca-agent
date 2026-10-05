@@ -3885,3 +3885,41 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Unsure about:** none.
 - **Decisions needed:** none.
 - **For Raj:** implement the four functions until `tests/test_published_check.py` passes. Then run `python -m eval.published_check` (dev only, about one dev-table run's time) and explain every miss in decision 56.
+
+### 2026-10-05: week 7 S2, the published-number check's result recorded; the post-hoc FAR-matched diagnostic (code only; the diagnostic not run)
+- **The result** (Raj's run, `eval/runs/20261005T165013Z_published_check.json`, commit cc09596, clean; Claude read the record and it matches):
+  - **Under the pre-registered rule, it doesn't agree.** 11 of 12 detectable faults are within 10 points, at k = 9 (Table 4) and at k = 17 (Table 7).
+  - **The one miss is fault 10:** 33.2% against 60.5% (k = 9), and 51.3% against 71.0% (k = 17).
+  - **FAR:** 1.86% (k = 9) and 1.74% (k = 17), against the paper's 6.13% and 6.38%. The paper's operating point flags about three times as many normal samples.
+  - **Faults 3, 9 and 15** are 1.8–2.2% for us and 8–17% in the paper.
+  - **Fault 10's sensitivity to the limit is the hypothesis, not the explanation.**
+  - Recorded in decision 56 ("Result") and in PROTOCOL's published-number check paragraph.
+- **Changed:**
+  - **`eval/published_check.py`:**
+    - **Raj's stub `far_matched_factor(ratios_by_run, target_percent, first)`:** c* is the (100 − target)th percentile of the pooled per-sample ratio from `first`. The rule is fixed in decision 56 before it runs.
+    - **Claude's:**
+      - `ratio` is `alerting.plant_ratio`, reused.
+      - `run_far_matched` (`--far-matched <published_check record>`) reads its source record, which must be clean with the same warm-up, alpha and paper file. It fits k = 9 and 17 and finds c* on the normal dev runs from sample 10, at the targets 6.13 and 6.38. It scales both limits by c* and computes FDR for faults 1–15 from sample 21.
+      - **The `published_check_far_matched` record:** `post_hoc: true`, with the note "changes no verdict". Per k: c*, the scaled and theoretical limits, and the FAR reached. Per fault: ours, the paper's, the difference, the check's rate and the change. Fault 10 is called out. A "within 10" count is there for reading only; there's no verdict field.
+      - A table in `data/tables/`.
+  - **`docs/decisions.md`:** decision 56's Result, with the diagnostic and its matching rule.
+  - **`eval/PROTOCOL.md`:** the Result line.
+- **Tests (`tests/test_published_check.py`, now 57):**
+  - **48 pass**, including Raj's four functions (implemented), `ratio`, and the diagnostic's driver with stand-ins:
+    - the targets and `first` (5 normal runs, 6.13 and 6.38, sample 10)
+    - k = 12 not fitted
+    - both limits scaled by c*
+    - FAR from sample 10 and FDR from 21
+    - the record is post hoc, with no "verdict" or "misses" in its metrics
+    - the source record and its SHA-256 named
+    - open dev data only
+    - five wrong source records refused before loading
+    - `main` routing
+  - **9 fail with the `far_matched_factor` stub's `NotImplementedError` (checked: 9 of 9):**
+    - c* = 3.4 by hand
+    - FAR(c*) within one sample of 6.13, 6.38 and 1.86 on synthetic ratios
+    - pooling, and skipping samples before `first`
+    - a lower target needs a higher factor
+    - five refusals
+- **Decisions needed:** none.
+- **For Raj:** implement `far_matched_factor`, then run `python -m eval.published_check --far-matched eval/runs/20261005T165013Z_published_check.json` (dev only). The verdict in decision 56 stands whatever it shows.

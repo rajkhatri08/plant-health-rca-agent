@@ -256,3 +256,138 @@ def test_the_headline_k_must_be_run_and_a_dirty_tree_is_refused(drive):
     with pytest.raises(Exception, match="dirty"):
         go(drive)
     assert drive["calls"] == []
+
+
+# ---------- the post-hoc FAR-matched diagnostic (decision 56, Result) ----------
+# Raj's far_matched_factor (fails with NotImplementedError until implemented):
+
+def test_far_matched_factor_by_hand():
+    # samples 2..6 pooled: [1, 2, 3, 4, 5]; a 40% target is the 60th percentile, 3.4,
+    # and 2 of the 5 (4 and 5) are above it: FAR 40%
+    assert pc.far_matched_factor({1: np.array([9.0, 1, 2, 3, 4, 5])}, 40.0, 2) == pytest.approx(3.4)
+
+
+def test_far_at_the_factor_is_the_target_to_within_one_sample():
+    rng = np.random.default_rng(0)
+    ratios = {k: rng.gamma(2.0, 0.3, size=500) for k in range(1, 11)}
+    pooled = np.concatenate([r[9:] for r in ratios.values()])
+    for target in (6.13, 6.38, 1.86):
+        c = pc.far_matched_factor(ratios, target, 10)
+        far = 100 * np.mean(pooled > c)
+        assert abs(far - target) <= 100 / pooled.size + 1e-12
+
+
+def test_far_matched_factor_pools_runs_and_skips_samples_before_first():
+    ratios = {1: np.array([100.0, 1, 2]), 2: np.array([100.0, 3, 4, 5])}
+    assert pc.far_matched_factor(ratios, 40.0, 2) == pytest.approx(np.percentile([1, 2, 3, 4, 5], 60))
+
+
+def test_a_lower_target_needs_a_higher_factor():
+    rng = np.random.default_rng(1)
+    ratios = {1: rng.gamma(2.0, 0.3, size=2000)}
+    assert pc.far_matched_factor(ratios, 1.0, 1) > pc.far_matched_factor(ratios, 6.13, 1)
+
+
+@pytest.mark.parametrize("ratios, target, first", [({}, 6.0, 1), ({1: np.ones(5)}, 0.0, 1),
+                                                    ({1: np.ones(5)}, 100.0, 1), ({1: np.ones(5)}, 6.0, 0),
+                                                    ({1: np.ones(5)}, 6.0, 6)])
+def test_far_matched_factor_refusals(ratios, target, first):
+    with pytest.raises(ValueError):
+        pc.far_matched_factor(ratios, target, first)
+
+
+def test_ratio_is_the_plant_ratio():
+    t2, spe = np.array([1.0, 4.0, 2.0]), np.array([3.0, 1.0, 8.0])
+    assert pc.ratio(t2, spe, 2.0, 4.0).tolist() == [0.75, 2.0, 2.0]
+
+
+# The driver (stand-ins for Raj's functions; passes now):
+
+def write_source(repo, **change):
+    rec = {"name": "published_check", "dirty": False,
+           "config": {"warmup": 9, "alpha": 0.99, "paper_sha256": pc.run_record.sha256(pc.PAPER)},
+           "metrics": {"k": {str(k): {"fdr_percent": {str(f): 50.0 for f in range(1, 16)}} for k in (9, 12, 17)}}}
+    for key, value in change.items():
+        if key == "config":
+            rec["config"].update(value)
+        else:
+            rec[key] = value
+    path = repo / "eval" / "runs" / change.pop("name", "20261005T165013Z_published_check.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rec))
+    return path
+
+
+@pytest.fixture
+def matched(drive, monkeypatch):
+    seen = {"factor": [], "flag_limits": []}
+
+    def factor(ratios_by_run, target, first):
+        seen["factor"].append((target, first, len(ratios_by_run)))
+        return 0.8
+
+    monkeypatch.setattr(pc, "far_matched_factor", factor)
+
+    def flag(t2, spe, a, b):
+        seen["flag_limits"].append((a, b))
+        return ((t2 > a) | (spe > b)).astype(int)
+
+    monkeypatch.setattr(pc, "flagged", flag)
+    return {**drive, "matched_seen": seen}
+
+
+def go_matched(d, source, **kw):
+    return pc.run_far_matched(source, repo_root=d["repo"], tables_dir=d["tables"], out=lambda s: None, **kw)
+
+
+def test_the_factor_is_matched_to_the_papers_far_on_normal_dev(matched):
+    go_matched(matched, write_source(matched["repo"]))
+    assert matched["matched_seen"]["factor"] == [(6.13, 10, 5), (6.38, 10, 5)]     # 5 normal dev runs
+    assert [k for _, k in matched["seen"]["fit"]] == [9, 17]                       # k = 12 isn't run
+
+
+def test_both_limits_are_scaled_by_the_factor(matched):
+    go_matched(matched, write_source(matched["repo"]))
+    limits = set(matched["matched_seen"]["flag_limits"])
+    assert limits == {(0.8 * 5.0 * 9, 0.8 * 4.0), (0.8 * 5.0 * 17, 0.8 * 4.0)}       # c* x (T²lim, SPElim)
+    assert matched["seen"]["rate"][:2] == [10, 10] and set(matched["seen"]["rate"][2:]) == {21}
+
+
+def test_the_record_is_post_hoc_with_no_verdict(matched):
+    results, record = go_matched(matched, write_source(matched["repo"]))
+    rec = json.loads(record.read_text())
+    assert rec["name"] == "published_check_far_matched" and rec["config"]["post_hoc"] is True
+    assert "changes no verdict" in rec["config"]["note"]
+    assert "verdict" not in json.dumps(rec["metrics"]) and "misses" not in json.dumps(rec["metrics"])
+    assert rec["config"]["source_record"] == "eval/runs/20261005T165013Z_published_check.json"
+    assert len(rec["config"]["source_sha256"]) == 64
+    e = rec["metrics"]["k"]["9"]
+    assert e["factor"] == 0.8 and e["target_far_percent"] == 6.13 and e["paper_table"] == "k9"
+    assert e["fault_10"]["paper"] == 60.5 and e["fault_10"]["check_rate"] == 50.0
+    assert e["faults"]["10"]["change_from_check"] == pytest.approx(e["faults"]["10"]["ours"] - 50.0)
+    assert set(e["reading_only_within_tolerance"]) == {"within", "of"}
+    assert rec["metrics"]["k"]["17"]["target_far_percent"] == 6.38
+    table = next(matched["tables"].glob("*_far_matched.md")).read_text()
+    assert table.startswith("# Published-number check: FAR-matched diagnostic (post hoc)") and "no verdict" in table
+
+
+def test_the_diagnostic_loads_open_dev_data_only(matched):
+    go_matched(matched, write_source(matched["repo"]))
+    assert matched["calls"] == ([("normal", "fit"), ("normal", "dev")]
+                                + [("faulty", f, "dev") for f in range(1, 16)])
+
+
+@pytest.mark.parametrize("change", [{"dirty": True}, {"config": {"alpha": 0.95}}, {"config": {"warmup": 5}},
+                                    {"config": {"paper_sha256": "0" * 64}}, {"name": "x_other.json"}])
+def test_a_wrong_source_record_is_refused_before_loading(matched, change):
+    with pytest.raises(pc.PublishedCheckError):
+        go_matched(matched, write_source(matched["repo"], **change))
+    assert matched["calls"] == []
+
+
+def test_main_routes_the_diagnostic(monkeypatch):
+    seen = []
+    monkeypatch.setattr(pc, "run_far_matched", lambda source, **kw: seen.append(("matched", str(source))))
+    monkeypatch.setattr(pc, "run", lambda **kw: seen.append(("check",)))
+    assert pc.main(["--far-matched", "r.json"]) == 0 and pc.main([]) == 0
+    assert seen == [("matched", "r.json"), ("check",)]
