@@ -1,0 +1,399 @@
+{
+  "name": "published_check",
+  "time": "2026-10-05T16:50:13+00:00",
+  "commit": "cc0959660d3464aa4b286d32b15b770b6ad699d6",
+  "dirty": false,
+  "config": {
+    "ks": [
+      9,
+      12,
+      17
+    ],
+    "headline_k": 9,
+    "compared": {
+      "9": "k9",
+      "17": "k17"
+    },
+    "alpha": 0.99,
+    "alpha_assumed": true,
+    "warmup": 9,
+    "fit_samples": 122750,
+    "fit_runs": 250,
+    "onset": 20,
+    "fdr_from_sample": 21,
+    "far_from_sample": 10,
+    "tolerance_points": 10.0,
+    "detectable": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "tags": "fast (33)",
+    "paper": "eval/published/yin2012.yaml",
+    "paper_sha256": "8c08799809057711a2cdf61eec1d2588e59dabdb35bcab37248dc925961d4887",
+    "known_differences": [
+      "dev runs are training runs: the fault after sample 20, 480 post-onset samples (paper: after 160, 800)",
+      "the fit pool is 250 normal runs (paper: one normal run)",
+      "the significance level is assumed at 99% (not stated in the paper)",
+      "FAR skips each normal run's warm-up samples (PROTOCOL's skip rule)"
+    ]
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1"
+  },
+  "outputs": {
+    "table": {
+      "path": "data/tables/20261005T165013Z_published_check.md",
+      "sha256": "fab8341bb661c6b6a84539505184ee39b467a06fbca4611b0557a24ed9f37235"
+    }
+  },
+  "metrics": {
+    "k": {
+      "9": {
+        "t2_limit": 21.66887752951092,
+        "spe_limit": 22.639335657049525,
+        "far_percent": 1.8615071283095723,
+        "fdr_percent": {
+          "1": 99.49166666666667,
+          "2": 97.34166666666667,
+          "3": 1.9083333333333334,
+          "4": 99.9375,
+          "5": 41.6875,
+          "6": 100.0,
+          "7": 100.0,
+          "8": 95.64583333333333,
+          "9": 2.1083333333333334,
+          "10": 33.2,
+          "11": 74.65,
+          "12": 97.41666666666666,
+          "13": 90.51249999999999,
+          "14": 99.94166666666666,
+          "15": 2.191666666666667
+        },
+        "cumulative_explained": 0.6889397092845395,
+        "comparison": {
+          "paper_table": "k9",
+          "faults": {
+            "1": {
+              "ours": 99.49166666666667,
+              "paper": 99.88,
+              "difference": -0.3883333333333212,
+              "within": true,
+              "judged": true
+            },
+            "2": {
+              "ours": 97.34166666666667,
+              "paper": 98.75,
+              "difference": -1.4083333333333314,
+              "within": true,
+              "judged": true
+            },
+            "3": {
+              "ours": 1.9083333333333334,
+              "paper": 12.88,
+              "difference": -10.971666666666668,
+              "within": false,
+              "judged": false
+            },
+            "4": {
+              "ours": 99.9375,
+              "paper": 100.0,
+              "difference": -0.0625,
+              "within": true,
+              "judged": true
+            },
+            "5": {
+              "ours": 41.6875,
+              "paper": 33.63,
+              "difference": 8.057499999999997,
+              "within": true,
+              "judged": true
+            },
+            "6": {
+              "ours": 100.0,
+              "paper": 100.0,
+              "difference": 0.0,
+              "within": true,
+              "judged": true
+            },
+            "7": {
+              "ours": 100.0,
+              "paper": 100.0,
+              "difference": 0.0,
+              "within": true,
+              "judged": true
+            },
+            "8": {
+              "ours": 95.64583333333333,
+              "paper": 98.0,
+              "difference": -2.3541666666666714,
+              "within": true,
+              "judged": true
+            },
+            "9": {
+              "ours": 2.1083333333333334,
+              "paper": 8.38,
+              "difference": -6.271666666666667,
+              "within": true,
+              "judged": false
+            },
+            "10": {
+              "ours": 33.2,
+              "paper": 60.5,
+              "difference": -27.299999999999997,
+              "within": false,
+              "judged": true
+            },
+            "11": {
+              "ours": 74.65,
+              "paper": 78.88,
+              "difference": -4.22999999999999,
+              "within": true,
+              "judged": true
+            },
+            "12": {
+              "ours": 97.41666666666666,
+              "paper": 99.13,
+              "difference": -1.7133333333333383,
+              "within": true,
+              "judged": true
+            },
+            "13": {
+              "ours": 90.51249999999999,
+              "paper": 95.38,
+              "difference": -4.867500000000007,
+              "within": true,
+              "judged": true
+            },
+            "14": {
+              "ours": 99.94166666666666,
+              "paper": 100.0,
+              "difference": -0.05833333333333712,
+              "within": true,
+              "judged": true
+            },
+            "15": {
+              "ours": 2.191666666666667,
+              "paper": 14.13,
+              "difference": -11.938333333333334,
+              "within": false,
+              "judged": false
+            }
+          },
+          "misses": [
+            10
+          ],
+          "within": 11,
+          "of": 12,
+          "verdict": "doesn't agree",
+          "paper_far_percent": 6.13
+        }
+      },
+      "12": {
+        "t2_limit": 26.22126271052752,
+        "spe_limit": 16.66211499607587,
+        "far_percent": 1.7881873727087578,
+        "fdr_percent": {
+          "1": 99.54583333333333,
+          "2": 97.3,
+          "3": 1.8333333333333333,
+          "4": 99.98333333333333,
+          "5": 41.2125,
+          "6": 100.0,
+          "7": 100.0,
+          "8": 95.85000000000001,
+          "9": 1.9708333333333334,
+          "10": 35.30416666666667,
+          "11": 78.07916666666667,
+          "12": 97.37083333333332,
+          "13": 90.73750000000001,
+          "14": 99.95,
+          "15": 2.1999999999999997
+        },
+        "cumulative_explained": 0.7886237003718068,
+        "alongside_k9_table": {
+          "1": -0.33416666666666117,
+          "2": -1.4500000000000028,
+          "3": -11.046666666666667,
+          "4": -0.01666666666666572,
+          "5": 7.582499999999996,
+          "6": 0.0,
+          "7": 0.0,
+          "8": -2.1499999999999915,
+          "9": -6.409166666666668,
+          "10": -25.195833333333333,
+          "11": -0.8008333333333297,
+          "12": -1.7591666666666725,
+          "13": -4.642499999999984,
+          "14": -0.04999999999999716,
+          "15": -11.930000000000001
+        }
+      },
+      "17": {
+        "t2_limit": 33.41579698141838,
+        "spe_limit": 7.718647105254645,
+        "far_percent": 1.7433808553971486,
+        "fdr_percent": {
+          "1": 99.64583333333333,
+          "2": 97.34583333333333,
+          "3": 1.8208333333333333,
+          "4": 99.99583333333332,
+          "5": 42.21666666666667,
+          "6": 100.0,
+          "7": 100.0,
+          "8": 96.35000000000001,
+          "9": 1.9333333333333333,
+          "10": 51.28333333333334,
+          "11": 80.36666666666666,
+          "12": 97.55833333333334,
+          "13": 91.3375,
+          "14": 99.95416666666667,
+          "15": 2.1125000000000003
+        },
+        "cumulative_explained": 0.9196698397464336,
+        "comparison": {
+          "paper_table": "k17",
+          "faults": {
+            "1": {
+              "ours": 99.64583333333333,
+              "paper": 100.0,
+              "difference": -0.3541666666666714,
+              "within": true,
+              "judged": true
+            },
+            "2": {
+              "ours": 97.34583333333333,
+              "paper": 99.38,
+              "difference": -2.034166666666664,
+              "within": true,
+              "judged": true
+            },
+            "3": {
+              "ours": 1.8208333333333333,
+              "paper": 10.25,
+              "difference": -8.429166666666667,
+              "within": true,
+              "judged": false
+            },
+            "4": {
+              "ours": 99.99583333333332,
+              "paper": 100.0,
+              "difference": -0.004166666666677088,
+              "within": true,
+              "judged": true
+            },
+            "5": {
+              "ours": 42.21666666666667,
+              "paper": 34.75,
+              "difference": 7.466666666666669,
+              "within": true,
+              "judged": true
+            },
+            "6": {
+              "ours": 100.0,
+              "paper": 100.0,
+              "difference": 0.0,
+              "within": true,
+              "judged": true
+            },
+            "7": {
+              "ours": 100.0,
+              "paper": 100.0,
+              "difference": 0.0,
+              "within": true,
+              "judged": true
+            },
+            "8": {
+              "ours": 96.35000000000001,
+              "paper": 98.63,
+              "difference": -2.279999999999987,
+              "within": true,
+              "judged": true
+            },
+            "9": {
+              "ours": 1.9333333333333333,
+              "paper": 9.88,
+              "difference": -7.946666666666667,
+              "within": true,
+              "judged": false
+            },
+            "10": {
+              "ours": 51.28333333333334,
+              "paper": 71.0,
+              "difference": -19.71666666666666,
+              "within": false,
+              "judged": true
+            },
+            "11": {
+              "ours": 80.36666666666666,
+              "paper": 83.0,
+              "difference": -2.63333333333334,
+              "within": true,
+              "judged": true
+            },
+            "12": {
+              "ours": 97.55833333333334,
+              "paper": 99.0,
+              "difference": -1.4416666666666629,
+              "within": true,
+              "judged": true
+            },
+            "13": {
+              "ours": 91.3375,
+              "paper": 95.75,
+              "difference": -4.412499999999994,
+              "within": true,
+              "judged": true
+            },
+            "14": {
+              "ours": 99.95416666666667,
+              "paper": 100.0,
+              "difference": -0.04583333333333428,
+              "within": true,
+              "judged": true
+            },
+            "15": {
+              "ours": 2.1125000000000003,
+              "paper": 17.25,
+              "difference": -15.1375,
+              "within": false,
+              "judged": false
+            }
+          },
+          "misses": [
+            10
+          ],
+          "within": 11,
+          "of": 12,
+          "verdict": "doesn't agree",
+          "paper_far_percent": 6.38
+        }
+      }
+    },
+    "headline": {
+      "k": 9,
+      "verdict": "doesn't agree",
+      "within": 11,
+      "of": 12,
+      "misses": [
+        10
+      ]
+    }
+  }
+}
