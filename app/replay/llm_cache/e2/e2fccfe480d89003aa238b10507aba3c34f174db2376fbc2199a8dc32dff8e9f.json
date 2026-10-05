@@ -1,0 +1,49 @@
+{
+  "key": "e2fccfe480d89003aa238b10507aba3c34f174db2376fbc2199a8dc32dff8e9f",
+  "prompt_sha256": "d950d70a5c1333cbbeb0b65b89dedd81807049f378540d2a42391a86ebd66ee4",
+  "repeat": 0,
+  "result": {
+    "cached": false,
+    "key": "e2fccfe480d89003aa238b10507aba3c34f174db2376fbc2199a8dc32dff8e9f",
+    "latency_ms": 2264.6779589995276,
+    "model_version": "gemini-3.1-flash-lite",
+    "parsed": {
+      "action_ids": [
+        "check-reactor-cooling-water-supply-temperature",
+        "confirm-reactor-cooling-valve-headroom",
+        "escalate-reactor-cooling-near-limit"
+      ],
+      "cited_evidence": [
+        {
+          "item": "provisional.masked",
+          "state": "true"
+        },
+        {
+          "item": "provisional.tags.RX-FV-206",
+          "state": "high"
+        },
+        {
+          "item": "provisional.loops.RX-TIC-204",
+          "state": "compensating"
+        }
+      ],
+      "confidence": "high",
+      "decision": "propose",
+      "entry_ref": "reactor-cooling-water-warm-supply@r1",
+      "family": "reactor cooling",
+      "rationale": "The evidence matches all required items for reactor-cooling-water-warm-supply@r1. Specifically, provisional.masked is true, provisional.tags.RX-FV-206 is high, and provisional.loops.RX-TIC-204 is compensating. The other candidate, reactor-cooling-water-temperature-wander@r1, is contradicted by the masked state and the normal status of other tags."
+    },
+    "raw": "{\n  \"decision\": \"propose\",\n  \"entry_ref\": \"reactor-cooling-water-warm-supply@r1\",\n  \"family\": \"reactor cooling\",\n  \"confidence\": \"high\",\n  \"cited_evidence\": [\n    {\n      \"item\": \"provisional.masked\",\n      \"state\": \"true\"\n    },\n    {\n      \"item\": \"provisional.tags.RX-FV-206\",\n      \"state\": \"high\"\n    },\n    {\n      \"item\": \"provisional.loops.RX-TIC-204\",\n      \"state\": \"compensating\"\n    }\n  ],\n  \"action_ids\": [\n    \"check-reactor-cooling-water-supply-temperature\",\n    \"confirm-reactor-cooling-valve-headroom\",\n    \"escalate-reactor-cooling-near-limit\"\n  ],\n  \"rationale\": \"The evidence matches all required items for reactor-cooling-water-warm-supply@r1. Specifically, provisional.masked is true, provisional.tags.RX-FV-206 is high, and provisional.loops.RX-TIC-204 is compensating. The other candidate, reactor-cooling-water-temperature-wander@r1, is contradicted by the masked state and the normal status of other tags.\"\n}",
+    "tokens_in": 1754,
+    "tokens_out": 302,
+    "tokens_thinking": 0
+  },
+  "schema_version": "diagnosis-1",
+  "settings": {
+    "max_output_tokens": 1024,
+    "model_id": "gemini-3.1-flash-lite",
+    "temperature": 0.0,
+    "thinking_level": "minimal"
+  },
+  "stored_at": "2026-10-05T09:45:21Z"
+}

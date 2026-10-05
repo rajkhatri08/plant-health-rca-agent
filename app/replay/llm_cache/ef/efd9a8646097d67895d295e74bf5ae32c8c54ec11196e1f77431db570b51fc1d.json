@@ -1,0 +1,49 @@
+{
+  "key": "efd9a8646097d67895d295e74bf5ae32c8c54ec11196e1f77431db570b51fc1d",
+  "prompt_sha256": "5c544062d18d7e75853eec317621ac774917026d286ee7be38f0af36e67c9e87",
+  "repeat": 0,
+  "result": {
+    "cached": false,
+    "key": "efd9a8646097d67895d295e74bf5ae32c8c54ec11196e1f77431db570b51fc1d",
+    "latency_ms": 1972.4775409995345,
+    "model_version": "gemini-3.1-flash-lite",
+    "parsed": {
+      "action_ids": [
+        "check-reactor-cooling-water-supply-temperature",
+        "confirm-reactor-cooling-valve-headroom",
+        "escalate-reactor-cooling-near-limit"
+      ],
+      "cited_evidence": [
+        {
+          "item": "provisional.masked",
+          "state": "true"
+        },
+        {
+          "item": "provisional.tags.RX-FV-206",
+          "state": "high"
+        },
+        {
+          "item": "provisional.loops.RX-TIC-204",
+          "state": "compensating"
+        }
+      ],
+      "confidence": "high",
+      "decision": "propose",
+      "entry_ref": "reactor-cooling-water-warm-supply@r1",
+      "family": "reactor cooling",
+      "rationale": "The evidence matches all required items for reactor-cooling-water-warm-supply@r1. Specifically, the system is masked, the cooling valve RX-FV-206 is high, and the loop RX-TIC-204 is compensating, which aligns with the description of a warmer cooling water supply where the controller compensates to maintain the reactor temperature."
+    },
+    "raw": "{\n  \"decision\": \"propose\",\n  \"entry_ref\": \"reactor-cooling-water-warm-supply@r1\",\n  \"family\": \"reactor cooling\",\n  \"confidence\": \"high\",\n  \"cited_evidence\": [\n    {\n      \"item\": \"provisional.masked\",\n      \"state\": \"true\"\n    },\n    {\n      \"item\": \"provisional.tags.RX-FV-206\",\n      \"state\": \"high\"\n    },\n    {\n      \"item\": \"provisional.loops.RX-TIC-204\",\n      \"state\": \"compensating\"\n    }\n  ],\n  \"action_ids\": [\n    \"check-reactor-cooling-water-supply-temperature\",\n    \"confirm-reactor-cooling-valve-headroom\",\n    \"escalate-reactor-cooling-near-limit\"\n  ],\n  \"rationale\": \"The evidence matches all required items for reactor-cooling-water-warm-supply@r1. Specifically, the system is masked, the cooling valve RX-FV-206 is high, and the loop RX-TIC-204 is compensating, which aligns with the description of a warmer cooling water supply where the controller compensates to maintain the reactor temperature.\"\n}",
+    "tokens_in": 1766,
+    "tokens_out": 288,
+    "tokens_thinking": 0
+  },
+  "schema_version": "diagnosis-1",
+  "settings": {
+    "max_output_tokens": 1024,
+    "model_id": "gemini-3.1-flash-lite",
+    "temperature": 0.0,
+    "thinking_level": "minimal"
+  },
+  "stored_at": "2026-10-05T09:45:25Z"
+}

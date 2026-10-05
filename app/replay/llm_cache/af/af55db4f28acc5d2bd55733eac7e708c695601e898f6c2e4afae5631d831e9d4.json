@@ -1,0 +1,53 @@
+{
+  "key": "af55db4f28acc5d2bd55733eac7e708c695601e898f6c2e4afae5631d831e9d4",
+  "prompt_sha256": "3b61e76bfda2e64d189df864baeff38d712f3547daed1a30e75c3872f9c18151",
+  "repeat": 0,
+  "result": {
+    "cached": false,
+    "key": "af55db4f28acc5d2bd55733eac7e708c695601e898f6c2e4afae5631d831e9d4",
+    "latency_ms": 1867.5488750013756,
+    "model_version": "gemini-3.1-flash-lite",
+    "parsed": {
+      "action_ids": [
+        "check-reactor-cooling-water-supply-temperature",
+        "confirm-reactor-cooling-valve-headroom",
+        "escalate-reactor-cooling-near-limit"
+      ],
+      "cited_evidence": [
+        {
+          "item": "location.top_group",
+          "state": "reactor"
+        },
+        {
+          "item": "provisional.loops.RX-TIC-204",
+          "state": "compensating"
+        },
+        {
+          "item": "provisional.tags.RX-FV-206",
+          "state": "high"
+        },
+        {
+          "item": "provisional.masked",
+          "state": "true"
+        }
+      ],
+      "confidence": "high",
+      "decision": "propose",
+      "entry_ref": "reactor-cooling-water-warm-supply@r1",
+      "family": "reactor cooling",
+      "rationale": "The evidence matches all required and supporting items for reactor-cooling-water-warm-supply@r1. The reactor is in the correct group, the cooling valve RX-FV-206 is high, and the temperature loops RX-TIC-204 and RX-TIC-205 are compensating, which is consistent with the cooling water supply being warmer than normal while the system remains masked."
+    },
+    "raw": "{\n  \"decision\": \"propose\",\n  \"entry_ref\": \"reactor-cooling-water-warm-supply@r1\",\n  \"family\": \"reactor cooling\",\n  \"confidence\": \"high\",\n  \"cited_evidence\": [\n    {\n      \"item\": \"location.top_group\",\n      \"state\": \"reactor\"\n    },\n    {\n      \"item\": \"provisional.loops.RX-TIC-204\",\n      \"state\": \"compensating\"\n    },\n    {\n      \"item\": \"provisional.tags.RX-FV-206\",\n      \"state\": \"high\"\n    },\n    {\n      \"item\": \"provisional.masked\",\n      \"state\": \"true\"\n    }\n  ],\n  \"action_ids\": [\n    \"check-reactor-cooling-water-supply-temperature\",\n    \"confirm-reactor-cooling-valve-headroom\",\n    \"escalate-reactor-cooling-near-limit\"\n  ],\n  \"rationale\": \"The evidence matches all required and supporting items for reactor-cooling-water-warm-supply@r1. The reactor is in the correct group, the cooling valve RX-FV-206 is high, and the temperature loops RX-TIC-204 and RX-TIC-205 are compensating, which is consistent with the cooling water supply being warmer than normal while the system remains masked.\"\n}",
+    "tokens_in": 1771,
+    "tokens_out": 323,
+    "tokens_thinking": 0
+  },
+  "schema_version": "diagnosis-1",
+  "settings": {
+    "max_output_tokens": 1024,
+    "model_id": "gemini-3.1-flash-lite",
+    "temperature": 0.0,
+    "thinking_level": "minimal"
+  },
+  "stored_at": "2026-10-05T09:45:23Z"
+}
