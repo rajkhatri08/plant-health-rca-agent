@@ -243,6 +243,7 @@ def test_normals_need_watch(v3):
         bm.self_test(bm.load(v3))
 
 
-def test_served_bundle_is_still_pca_v2():
-    # pca_v3 is built alongside; Raj switches the served bundle (week 6 S2).
-    assert bm.DEFAULT_BUNDLE.name == "pca_v2"
+def test_served_bundle_is_pca_v3():
+    # Switched in week 6 S9 (the demo's diagnosis needs the evidence normals); v2 and v1 are kept.
+    assert bm.DEFAULT_BUNDLE.name == "pca_v3"
+    assert (bm.DEFAULT_BUNDLE.parent / "pca_v2").is_dir() and (bm.DEFAULT_BUNDLE.parent / "pca_v1").is_dir()

@@ -33,7 +33,9 @@ def test_health_ok(paths):
     with client(paths) as c:
         r = c.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "self_test": "pass", "bundle": "pca_v1"}
+    body = r.json()
+    assert {k: body[k] for k in ("status", "self_test", "bundle")} == {"status": "ok", "self_test": "pass", "bundle": "pca_v1"}
+    assert body["diagnosis"].startswith("unavailable")          # no demo built for this synthetic bundle
 
 
 def test_failed_self_test_blocks_scoring(paths):
@@ -147,7 +149,7 @@ GROUPS = ["feed", "reactor", "condenser", "separator", "compressor", "stripper"]
 def test_v2_health_and_info(paths_v2):
     with client(paths_v2) as c:
         h, r = c.get("/health").json(), c.get("/replay/info").json()
-    assert h == {"status": "ok", "self_test": "pass", "bundle": "pca_v2"}
+    assert {k: h[k] for k in ("status", "self_test", "bundle")} == {"status": "ok", "self_test": "pass", "bundle": "pca_v2"}
     assert r["bands"] == ["Normal", "Watch", "Alert", "Unknown"]
     assert r["groups"] == GROUPS and "note" not in r
 

@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(not SOURCE.exists(), reason="replay stream not e
 
 
 def test_bundle_self_test_passes():
-    assert bm.DEFAULT_BUNDLE.name == "pca_v2"
+    assert bm.DEFAULT_BUNDLE.name == "pca_v3"                     # served since week 6 S9
     assert bm.self_test(bm.load(bm.DEFAULT_BUNDLE))
 
 

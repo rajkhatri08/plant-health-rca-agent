@@ -3345,3 +3345,71 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Tests:** none run (docs only).
 - **Decisions needed:** none.
 - **Next:** the week close: the week 6 summary, PLAN, the README's limitations (the two safety failures, the partial anonymisation, the over-declining), and the frozen test run's plan for week 7.
+
+### 2026-10-05: week 6 session 9, the demo wiring (code only; the builder not run, nothing deployed)
+- **Raj's choices, implemented:**
+  1. **No live LLM call in the public demo.** `eval/build_demo.py` (builder side, paid, Raj runs it):
+     - **The run:** the replay episode goes through the shipped graph once, with GeminiClient behind the cache, the meter (default Rs 5) and the pacer. `--billing-tier` is required and recorded.
+     - **The base settings come from the dev evaluation's record** (`--from-run`): the library clock, the matcher's thresholds and k, and the frozen prompt, which must be the committed one.
+     - **The proof:** the same six passes are replayed through `ReplayClient`. The views must be identical, and every cache file is leak-scanned.
+     - **The write:** only then are `app/replay/llm_cache/` and `app/replay/demo.json` written (staged in a temporary folder, never overwritten), with a `build_demo` run record.
+     - **At startup the API** rebuilds the same views through `ReplayClient`, which refuses a miss.
+  2. **The switch:**
+     - `bundle.DEFAULT_BUNDLE` is pca_v3, and `api.DEFAULT_CSV` is `app/replay/run_v2.csv` (its scores equal `run.csv`'s, tested in S2).
+     - The existing endpoints are unchanged. `/health` adds a `diagnosis` field ("ready" or "unavailable: …").
+  3. **`GET /diagnosis?upto=&note=` (read only, GET only):**
+     - **Before the alert:** nothing, not even when it will come (that would be look-ahead).
+     - **From the alert to +30 min:** "the provisional diagnosis comes 30 minutes after the alert".
+     - **From +30 min** the provisional diagnosis; **from +60 min** the revised one.
+     - **What's shown (decision 79):**
+       - status and the matcher's top entry (with titles)
+       - on agreement: the explanation's rationale and cited evidence, and the actions with their safety preconditions
+       - on a veto: the dissent
+       - on a failed check: the evidence, as states only
+       - the faithfulness status
+       - for the emergency note, only the site emergency procedure
+     - **Checks:** every view and response is leak-checked.
+     - **If the demo isn't built or can't be rebuilt exactly,** only `/diagnosis` returns 503 (with the reason); the replay keeps working.
+  4. **The notes:** three fixed ones (`app/agent/demo.NOTES`): none, the emergency note (safety set emergency-1: screened, no LLM call), and inject-5. No free text: the API refuses any other note with 422, and the page has no text input.
+  5. **Approval:** a proposal shows "Awaiting supervisor approval". No route approves or acts, and `build_views` refuses to return if an approval or act record exists.
+  6. **The page** (`web/index.html`):
+     - a diagnosis panel under the group panel, shown when `/health` says the diagnosis is ready
+     - the note selector
+     - advisory wording, and one line saying the explanations were computed once, in advance
+     - API text drawn with `textContent` only
+- **Changed:** `app/agent/demo.py` (new), `app/api.py`, `app/detector/bundle.py` (the default), `eval/build_demo.py` (new), `web/index.html`, `CLAUDE.md` (the commands).
+- **Tests:**
+  - **`tests/test_demo.py` (15):**
+    - the API side rebuilds the views from the cache alone
+    - ReplayClient refuses a miss, and a changed prompt misses
+    - refusals for other settings, schema, notes or alert, and for a missing config
+    - the emergency note is screened with no call; every view is states only and clean
+    - a veto shows dissent beside the matcher's top entry
+    - a proposal awaits approval with actions and preconditions; a failed check shows the evidence
+    - the as-of rule: nothing before the alert, not even its time; no diagnosis before +30; provisional, then revised
+    - an unknown note is refused; the notes are the safety set's; the notification is the first alert, and a stream with none has no episode
+  - **`tests/test_api_diagnosis.py` (11):**
+    - health ready
+    - the contract before and after the alert; the emergency note shows only the procedure
+    - bad requests, including typed text as a note
+    - every response from every route, note and time is leak-clean, with no raw values
+    - a cache miss makes only the diagnosis unavailable; with no demo built the replay still works
+    - no approve, decide or act route; GET only
+  - **`tests/test_build_demo.py` (8):**
+    - it writes what the API serves (identical views), with the record
+    - never overwrites; billing tier required
+    - the source must be a complete evaluation; the committed prompt must be the frozen one
+    - a leaking answer writes nothing
+  - **`tests/test_demo_artifacts.py` (3, skipped until the builder runs):** the committed demo matches the frozen prompt and its record, the live API serves every note at every time cleanly, and the emergency note was never sent.
+  - **`tests/test_web.py`:** the routes include `/diagnosis`; the panel sits under the groups and is hidden until ready; no free text, exactly the three notes; the precomputed and advisory lines; no `innerHTML`. The page's script was syntax-checked with `node --check`.
+  - **The switch:** the served-bundle, served-stream and health tests are updated.
+  - **`pytest -q`:** 2027 passed, 3 skipped (the demo artifacts), 4 deselected.
+- **The idea (for Raj):** the cache makes the demo a recording, not a performance. The API runs the real graph, but its LLM can only answer with what the builder recorded. The builder proves, before committing, that a cache-only replay reproduces every view, so the page can't drift from what was built, and a changed prompt fails loudly instead of quietly calling a model.
+- **Unsure about:**
+  - **Startup cost on Render:** the API runs six graph passes at startup. They're quick locally, but the free plan's cold start already takes about a minute.
+  - **The demo's alert is the stream's first alert,** whatever caused it: the demo knows no onset (decision 37). If that alert comes before the fault starts (a false alert), the diagnosis shown is a false-alert diagnosis. That's honest, but worth knowing when you narrate the demo.
+- **Decisions needed:** none.
+- **Next (Raj):**
+  1. `python -m eval.build_demo --from-run eval/runs/20261005T021042Z_agent_run.json --billing-tier tier-1 --min-interval 1` (paid, about Rs 1). Then commit `app/replay/demo.json`, `app/replay/llm_cache/` and the record; the artifact tests then run.
+  2. Run the page locally (CLAUDE.md commands).
+  3. Deploy.

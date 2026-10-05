@@ -46,10 +46,10 @@ def csv_path(source):
 
 # ---------- pca_v3 ----------
 
-def test_v3_self_test_passes_and_v2_is_still_served():
+def test_v3_self_test_passes_and_is_served():
     b = bm.load(V3)
     assert b.normals is not None and b.watch is not None and bm.self_test(b)
-    assert bm.DEFAULT_BUNDLE.name == "pca_v2"
+    assert bm.DEFAULT_BUNDLE.name == "pca_v3"                     # served since week 6 S9
 
 
 def test_v3_is_v2_plus_normals():

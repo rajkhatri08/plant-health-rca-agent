@@ -22,7 +22,7 @@ def test_says_advisory_and_watch_not_built():
 
 def test_calls_only_the_read_routes():
     routes = set(re.findall(r'getJSON\([`"](/[a-z/]+)', PAGE))
-    assert routes == {"/health", "/replay/info", "/replay/status"}
+    assert routes == {"/health", "/replay/info", "/replay/status", "/diagnosis"}
     assert "method:" not in PAGE                     # fetch defaults to GET
 
 
@@ -59,3 +59,32 @@ def test_watch_and_attribution_wording_is_advisory():
 def test_watch_band_has_a_colour_everywhere_it_is_drawn():
     assert PAGE.count("--watch:") == 3                           # light, dark (media), dark (attribute)
     assert ".pill.Watch" in PAGE and 'Watch: css("--watch")' in PAGE
+
+
+
+# ---------- the diagnosis panel (week 6 S9) ----------
+
+def test_the_diagnosis_panel_sits_under_the_group_panel_and_is_hidden_until_ready():
+    assert PAGE.index('id="groups-panel"') < PAGE.index('id="diagnosis-panel"') < PAGE.index('aria-label="Replay controls"')
+    assert '<section id="diagnosis-panel" class="panel" aria-label="Diagnosis" hidden>' in PAGE
+    assert 'if (health.diagnosis === "ready") {' in PAGE
+
+
+def test_no_free_text_only_the_three_fixed_notes():
+    assert "<input" not in PAGE and "<textarea" not in PAGE and "contenteditable" not in PAGE
+    notes = re.findall(r'<option value="(none|emergency|injection)"', PAGE)
+    assert notes == ["none", "emergency", "injection"]
+    from app.agent import demo
+    for note in demo.NOTES.values():
+        if note:
+            assert f'"{note}"' in PAGE                       # the page offers exactly the precomputed notes
+
+
+def test_says_the_answers_are_precomputed_and_advisory():
+    assert "The explanations were computed once, in advance; this page never contacts a language model." in PAGE
+    assert "Diagnosis of the alert (advisory)" in PAGE and "Nothing here approves or carries out an action." in PAGE
+    assert "needs the supervisor's approval" in PAGE
+
+
+def test_api_text_is_never_inserted_as_html():
+    assert "innerHTML" not in PAGE and "insertAdjacentHTML" not in PAGE and "outerHTML" not in PAGE

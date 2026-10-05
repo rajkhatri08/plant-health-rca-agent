@@ -70,7 +70,7 @@ def body(f):
 def test_defaults_are_new_files_so_the_served_stream_is_untouched():
     assert ex.DEFAULT_CSV.name == "run_v2.csv" and ex.DEFAULT_SOURCE.name == "replay_source_v2.yaml"
     from app import api
-    assert api.DEFAULT_CSV.name == "run.csv"                         # the live demo's file until S9
+    assert api.DEFAULT_CSV.name == "run_v2.csv"                      # served since week 6 S9
 
 
 def test_mechanical_choice_is_fault_13_on_the_lowest_dev_number(fake):

@@ -64,7 +64,8 @@ Python, FastAPI, PostgreSQL + SQLAlchemy (Neon), scikit-learn and numpy, pytest,
 ## Commands
 - Tests: `pytest -q`
 - Convert raw data (Raj runs this; Claude Code never runs it): `python -m dataset.convert <name>`, one of `fault_free_training` (first, with `--crosscheck`), `fault_free_testing`, `faulty_training`, `faulty_testing`.
-- Run the API locally: `uvicorn app.api:app --reload` (health at `/health`, replay at `/replay/info` and `/replay/status?upto=<ts>`).
+- Run the API locally: `uvicorn app.api:app --reload` (health at `/health`, replay at `/replay/info` and `/replay/status?upto=<ts>`, the advisory diagnosis at `/diagnosis?upto=<ts>&note=none|emergency|injection`). It serves bundle pca_v3 and `app/replay/run_v2.csv`; the diagnosis comes only from the committed cache (`app/replay/demo.json`, `app/replay/llm_cache/`), never a live model.
+- Build the demo's diagnosis once (Raj runs this; paid, about Rs 1): `python -m eval.build_demo --from-run eval/runs/<stamp>_agent_run.json --billing-tier tier-1 [--min-interval 1]`.
 - Run the page locally: `ALLOWED_ORIGIN=http://localhost:8080 uvicorn app.api:app --reload` in one terminal and `python -m http.server 8080 -d web` in another, then open http://localhost:8080.
 - Build the detector bundle (after a fit and a calibration run): `python -m eval.build_bundle`. With Watch: `--watch data/models/pca_static_watch.json` (pca_v2). With the evidence normals as well: `--watch … --normals data/models/evidence_normals.json` (pca_v3).
 - Export the replay stream once: `python -m ingest.export_replay` (since week 6 S2 it writes `app/replay/run_v2.csv` with the analyzers, and `eval/replay_source_v2.yaml`; the served `run.csv` is the first export).
