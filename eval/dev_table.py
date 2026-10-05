@@ -43,6 +43,9 @@ reads "—".
 
 Writes a dev_table_<detector> run record holding every number, and a Markdown rendering
 of that record to data/tables/ (gitignored). Prints only the paths and one summary line.
+The record also holds the cumulative detection curve (eval/curves.py, week 7 S1e): per
+fault and for the summary mean, the share of runs detected within 6, 12 … 240 minutes of
+onset, from the same detections; `python -m eval.curves plot <record>` draws it.
 
 --split test (week 7; Raj runs it with EVAL_MODE=1 for the frozen test run, never Claude):
 the same table on the testing files through eval/split.py. All 500 runs per fault and the
@@ -71,6 +74,7 @@ from dataset import loader
 from eval import calibrate_driver as drv
 from eval import calibrate_watch as cw
 from eval import check_dev, metrics, run_record
+from eval import curves
 from eval import split as split_mod
 from eval.baselines import alarms as al
 from ingest import tags as tagmap
@@ -627,7 +631,7 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
     normal = sp.load_normal()
     cols = tagmap.column_indices(normal.columns, det.input_tags)      # the detector's inputs
     normal_tracks = {k: t for k, (t, _) in det.score(normal).items()}
-    rows, hit = {}, {}
+    rows, hit, delays = {}, {}, {}
     for f in faults:
         faulty = sp.load_faulty(f)
         if sorted(faulty.runs) != sorted(normal.runs):
@@ -655,11 +659,13 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
                 hit_right_30.update(right_30)
         rows[f"fault_{f:02d}"] = row_
         hit.update({(f, k): d.detected for k, d in dets.items()})
+        delays[f] = [dets[k].delay_min for k in sorted(dets)]
 
     results = {"faults": rows,
                "summary": mean_rate(hit, summary_faults, n_boot),
                "excluded": mean_rate(hit, EXCLUDED, n_boot),
-               "normal": normal_row(normal_tracks, warmup, n_boot, onset)}
+               "normal": normal_row(normal_tracks, warmup, n_boot, onset),
+               "cumulative": curves.cumulative_block(delays, summary_faults)}     # PROTOCOL, Delay (S1e)
     if watch_doc is not None:
         results["right_place"] = {"summary": mean_rate(hit_right, right_place_faults, n_boot),
                                   "summary_30min": mean_rate(hit_right_30, right_place_faults, n_boot)}

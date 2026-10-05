@@ -3738,3 +3738,95 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Decisions needed:** none.
 - **For Raj before S3 (dev only, no sealed data):** commit, then run `python -m eval.diag_table --library-as-of 2026-10-05T00:00:00+00:00 --fingerprint`, and commit the two records it writes. TEST_PLAN names the `diag_fingerprint` record, and S3 checks its matcher thresholds and k against the agent run's (1/3, 5/11, k = 2).
 - **Next:** S1d, the agent test path (`agent_table --split test`).
+
+### 2026-10-05: week 7 session 1d, the agent test path, agent_table --split test (code only; nothing run on sealed data, no paid call)
+- **Changed (`eval/agent_table.py`; the dev modes are unchanged):**
+  - **`--split test`** with `--dry-run` or `--evaluation` (the paid run), plus `--fingerprint-record`, `--prompt-sha256`, and for the paid run `--dry-run-record`, `--billing-tier`, `--min-interval` and `--repeats`. Other modes are refused on test, and the test flags are refused on dev.
+  - **Before any test load:**
+    - the frozen prompt hash
+    - the leave-one-out refs (`diag_table.check_loo_refs`, S0 answer 16)
+    - the matcher's thresholds and k re-derived on dev by `matcher_rules`, which must equal the `diag_fingerprint` record's (threshold, accepted, short, k per stage), with the same library and inputs (S0 answer 11, S1 Q2)
+  - **Cases (`gather_test`),** only on the seed-20261006 draw (S0 answer 14; the file is loaded, then cut to the drawn runs before scoring):
+    - known: 12 faults, full library
+    - unknown: 16–20, full library; correct only when declined
+    - loo: 1, 4, 5 and 13, each on its own graph and library variant without that entry (`Case.lib`, `run_plan(libraries=…)`)
+    - false: every notification on the drawn normal runs
+  - **The false-alert cap:** more than 50 false-alert cases stops the run, with "stop and tell Raj" (S0 answer 15).
+  - **`--dry-run`:**
+    - The FakeClient goes through the real graph. Its scratch folder is inside the sealed folder, so test prompts never leave it.
+    - It projects the cost at 5 and at 3 repeats (`Sizer` now records each call's repeat).
+    - `repeats_allowed` is 5 if its expected cost is at most Rs 400, else 3 if that is, else none (S0 answer 17).
+    - It writes a `test_agent_dry_run` record with counts and projections only.
+  - **`--evaluation` (paid):**
+    - It needs that dry-run record, from this commit on a clean tree, and its `repeats_allowed`. If none is allowed, it stops. Repeats are cut only to what the dry run allows, never cases.
+    - Budget default Rs 500, never more.
+    - The LLM cache is `<sealed>/llm_cache` (S0 answer 22). `calls.jsonl`, the ledger and the databases go under `<sealed>/test_outputs/<stamp>_test_agent_run/`.
+    - The `test_agent_run` record names them as `sealed:…` with their SHA-256s (S0 answer 21).
+  - **`--table` on a `test_agent_run`:**
+    - the shipped flow, the re-ranker and the matcher from the same passes (decision 79)
+    - faults 16–20 and leave-one-out declined, overall and by fault, for each view
+    - the keep rule read with unknowns = 16–20 plus leave-one-out (unknown rows read as loo rows for B2, in the driver only; Raj's `agent_metrics` is unchanged), marked "reported, not applied" (S0 answer 19)
+    - cold start "not applicable"; LLM only "not run" (S0 answer 18)
+  - **Outputs:** the `test_agent_table` Markdown in `data/tables/` leaves out the unstable case IDs; a copy listing them goes to the sealed folder.
+  - `output_path()` resolves `sealed:` paths.
+- **Tests:**
+  - **`tests/test_agent_table_test_split.py` (new, 25 tests):** a fake `load_testing` with one undrawn run in every file, a tmp sealed folder, a FakeClient, the draw cut to 3 numbers and the repeats to (2, 1). The tests cover:
+    - every kind, with both projections recorded
+    - dev loads before the first test load
+    - only drawn runs scored
+    - a tampered fingerprint stops before any test load
+    - the false-alert cap
+    - `repeats_allowed` across three projection caps
+    - dry-run refusals
+    - modes and flags refused per split
+    - the paid run's outputs all sealed, with loo cases never shown their left-out entry
+    - the real client's cache dir is the sealed one (a stand-in provider and stack)
+    - paid-run refusals: budget over 500, repeats not allowed, no tier, no dry run
+    - the dry run must be this commit's
+    - nothing allowed blocks the paid run
+    - the test table (keep rule not applied, unknowns by fault, no case IDs outside the sealed copy)
+    - `main`
+  - The existing agent, safety-set, demo and probe tests pass unchanged. Full suite: `pytest -q` exit 0.
+- **Unsure about:**
+  - **CI time:** the S1c and S1d test files are now the slowest in the suite, about 25–30 s per run-level test.
+  - **The dry run and the paid run each re-run the dev gather** (for the rules check) before the test loads. That's slower, but it means neither can start on rules that don't match the fingerprint.
+- **Decisions needed:** none.
+- **Next:** S1e, the cumulative detection curve and the AMOC plot (Raj writes the AMOC sweep), then S2 and S3.
+
+### 2026-10-05: week 7 session 1e, the cumulative detection curve and the AMOC driver, with the sweep stub for Raj (code only; nothing run on data)
+- **Raj's answers (S1e):** the AMOC point's delay is the pooled median over every run of the split's summary faults, misses +inf (PROTOCOL's delay convention), with the detection rate beside it. The AMOC curve is for App 3's static PCA only; the alarm rows stay at their operating points.
+- **Changed:**
+  - **`eval/curves.py` (new):**
+    - **`cumulative_detection` and `cumulative_block` (Claude's):** per fault, the share of runs detected within h minutes of onset, for h = 6, 12 … 240 (40 points, so a record can hold them); misses never count. The summary is the equal-weight mean over the summary faults.
+    - **`amoc_sweep` (Raj's stub, `NotImplementedError`):** its docstring is the full specification. Per q: the limits from `calibrate.limits_at` on the calibration pool; the tracks from `calibrate_driver.tracks` at the calibrated n and G; `per_24h` from `metrics.false_alerts_per_24h` on the split's normal runs; `delay_min` as the pooled median from `metrics.delay_summary`; and `detection_rate`. One point per grid q, in order. ValueError on a bad grid or empty inputs.
+    - **`run_amoc` (`python -m eval.curves amoc [--split dev|test]`):** the static PCA from its limits and calibration record (`dev_table.load_detector`; DPCA and alarm rows refused).
+      - It scores the calibration pool (open data on either split), the split's normal runs and its summary faults (12 on dev; 17 on test, through the split, access-logged).
+      - It refuses a calibrated q that isn't on the grid, or a sweep out of grid order.
+      - It writes an `amoc` or `test_amoc` record: every point keyed by q, the operating point at the calibrated q, and the count of points with infinite delay.
+    - **`plot` (`python -m eval.curves plot <record>`):** a PNG in `data/plots/`, drawn only from a record.
+      - **Cumulative:** from a dev_table or test_table record; per-fault lines plus the summary mean.
+      - **AMOC:** from an amoc or test_amoc record; false alerts per 24 h on a symlog axis, the operating point marked, infinite-delay points counted in the title.
+  - **`eval/dev_table.py`:** the record gains a `cumulative` block, from the same detections as the table, on both splits. The rendered table is unchanged.
+- **Tests (`tests/test_curves.py`, 22):**
+  - **14 pass now:**
+    - the horizons
+    - the cumulative curve by hand, and its refusals
+    - the block's mean
+    - the detection table's curve equal to the curve of its own detections
+    - the amoc driver on dev and test, with a stand-in sweep: what's scored, the onset, the purposes and loads, the record
+    - the driver's refusals
+    - `main`
+    - both plots from records
+    - the plot refusals
+  - **8 fail with the stub's `NotImplementedError` until Raj implements `amoc_sweep` (checked: 8 of 8, nothing else):**
+    - a hand-checked case: warm-up 1, n = 1, G = 0, onset 2; limits 2.5 and 4.0 at q = 50 and 100. It gives 24.0 then 0.0 false alerts per 24 h, a delay of 12 min at both, and a detection rate of 2/3.
+    - pooling across faults, where a majority of misses gives +inf
+    - equality with the pieces on calibrated synthetic runs
+    - five refusals
+  - The dev_table tests (dev, attribution, test split) pass. CI is red until the sweep is in, as with earlier stubs.
+- **Unsure about:**
+  - **The AMOC sweep on dev re-scores the calibration pool, the normal dev runs and 12 faults' dev runs once, then sweeps 509 grid points.** Each point rebuilds the tracks, so expect minutes, not seconds.
+  - **The cumulative curve is in records written from now on.** The committed dev_table records predate it. Raj reruns the dev table (static PCA, with `--watch` and `--masked` as before) to get a dev curve before S3.
+- **Decisions needed:** none.
+- **For Raj:** implement `amoc_sweep` until `tests/test_curves.py` passes. Then, on dev (no sealed data): rerun `python -m eval.dev_table … --watch … --masked …`, run `python -m eval.curves amoc`, and run `python -m eval.curves plot <record>` on each. Commit the records; the PNGs stay in `data/plots/`.
+- **Next:** the suite's run time (Raj's request): the 15 slowest tests and a proposal, nothing changed until approved. Then S2 and S3.
