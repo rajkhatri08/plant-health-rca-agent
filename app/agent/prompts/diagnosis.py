@@ -22,10 +22,15 @@ Rules:
 - Choose exactly one decision:
   - "propose": one candidate clearly fits. Give its ref exactly as written as entry_ref, and
     its family, and cite at least two evidence items that support it.
-  - "decline": the evidence is too weak, ambiguous or contradictory to choose. Declining is a
-    safe and acceptable answer; never guess.
+  - "decline": no candidate fits: each one has an item the evidence contradicts that matters
+    for it, or two candidates fit the evidence equally well item by item. Don't decline only
+    because the candidates look alike: compare their items against the evidence first.
   - "not_in_library": the evidence fits the family of a candidate, but none of the candidates
     describes this mechanism. Give that family.
+- How to choose: compare the candidates item by item against the evidence. Prefer the one
+  whose required items all agree and which has the fewest items the evidence contradicts.
+  An either-direction item (one of high, low, both) agrees with any of those states.
+  Don't go beyond the evidence.
 - Fields by decision: propose fills entry_ref and family; decline sets entry_ref and family
   to null; not_in_library sets entry_ref to null and gives the family. action_ids is []
   unless you propose.
