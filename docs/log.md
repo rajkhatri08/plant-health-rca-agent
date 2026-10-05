@@ -3657,3 +3657,36 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The access-log exclusion** is a small relaxation of "dirty". It's limited to that one append-only file.
 - **Decisions needed:** none.
 - **Next:** S1b, the detection test path (`dev_table --split test`).
+
+### 2026-10-05: week 7 session 1b, the detection test path, dev_table --split test (code only; nothing run on sealed data)
+- **Changed (`eval/dev_table.py`):**
+  - **`--split dev|test`** (default dev) and **`--twin-check <record>`**. On test, the twin-check record is required; on dev it's refused. On test the runs come from `eval/split.py`: `load_testing` with the purpose `test_table_<detector>`, so every file load is access-logged.
+  - **The onset is a parameter, not a module constant.** `operator_load`, `fault_row` and `normal_row` take `onset=` (default dev's 20), and so do the notification window, the lead baseline's detections, the chance rate and the false alerts. On test it's 160.
+  - **Faults and summary on test:** faults 1–20. The summary covers 1–20 except 3, 9 and 15; the excluded mean is still 3, 9 and 15. Right place is summarised over the 12 family faults (S1 Q4), recorded as `right_place_faults`.
+  - **Before divergence (S1 Q3, decision 57):** `load_twin_check` reads the twin_check record (its name, split test, a verdict).
+    - **Shared:** the column is computed as on dev, and the twin-copy assertion is kept, now at sample 160.
+    - **Not shared:** `fault_row` gets no twins, and the column reads "not reported" for every fault.
+  - **Faults 16–20 (S0 answer 8, S1 Q4):** family "n/a"; right place, family groups and the 30-minute reading "n/a"; Masked "not labelled". The masked record is still checked for faults 1–15 only.
+  - **The record and table:** the record is `test_table_<detector>`. Its config gets `pool` "test", `split`, the onset, the window [161, 200], faults 1–20, `right_place_faults`, and `twin_check` {record, verdict}. The table is "# Test detection table", "Test split, N run numbers", "Mean, faults 1–20 except 3, 9, 15", and names the twin record. Both stay aggregates only; the table goes to `data/tables/`.
+  - **Dev is unchanged.** `render` takes the faults from the record, and a missing `pool` or `faults` means dev. The 9 committed dev_table records render byte-identically under the old and the new `render` (checked in this session from the records only, no data). Dev records gain no new key; `pool: dev` already names the split.
+- **Tests:**
+  - **`tests/test_dev_table_test_split.py` (new, 18 tests):** a fake `load_testing` serves synthetic 250-sample testing runs (step after sample 160, faults 1–20), and the dev loaders fail if touched. The tests cover:
+    - what is loaded, each file once, with the purpose
+    - the twin record required, and refused on dev; bad twin records and a dirty tree refused before loading
+    - rows, delay, before divergence, chance rate, false alerts and hours equal to direct metric calls at onset 160
+    - the operator load window
+    - the summary sets
+    - "not reported" when the twins aren't shared
+    - a "shared" verdict still re-checked run by run
+    - the record's config, with aggregates only and no absolute paths
+    - the table text, and "n/a" and "not labelled" for 16–20
+    - `main`
+    - lead time at onset 160 against the realistic grouped alarms
+    - attribution summarised over the 12 family faults
+  - The existing dev tests pass unchanged. Full suite: `pytest -q` exit 0.
+- **Unsure about:**
+  - **The twin check uses the 33 fast tags (S0 answer 9), but an alarm row's inputs include analyzers.** If analyzer values differed from their twins before sample 160 under a "shared" verdict, an alarm-row test run would stop at the twin-copy assertion, before any metric is shown. That's covered by the crash rule (S0 answer 3). PCA's inputs are exactly the fast tags.
+  - **`eval/baselines/alarms.py` again has uncommitted blank lines** (now two, about line 190) that Claude didn't make, while Raj has it open. Left alone; commit or revert it before any recorded run.
+  - **The plan said "every record's config gets split".** Done for test records only, so dev records stay as they were; `pool` already says dev.
+- **Decisions needed:** none.
+- **Next:** S1c, the non-LLM diagnosis test path (`diag_table --split test`, the fingerprint record).

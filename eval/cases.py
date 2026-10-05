@@ -123,13 +123,14 @@ def _features_at(inp: Inputs, x, t, k, by_group, by_tag, fast_cols, an_cols):
                             by_group[k] / inp.w_group, by_tag[k] / inp.w_tag, inp.names)
 
 
-def score_pool(inp: Inputs, runs) -> list:
+def score_pool(inp: Inputs, runs, onset=ONSET) -> list:
     """Per run, by run number: {run, detected, notification_sample, delay_min} and, when
-    detected, the features at the first notification after onset."""
+    detected, the features at the first notification after onset (20 in training runs, the
+    default; 160 in testing runs, week 7)."""
     tracks, by_group, by_tag, fast_cols, an_cols = _prepare(inp, runs)
     per_run = []
     for k in sorted(runs.runs):
-        det = metrics.detection(tracks[k], ONSET, warmup=inp.lim["warmup"])
+        det = metrics.detection(tracks[k], onset, warmup=inp.lim["warmup"])
         row = {"run": int(k), "detected": bool(det.detected),
                "notification_sample": int(det.sample) if det.detected else None,
                "delay_min": float(det.delay_min) if det.detected else None}

@@ -14,10 +14,23 @@ folder, so no driver hardcodes a split again.
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+
 from dataset import loader
 from eval import metrics
 
 NAMES = ("dev", "test")
+TEST_SEED = 20261006               # S0 answer 14: one draw for every fault and the normal runs
+TEST_DRAW = 10
+TEST_RUN_NUMBERS = range(1, 501)
+
+
+def test_draw(seed=TEST_SEED, n=TEST_DRAW, numbers=TEST_RUN_NUMBERS):
+    """The test subsample's run numbers, sorted: n drawn without replacement from the sorted
+    numbers with numpy's default generator at seed (as agent_table draws its dev subsets).
+    Used for every fault and for the normal runs' false-alert cases (S0 answers 14, 15)."""
+    pool = sorted(int(k) for k in numbers)
+    return sorted(int(x) for x in np.random.default_rng(seed).choice(pool, n, replace=False))
 
 
 @dataclass(frozen=True)
