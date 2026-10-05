@@ -3566,3 +3566,49 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **The probes runner doesn't record its spend.** Add it before any rerun.
   - **Unused nodes:** `route_after_check` and `not_in_library` remain in `app/agent/nodes.py`, no longer wired since decision 79. Raj may remove them.
   - **Parked as before:** ISO 14224 category names; source licences "to confirm"; the r2 notes.
+
+### 2026-10-05: week 7 kickoff (S0), plan and Raj's answers
+- **Changed:** docs only (this entry). No code, and nothing run. Nothing touched the test split, faults 16–20 or the sealed folder.
+- **Week 7 plan approved.** Raj runs every command that opens sealed data, on a clean tree.
+  - S1 sealed-data plumbing (Claude; never run on sealed data): the `EVAL_MODE` loader with one access-log line per load, which refuses a dirty tree; a test-split path in the existing drivers; the twin-stream check; spend recorded by the probes runner; the unused nodes removed (answer 26)
+  - S2 the published-number check, on dev, before the freeze (answer 20)
+  - S3 the freeze: `eval/TEST_PLAN.md`, PROTOCOL v2 additions, commit, tag
+  - S4 the frozen test run (Raj runs it)
+  - S5 the README
+  - S6 the episode 2 demo script, the closing `decisions.md`, PLAN and the week close
+- **Scope (Raj):** no Should item is built before the frozen test run. Any Should work comes after it, is evaluated on dev only, and is reported as a post-test extension, never in the test tables.
+- **Raj's answers (before any sealed data is opened):**
+  1. **Test plan:** a separate `eval/TEST_PLAN.md`, plus additions to PROTOCOL v2 before tagging.
+  2. **Tag:** `protocol-v2-frozen`, pushed to GitHub before S4 step 1.
+  3. **Crash rule:** a crash or a budget stop with no metric shown may be fixed in a logged patch commit, whose diff touches only the crash, and rerun under the same tag, with both attempts logged. Once any metric has been shown, any change is a new version, and both results are reported.
+  4. **Test dry run:** allowed, access-logged, printing only counts and the cost projection.
+  5. **Faults 16–20:** testing-file runs only.
+  6. **Detection:** over all 500 test runs per fault and all 500 normal test runs.
+  7. **Bootstrap:** seed 20261001 reused. Test run numbers are treated as shared across files, as PROTOCOL says.
+  8. **Masked column for faults 16–20:** "not labelled".
+  9. **Twin check:** samples 1–160, exact float32 equality on the 33 fast tags.
+  10. **Plots:** in the record. The README links them, with at most one cumulative-detection figure.
+  11. **Thresholds and k on test:** the re-derived values (1/3 provisional, 5/11 revised, k = 2, on the r2 library). Both sets are recorded.
+  12. **Matcher and forests:** reported on all detected test runs and on the 10-run subsample, clearly labelled. The paired comparison is on the subsample only.
+  13. **Forests:** refit from the authoring and ceiling runs with seed 20261002, with no pickles, and refit for leave-one-out. Before any test use, a fingerprint check confirms that the refit reproduces the dev forest predictions exactly; if it doesn't, the run stops.
+  14. **Test subsample:** seed 20261006. One draw of 10 run numbers, used for every fault and for the normal test runs' false-alert cases.
+  15. **False-alert cases:** every notification on the 10 drawn normal runs, with no cap. If the dry run finds more than 50, it stops and Raj is told.
+  16. **Leave-one-out:** four library variants at the same library as-of, with thresholds from the full library. Refs removed: `mixed-feed-reactant-ratio-shift@r1` (fault 1), `reactor-cooling-water-warm-supply@r1` (4), `condenser-cooling-water-warm-supply@r1` (5), `reaction-rate-drift@r1` (13). These are checked against the library before the freeze.
+  17. **Budget:** cap Rs 500, `--min-interval 1`, Tier 1. The dry run's expected cost must be at most Rs 400 before the paid run. If it's over, repeats are cut from 5 to 3, never cases.
+  18. **LLM-only diagnostic:** not run on test, recorded as "not run".
+  19. **Keep rule:** reported on test, not applied. **Latency:** per-call figures from the batch; cold start "not applicable".
+  20. **Published-number check:** Raj doesn't have Yin et al.'s table yet and will try the college library this week.
+      - **If Raj has it by S2:** Raj gives the component count and the per-fault rates. The check uses theoretical limits (F for T², Jackson–Mudholkar for SPE). Agreement means within 10 points per fault on the detectable faults, with each miss explained. It runs before the freeze.
+      - **If not:** it's recorded as "not run: the paper wasn't accessible", with the deviation k = 12, and the README says so.
+  21. **Test records:** per-case rows stay in the sealed folder; only aggregates are committed to `eval/runs/`.
+  22. **Test LLM cache:** in the sealed folder.
+  23. **Demo:** both episodes stay on dev data, with no test material in the deploy.
+  24. **README:** Claude drafts setup, architecture and commands. Raj writes the results and limitations, with guidance from the Claude.ai chat.
+  25. **`decisions.md`:** a closing section summarising decisions 1–79 for a reader, plus the week 7 decisions.
+  26. **Unused nodes:** `route_after_check` and `not_in_library` are removed from `app/agent/nodes.py` before the freeze. Claude may make the deletion and update the tests that reference them.
+- **Checked now (read-only):** all four refs in answer 16 exist as entries in `library/entries/`. Their revisions are checked in S3.
+- **Tests:** none (docs only).
+- **Unsure about:**
+  - **Answer 26:** `not_in_library` is also an output-schema decision value (`schema.py`, `faithfulness.py`, `shipped.py`, the prompt). Only the node function goes; the schema value stays, because decision 79 scores it as a veto.
+  - **Answers 21 and 22:** the drivers' test path must write per-case rows and the LLM cache under the sealed folder, and committed records must hold aggregates only. S1 adds a test for this.
+- **Decisions needed (S3):** the PROTOCOL v2 additions from answers 3, 11–17 and 19 (the test subsample seed, the false-alert rule, the leave-one-out refs, the repeat cut, the crash rule), made before tagging.
