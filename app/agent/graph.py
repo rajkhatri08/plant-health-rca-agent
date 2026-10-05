@@ -1,4 +1,4 @@
-"""The diagnosis graph's harness (decisions 74, 75; ported from spikes/langgraph): state,
+"""The diagnosis graph's harness (decisions 74, 75; ported from the week 5 LangGraph spike): state,
 the fixed wiring, the checkpointer, and the calls the operator and the evaluation make.
 Claude's scaffolding; the nodes are Raj's (app/agent/nodes.py).
 

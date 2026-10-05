@@ -159,3 +159,20 @@ def test_only_get_routes():
     for r in api.create_app(allowed_origins=[]).routes:
         if hasattr(r, "methods") and r.path in ("/health", "/replay/info", "/replay/status", "/diagnosis"):
             assert r.methods <= {"GET", "HEAD"}
+
+
+def test_a_stream_the_evidence_cant_read_disables_only_the_diagnosis(built, tmp_path):
+    # Episode 1 served from a 33-tag stream (no analyzer rows, like run.csv): the evidence tool
+    # refuses the gap (tools.ToolError). The API must still start and replay; only /diagnosis goes.
+    import csv as csv_mod
+    fast_only = tmp_path / "fast_only.csv"
+    with open(built["streams"]["1"]) as src, open(fast_only, "w", newline="") as dst:
+        r, w = csv_mod.reader(src), csv_mod.writer(dst, lineterminator="\n")
+        w.writerow(next(r))
+        from tests.test_fit_pca import FAST
+        w.writerows(row for row in r if row[1] in FAST)
+    with client(built, csv=fast_only) as c:
+        h = c.get("/health").json()
+        assert h["status"] == "ok" and h["diagnosis"].startswith("unavailable")
+        assert c.get("/replay/status", params={"upto": "2026-01-05T08:00:00Z"}).status_code == 200
+        assert c.get("/diagnosis", params={"upto": "2026-01-05T08:00:00Z"}).status_code == 503

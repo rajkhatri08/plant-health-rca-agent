@@ -95,8 +95,8 @@ def create_app(bundle_dir=None, csv_path=None, allowed_origins=None, demo_dir=No
             try:
                 state["demo"] = demo.start_demo(state["bundle"], demo_dir, streams=streams, library=library,
                                                 render=render)
-            except (demo.DemoError, llm.LLMError, OSError, ValueError, KeyError) as err:
-                state["demo_error"] = f"{type(err).__name__}: {err}"
+            except Exception as err:            # noqa: BLE001 the demo is optional: any failure, including
+                state["demo_error"] = f"{type(err).__name__}: {err}"     # a tools.ToolError, disables only /diagnosis
         yield
 
     app = FastAPI(title="Plant health monitor", lifespan=lifespan)
