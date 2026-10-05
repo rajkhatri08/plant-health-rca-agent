@@ -71,7 +71,10 @@ def t2_limit_f(k, n, alpha=ALPHA) -> float:
     """The paper's eq. 3: T²lim = k (n² - 1) / (n (n - k)) · F_alpha(k, n - k), where F_alpha
     is the alpha quantile of the F distribution with (k, n - k) degrees of freedom and n is
     the number of fit samples. Raises ValueError unless 1 <= k < n and 0 < alpha < 1."""
-    raise NotImplementedError("Raj implements t2_limit_f (week 7 S2)")
+    if not (1 <= k < n) or not (0 < alpha < 1):
+        raise ValueError(f"need 1 <= k < n and 0 < alpha < 1 (k={k}, n={n}, alpha={alpha})")
+    from scipy import stats
+    return float(k * (n ** 2 - 1) / (n * (n - k)) * stats.f.ppf(alpha, k, n - k))
 
 
 def spe_limit_jm(residual_eigenvalues, alpha=ALPHA) -> float:
@@ -80,13 +83,27 @@ def spe_limit_jm(residual_eigenvalues, alpha=ALPHA) -> float:
     alpha quantile;
         SPElim = θ1 · [c_alpha · sqrt(2 θ2 h0²) / θ1 + 1 + θ2 h0 (h0 - 1) / θ1²] ^ (1 / h0).
     Raises ValueError on no residual eigenvalues, a non-positive one, or alpha outside (0, 1)."""
-    raise NotImplementedError("Raj implements spe_limit_jm (week 7 S2)")
+    lam = np.asarray(residual_eigenvalues, dtype=float)
+    if lam.size == 0:
+        raise ValueError("no residual eigenvalues")
+    if not np.all(np.isfinite(lam)) or np.any(lam <= 0):
+        raise ValueError("every residual eigenvalue must be positive and finite")
+    if not (0 < alpha < 1):
+        raise ValueError(f"alpha must be in (0, 1), not {alpha}")
+    from scipy import stats
+    th1, th2, th3 = (float(np.sum(lam ** i)) for i in (1, 2, 3))
+    h0 = 1 - 2 * th1 * th3 / (3 * th2 ** 2)
+    c = stats.norm.ppf(alpha)
+    return float(th1 * (c * np.sqrt(2 * th2 * h0 ** 2) / th1 + 1 + th2 * h0 * (h0 - 1) / th1 ** 2) ** (1 / h0))
 
 
 def flagged(t2, spe, t2_lim, spe_lim) -> np.ndarray:
     """One 0/1 int per sample: 1 when T² > t2_lim or SPE > spe_lim (strictly; either one is
     enough, as in the paper). Raises ValueError if t2 and spe differ in length."""
-    raise NotImplementedError("Raj implements flagged (week 7 S2)")
+    t2, spe = np.asarray(t2, dtype=float), np.asarray(spe, dtype=float)
+    if t2.shape != spe.shape:
+        raise ValueError(f"t2 and spe differ in length ({t2.shape} vs {spe.shape})")
+    return ((t2 > t2_lim) | (spe > spe_lim)).astype(int)          # either statistic, strictly
 
 
 def per_sample_rate(flags_by_run, first) -> float:
@@ -94,7 +111,19 @@ def per_sample_rate(flags_by_run, first) -> float:
     (first is 1-based: onset + 1 for a detection rate, the first scored sample for a false
     alarm rate). flags_by_run maps a run number to its 0/1 array over the whole run.
     Raises ValueError if there are no runs, first < 1, or first is past a run's end."""
-    raise NotImplementedError("Raj implements per_sample_rate (week 7 S2)")
+    if not flags_by_run:
+        raise ValueError("no runs")
+    if first < 1:
+        raise ValueError(f"first is 1-based, not {first}")
+    hits = total = 0
+    for run in sorted(flags_by_run):
+        flags = np.asarray(flags_by_run[run])
+        if first > len(flags):
+            raise ValueError(f"first {first} is past run {run}'s end ({len(flags)} samples)")
+        part = flags[first - 1:]
+        hits += int(part.sum())
+        total += part.size
+    return hits / total                                              # pooled over samples
 
 
 # ---------- the comparison (Claude's) ----------
