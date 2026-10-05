@@ -1,0 +1,102 @@
+{
+  "answers": {
+    "entry-cooling": {
+      "model_version": "gemini-3.1-flash-lite",
+      "prompt": "The text below describes a disturbance in a simulated chemical plant. Does it match a numbered disturbance or fault in a published, well-known benchmark? If you recognise it, name the benchmark and the number. If you don't, say so.\n\n---\nReactor cooling water supply warmer than normal\nThe cooling water reaching the reactor is warmer than usual, so each unit of water removes less heat. The reactor temperature controller compensates by opening the cooling water valve further, and the reactor temperature stays at its setpoint. The fault is masked: the measurements look normal and only the valve position shows it. If the supply keeps warming, the valve can run out of travel, and the reactor temperature would then rise.\n---",
+      "raw": "{\n  \"recognised\": true,\n  \"name\": \"Tennessee Eastman Process\",\n  \"source\": \"Downs and Vogel (1993)\",\n  \"number\": 4,\n  \"explanation\": \"The description matches Fault 4 in the Tennessee Eastman Process benchmark, which is defined as a step change in the cooling water inlet temperature.\"\n}",
+      "tokens_in": 146,
+      "tokens_out": 78,
+      "tokens_thinking": 0
+    },
+    "entry-drift": {
+      "model_version": "gemini-3.1-flash-lite",
+      "prompt": "The text below describes a disturbance in a simulated chemical plant. Does it match a numbered disturbance or fault in a published, well-known benchmark? If you recognise it, name the benchmark and the number. If you don't, say so.\n\n---\nReaction rate drifting slowly\nThe reaction rate drifts slowly away from normal, in either direction, as can happen when catalyst activity or the reaction kinetics change. No single controller sees it directly. It shows as the pressures around the gas loop (reactor, separator and stripper) moving together, down in most cases and up in some. It develops over hours, so it's caught late and not on every run, and the evidence for it is weaker than for a step change.\n---",
+      "raw": "{\n  \"recognised\": true,\n  \"name\": \"Tennessee Eastman Process\",\n  \"source\": \"Downs and Vogel (1993)\",\n  \"number\": 14,\n  \"explanation\": \"The description matches Fault 14 in the Tennessee Eastman Process benchmark, which is defined as a slow drift in the reaction kinetics or catalyst activity, manifesting as gradual pressure changes across the gas loop.\"\n}",
+      "tokens_in": 151,
+      "tokens_out": 91,
+      "tokens_thinking": 0
+    },
+    "entry-feed-loss": {
+      "model_version": "gemini-3.1-flash-lite",
+      "prompt": "The text below describes a disturbance in a simulated chemical plant. Does it match a numbered disturbance or fault in a published, well-known benchmark? If you recognise it, name the benchmark and the number. If you don't, say so.\n\n---\nReactant-1 feed supply lost\nThe supply of reactant 1 drops. Its flow controller opens the feed valve to make up the flow, but the flow keeps falling, and within the hour the valve is fully open: the loop has run out of travel. Less reactant 1 reaches the reactor, so its share of the reactor feed falls and the reactant-1 composition controller loses control as well. The compressor draws less power. The cause is upstream of the valve, not the valve itself.\n---",
+      "raw": "{\n  \"recognised\": true,\n  \"name\": \"Tennessee Eastman Process\",\n  \"source\": \"Downs and Vogel (1993)\",\n  \"number\": 1,\n  \"explanation\": \"The description matches Fault 1 of the Tennessee Eastman Process benchmark, which is defined as a step change in the A/C feed ratio in the stream 4 feed, effectively representing a loss or disturbance in the supply of reactant 1.\"\n}",
+      "tokens_in": 156,
+      "tokens_out": 99,
+      "tokens_thinking": 0
+    },
+    "loops": {
+      "model_version": "gemini-3.1-flash-lite",
+      "prompt": "The material below describes a simulated chemical plant. Does it come from a published, well-known simulation model or benchmark process? If you recognise it, name the model or benchmark and the publication that introduced it. If you don't, say so.\n\n---\nFD-FIC-101: holds FD-FI-101 (Reactant-1 feed flow) by moving FD-FV-105\nFD-FIC-102: holds FD-FI-102 (Reactant-3 feed flow) by moving FD-FV-106\nFD-FIC-103: holds FD-FI-103 (Reactant-4 feed flow) by moving FD-FV-107\nFD-FIC-104: holds FD-FI-104 (Mixed feed flow (reactants 1 and 2)) by moving FD-FV-108\nRX-AIC-211: holds RX-AI-211 (Reactor feed composition, reactant 1) by moving the setpoint of FD-FIC-101\nRX-AIC-214: holds RX-AI-214 (Reactor feed composition, reactant 3) by moving the setpoint of FD-FIC-102\nRX-AIC-215: holds RX-AI-215 (Reactor feed composition, reactant 4) by moving the setpoint of FD-FIC-103\nRX-LIC-203: holds RX-LI-203 (Reactor level) by moving the setpoint of FD-FIC-104\nRX-TIC-204: holds RX-TI-204 (Reactor temperature) by moving the setpoint of RX-TIC-205\nRX-TIC-205: holds RX-TI-205 (Reactor cooling water outlet temperature) by moving RX-FV-206\nSP-LIC-402: holds SP-LI-402 (Separator level) by moving SP-FV-405\nSP-AIC-412: holds SP-AI-412 (Purge gas composition, inert) by moving the setpoint of SP-FIC-406\nSP-FIC-406: holds SP-FI-406 (Purge flow) by moving SP-FV-407\nCP-FIC-501: holds CP-FI-501 (Recycle flow) by moving CP-FV-503\nST-LIC-601: holds ST-LI-601 (Stripper level) by moving ST-FV-606\nST-AIC-612: holds ST-AI-612 (Product composition, reactant 4) by moving the setpoint of ST-TIC-604\nST-TIC-604: holds ST-TI-604 (Stripper temperature) by moving the setpoint of ST-FIC-605\nST-FIC-605: holds ST-FI-605 (Stripper steam flow) by moving ST-FV-607\nST-FIC-603: holds ST-FI-603 (Stripper underflow) by moving CD-FV-302\n---",
+      "raw": "{\n  \"recognised\": true,\n  \"name\": \"Tennessee Eastman Process\",\n  \"source\": \"Downs, J. J., & Vogel, E. F. (1993). A plant-wide industrial process control problem. Computers & Chemical Engineering, 17(3), 245-255.\",\n  \"number\": 1,\n  \"explanation\": \"The control loop naming convention (e.g., FD-FIC-101, RX-AIC-211, SP-LIC-402) and the specific process units described (Reactor, Separator, Stripper) are characteristic of the Tennessee Eastman Process (TEP) benchmark, a widely used standard for evaluating process control and fault detection algorithms.\"\n}",
+      "tokens_in": 713,
+      "tokens_out": 165,
+      "tokens_thinking": 0
+    },
+    "tags": {
+      "model_version": "gemini-3.1-flash-lite",
+      "prompt": "The material below describes a simulated chemical plant. Does it come from a published, well-known simulation model or benchmark process? If you recognise it, name the model or benchmark and the publication that introduced it. If you don't, say so.\n\n---\nFD-FI-101: Reactant-1 feed flow (thousand standard m\u00b3/h)\nFD-FI-102: Reactant-3 feed flow (kg/h)\nFD-FI-103: Reactant-4 feed flow (kg/h)\nFD-FI-104: Mixed feed flow (reactants 1 and 2) (thousand standard m\u00b3/h)\nFD-FV-105: Reactant-1 feed valve (% open)\nFD-FV-106: Reactant-3 feed valve (% open)\nFD-FV-107: Reactant-4 feed valve (% open)\nFD-FV-108: Mixed feed valve (reactants 1 and 2) (% open)\nRX-FI-201: Reactor feed rate (thousand standard m\u00b3/h)\nRX-PI-202: Reactor pressure (kPa (gauge))\nRX-LI-203: Reactor level (%)\nRX-TI-204: Reactor temperature (\u00b0C)\nRX-TI-205: Reactor cooling water outlet temperature (\u00b0C)\nRX-FV-206: Reactor cooling water valve (% open)\nRX-AI-211: Reactor feed composition, reactant 1 (mol %)\nRX-AI-212: Reactor feed composition, inert (mol %)\nRX-AI-213: Reactor feed composition, reactant 2 (mol %)\nRX-AI-214: Reactor feed composition, reactant 3 (mol %)\nRX-AI-215: Reactor feed composition, reactant 4 (mol %)\nRX-AI-216: Reactor feed composition, byproduct (mol %)\nCD-TI-301: Condenser cooling water outlet temperature (\u00b0C)\nCD-FV-302: Condenser cooling water valve (% open)\nSP-TI-401: Separator temperature (\u00b0C)\nSP-LI-402: Separator level (%)\nSP-PI-403: Separator pressure (kPa (gauge))\nSP-FI-404: Separator underflow (m\u00b3/h)\nSP-FV-405: Separator liquid outlet valve (% open)\nSP-FI-406: Purge flow (thousand standard m\u00b3/h)\nSP-FV-407: Purge valve (% open)\nSP-AI-411: Purge gas composition, reactant 1 (mol %)\nSP-AI-412: Purge gas composition, inert (mol %)\nSP-AI-413: Purge gas composition, reactant 2 (mol %)\nSP-AI-414: Purge gas composition, reactant 3 (mol %)\nSP-AI-415: Purge gas composition, reactant 4 (mol %)\nSP-AI-416: Purge gas composition, byproduct (mol %)\nSP-AI-417: Purge gas composition, product 1 (mol %)\nSP-AI-418: Purge gas composition, product 2 (mol %)\nCP-FI-501: Recycle flow (thousand standard m\u00b3/h)\nCP-JI-502: Compressor power (kW)\nCP-FV-503: Compressor recycle valve (% open)\nST-LI-601: Stripper level (%)\nST-PI-602: Stripper pressure (kPa (gauge))\nST-FI-603: Stripper underflow (m\u00b3/h)\nST-TI-604: Stripper temperature (\u00b0C)\nST-FI-605: Stripper steam flow (kg/h)\nST-FV-606: Stripper product outlet valve (% open)\nST-FV-607: Stripper steam valve (% open)\nST-AI-611: Product composition, reactant 3 (mol %)\nST-AI-612: Product composition, reactant 4 (mol %)\nST-AI-613: Product composition, byproduct (mol %)\nST-AI-614: Product composition, product 1 (mol %)\nST-AI-615: Product composition, product 2 (mol %)\n---",
+      "raw": "{\n  \"recognised\": true,\n  \"name\": \"Tennessee Eastman Process\",\n  \"source\": \"Downs, J. J., & Vogel, E. F. (1993). A plant-wide industrial process control problem. Computers & Chemical Engineering, 17(3), 245-255.\",\n  \"number\": 52,\n  \"explanation\": \"The provided list of sensors and actuators corresponds exactly to the standard variable list for the Tennessee Eastman Process (TEP) benchmark, a widely used simulation model in chemical process control research.\"\n}",
+      "tokens_in": 982,
+      "tokens_out": 127,
+      "tokens_thinking": 0
+    }
+  },
+  "results": {
+    "entry-cooling": {
+      "leaks": [
+        "Eastman",
+        "Fault 4",
+        "Tennessee",
+        "Vogel"
+      ],
+      "model_says": true,
+      "number": 4,
+      "recognised": true
+    },
+    "entry-drift": {
+      "leaks": [
+        "Eastman",
+        "Fault 14",
+        "Tennessee",
+        "Vogel"
+      ],
+      "model_says": true,
+      "number": 14,
+      "recognised": true
+    },
+    "entry-feed-loss": {
+      "leaks": [
+        "Eastman",
+        "Fault 1",
+        "Tennessee",
+        "Vogel",
+        "stream 4"
+      ],
+      "model_says": true,
+      "number": 1,
+      "recognised": true
+    },
+    "loops": {
+      "leaks": [
+        "Eastman",
+        "TEP",
+        "Tennessee",
+        "Vogel"
+      ],
+      "model_says": true,
+      "number": 1,
+      "recognised": true
+    },
+    "tags": {
+      "leaks": [
+        "Eastman",
+        "TEP",
+        "Tennessee",
+        "Vogel"
+      ],
+      "model_says": true,
+      "number": 52,
+      "recognised": true
+    }
+  }
+}

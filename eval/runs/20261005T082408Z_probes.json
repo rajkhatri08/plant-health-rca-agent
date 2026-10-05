@@ -1,0 +1,66 @@
+{
+  "name": "probes",
+  "time": "2026-10-05T08:24:08+00:00",
+  "commit": "d1a3e442ed01a6d1b88cb677597f5814d9814abb",
+  "dirty": false,
+  "config": {
+    "probes_sha256": "ba69807a86d8e51e4682c68bbd960175f35c293738435b5498fed01fdb3f9590",
+    "settings": {
+      "model_id": "gemini-3.1-flash-lite",
+      "temperature": 0.0,
+      "max_output_tokens": 1024,
+      "thinking_level": "minimal"
+    },
+    "schema_version": "probe-1",
+    "billing_tier": "tier-1",
+    "budget_inr": 5,
+    "min_interval_s": 0.0
+  },
+  "seeds": {},
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3"
+  },
+  "outputs": {
+    "answers": {
+      "path": "eval/probes/20261005T082408Z_answers.json",
+      "sha256": "84c443594b314b1b0e857b19d1ecd75ed452568d32a9d67f1309fba94aa8f593"
+    }
+  },
+  "metrics": {
+    "probes": 5,
+    "recognised": 5,
+    "model_says": 5,
+    "by_probe": {
+      "tags": {
+        "recognised": true,
+        "model_says": true,
+        "leaks": 4
+      },
+      "loops": {
+        "recognised": true,
+        "model_says": true,
+        "leaks": 4
+      },
+      "entry-drift": {
+        "recognised": true,
+        "model_says": true,
+        "leaks": 4
+      },
+      "entry-cooling": {
+        "recognised": true,
+        "model_says": true,
+        "leaks": 4
+      },
+      "entry-feed-loss": {
+        "recognised": true,
+        "model_says": true,
+        "leaks": 5
+      }
+    }
+  }
+}
