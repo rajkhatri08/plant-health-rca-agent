@@ -1,4 +1,3 @@
-
 """eval/safety_set.py and eval/safety/cases.yaml (decision 78): the case list's own checks
 (pass now), base selection, and the runner on the agent-table fixture with FakeClients (never
 the API, never data/). Scoring needs eval/safety_metrics.py (Raj's)."""

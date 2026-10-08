@@ -1,12 +1,12 @@
 <!-- Destination: eval/TEST_PLAN.md -->
-# The frozen test run: test plan (DRAFT for Raj's review; not committed, not tagged)
+# The frozen test run: test plan (frozen at tag protocol-v2-frozen)
 
 This plan fixes everything the test run uses before any sealed data is opened. It goes with
 `eval/PROTOCOL.md` v2, whose pre-registered values it adds to, and both are tagged together.
 Every value here comes from one of these, named beside it:
 - Raj's S0 answers 1–26 (`docs/log.md`, week 7 kickoff)
 - his S1 answers Q1–Q4, and his S1e and S2 answers
-- his reviews of this plan (6 and 8 October 2026)
+- his reviews of this plan (6, 8 and 9 October 2026)
 - a committed record
 
 **Scope (Raj):** no Should item is built before the test run. Any Should work comes after it,
@@ -22,28 +22,30 @@ is evaluated on dev only, and is reported as a post-test extension, never in the
 
   The patch is a logged commit, and every attempt stays in the access log and the session log.
   Otherwise any change is a new protocol version, and both results are reported.
-- **Patches and the dry run:** a patch after step 10 (the dry run) means rerunning the dry run
+- **Patches and the dry run:** a patch after step 11 (the dry run) means rerunning the dry run
   on the patch commit. The code enforces this: the paid run refuses a dry run from another commit.
 - **Reading the stops this way:**
-  - **Step 9:** a fingerprint mismatch stops before any test load and has shown no metric, so
-    it can be patched under the rule above.
-  - **Step 11:** a budget stop is covered by the pre-registered rerun in section 6. An
-    incomplete record is never tabled.
-- **Every test record is committed,** including incomplete ones (PROTOCOL, Reporting).
+  - **Step 10:** a fingerprint mismatch stops before any test load and has shown no metric,
+    so it can be patched under the rule above.
+  - **Step 12:** a budget stop is covered by the pre-registered rerun in section 6.
+- **Every test record is committed,** including incomplete ones (PROTOCOL, Reporting). An
+  incomplete record is never tabled.
 
 ## 2. Frozen values
 
 ### Detector and inputs (open data, fixed by checksum)
 | Item | Value | Source |
 |---|---|---|
-| Detector | static PCA, 33 fast tags, k = 12 (the shipped detector; the only one on test) | `eval/runs/20260927T093509Z_fit_pca.json` |
+| Detector (shipped) | static PCA, 33 fast tags, k = 12 | `eval/runs/20260927T093509Z_fit_pca.json` |
 | Model | `data/models/pca_static.npz`, SHA-256 `1e4aa9e6…afae5` | the fit record |
 | Limits | `data/models/pca_static_limits.json`, SHA-256 `0fae67e5…9371e`: n = 3, G = 15, q = 95.57, warm-up 9, L = 0 | `eval/runs/20260927T150527Z_calibrate_pca.json` |
 | Watch boundaries | `data/models/pca_static_watch.json`, SHA-256 `9a841978…3ec7b`, p = 99.67 | `eval/runs/20260929T065812Z_calibrate_watch.json` |
 | Evidence normals | `data/models/evidence_normals.json`, SHA-256 `7a12d045…ed631` | `eval/runs/20261001T182856Z_evidence_normals.json` |
+| DPCA (a reported row only) | model `data/models/pca_dynamic.npz`, SHA-256 `33433c41…201f`; limits `data/models/pca_dynamic_limits.json`, SHA-256 `e8b8c436…a558c`: L = 1, n = 3, G = 13, q = 97.07, warm-up 9 | `eval/runs/20260928T172623Z_fit_dpca.json`, `eval/runs/20260928T175708Z_calibrate_pca.json`; selection `eval/runs/20260929T020335Z_select_detector.json` (decision 63) |
 | Alarm baseline, realistic list | `data/models/alarms_realistic_limits.json`, SHA-256 `3562506e…c8f20` (grouped and ungrouped rows) | `eval/runs/20260928T105104Z_calibrate_alarms_realistic.json` |
 | Alarm baseline, every tag | `data/models/alarms_every_limits.json`, SHA-256 `833c97bd…be37` | `eval/runs/20260928T105126Z_calibrate_alarms_every.json` |
 | Masked list | fault 4 (RX-FV-206); 1–3 and 5–15 unmasked; 16–20 "not labelled" (S0 answer 8) | `eval/runs/20260928T155738Z_masked_faults.json` |
+| Fingerprint | `eval/runs/20261008T181533Z_diag_fingerprint.json` (section 3) | Raj's dev run, commit af5ebc5 |
 | Bundle | `app/bundles/pca_v3` (the agent's tools) | decision 75; S2 of week 6 |
 | Data | `dataset/manifest.yaml` SHA-256 `b5f36f53…c95`; `dataset/splits.yaml` SHA-256 `99fdaabb…202c` | the manifest |
 
@@ -56,10 +58,13 @@ is evaluated on dev only, and is reported as a post-test extension, never in the
   tags, all or nothing. If the twins aren't shared, "detected before divergence" reads
   "not reported".
 - **Detector rows:**
-  - static PCA (the shipped detector)
+  - static PCA, the shipped detector
+  - **DPCA, a reported row only (review A, final):**
+    - no paired comparison with static PCA, and no verdict
+    - static PCA ships whatever it shows
+    - the selection, made on the selection runs (decision 63), isn't reopened
+    - the row only shows whether that choice holds up on held-out data
   - the conventional-alarm baseline's realistic and every-tag lists, grouped and ungrouped
-
-  DPCA isn't run on test (see "Not run on test").
 - **Masked column:** on every row, alarm rows included (review B). PROTOCOL reports detection
   separately for masked and unmasked faults, and the masked fault is where alarms and PCA
   differ most. It's a label on the fault, and no metric changes.
@@ -81,11 +86,10 @@ is evaluated on dev only, and is reported as a post-test extension, never in the
   `mixed-feed-temperature-wander` at r2.
 - **Matcher rules (S0 answer 11):** threshold 1/3 at the provisional time and 5/11 at the
   revised time, k = 2. They're re-derived on dev at that library and must equal the
-  fingerprint record's exactly. The week 5 values are recorded beside them.
+  fingerprint record's exactly (they do: section 3).
 - **Forests (S0 answer 13):** refit with seed 20261002 from the authoring and ceiling runs,
   with no pickles. Before any test load, every rule and every forest's per-case dev
-  probabilities must match the **`diag_fingerprint` record** (section 3). On a mismatch the
-  run stops.
+  probabilities must match the fingerprint. On a mismatch the run stops.
 - **Scopes (S0 answer 12):** all detected test runs, and the subsample. The paired bootstrap
   runs on the subsample only.
 - **Leave-one-out (S0 answer 16):** one entry removed at a time, at the full library's thresholds:
@@ -114,18 +118,16 @@ is evaluated on dev only, and is reported as a post-test extension, never in the
   re-ranker, from the same passes. The LLM-only diagnostic is "not run" (S0 answer 18).
 - **The keep rule:** reported, not applied (S0 answer 19).
   - **Its unknowns:** on test, faults 16–20 plus the leave-one-out cases.
-  - **B2, as on dev (decision 77; review change 8):** a failed check or an API error on an
-    unknown case counts as not declined, for the keep rule only. Everywhere else it scores as
-    no diagnosis, reported separately.
-- **Budget:** section 6.
+  - **B2, as on dev (decision 77):** a failed check or an API error on an unknown case counts
+    as not declined, for the keep rule only. Everywhere else it scores as no diagnosis,
+    reported separately.
+- **Repeats:** the paid run takes the dry run's `repeats_allowed` (section 6).
 - **Latency:** per call from the batch. Cold start is "not applicable".
 - **Outputs (S0 answers 21, 22):** the LLM cache, per-case rows, `calls.jsonl`, the ledger
   and the case-listing tables stay in `~/PycharmProjects/plant-health-sealed/`. Only
   aggregates are committed.
 
 ### Not run on test (dev only)
-- **DPCA.** PROTOCOL's selection section: "Both detectors are reported on dev either way.
-  Test only confirms the choice." Test reports the shipped detector only (review A).
 - **The published-number check and its FAR-matched diagnostic** (decision 56).
 - **The safety set and the memorization probes:** done on dev in week 6 (decision 78; LEAKAGE
   wall 2). They need no test data.
@@ -133,61 +135,70 @@ is evaluated on dev only, and is reported as a post-test extension, never in the
 - **The demo stays on dev data.** No test material goes into `app/` or the deploy (S0 answer 23).
 
 ## 3. Before the freeze (dev only; no sealed data)
-1. **Raj:** run the forest fingerprint on dev and commit it:
-   ```
-   python -m eval.diag_table --library-as-of 2026-10-05T00:00:00+00:00 --fingerprint
-   ```
-   It writes `eval/runs/<stamp>_diag_table.json` and `eval/runs/<stamp>_diag_fingerprint.json`.
-2. **Claude:** read the fingerprint record and check that its matcher thresholds and k equal
-   the dev agent run's (`eval/runs/20261005T021042Z_agent_run.json`: 1/3 provisional, 5/11
-   revised, k = 2). Then put its path in place of `<FP>` in section 4.
-3. **Claude, once approved: two driver changes, with tests** (no metric function changes):
-   - **a.** `dev_table --split test` also computes the 12-fault (dev-equivalent) mean and the
-     16–20 mean (section 2). Today it computes only the 17-fault summary and the 3, 9, 15 mean.
-   - **b.** `agent_table --split test --evaluation` accepts the pre-registered budget-stop
-     rerun (section 6). Today it refuses any `--repeats` other than the dry run's
-     `repeats_allowed`.
-4. **Raj, in this order (review change 6):**
-   1. Review this plan.
-   2. Commit this file, PROTOCOL and the changes in step 3.
-   3. Check that `pytest -q` is green locally and CI is green on GitHub.
-   4. Tag `protocol-v2-frozen`.
-   5. Push the commit and the tag.
-5. **No package installs or upgrades** from the fingerprint run (step 1) to the end of step 12
-   of section 4 (review change 5). A scikit-learn change would break the fingerprint.
+1. **Done: the forest fingerprint** (Raj, 8 October 2026), committed with the freeze:
+   - `eval/runs/20261008T181533Z_diag_fingerprint.json`, commit af5ebc5, clean, scikit-learn 1.9.1
+   - made with `python -m eval.diag_table --library-as-of 2026-10-05T00:00:00+00:00 --fingerprint`
+   - its `eval/runs/20261008T181533Z_diag_table.json` is committed with it
+2. **Done: the check** (Claude). The fingerprint's matcher rules equal the dev agent run's
+   (`eval/runs/20261005T021042Z_agent_run.json`):
+   - provisional: 1/3, accepted 552/589, short
+   - revised: 5/11, accepted 534/589, short
+   - k = 2 at both times, with the same library and limits
+
+   Its metrics and config are identical to the earlier fingerprint,
+   `eval/runs/20261005T234505Z_diag_fingerprint.json`.
+3. **Done: the two driver changes** (Claude, 9 October 2026, with tests; no metric function
+   changes):
+   - **a.** On test, `dev_table` also records, renders and prints the 12-fault
+     (dev-equivalent) mean and the 16–20 mean.
+   - **b.** The paid test run takes `--after-budget-stop <incomplete test_agent_run>` (section 6).
+     Without `--repeats` it uses the dry run's `repeats_allowed`. Each paid record carries a
+     `stop_kind`.
+4. **Raj, in this order:**
+   1. Commit this file, PROTOCOL, the fingerprint records and the driver changes.
+   2. Check that `pytest -q` is green locally and CI is green on GitHub.
+   3. Tag `protocol-v2-frozen`.
+   4. Push the commit and the tag.
+5. **No package installs or upgrades** from the fingerprint run to the end of step 13 of
+   section 4. A scikit-learn change would break the fingerprint.
 
 ## 4. The command sequence (Raj runs every command; Claude reads the records only)
-**No commits between steps 1 and 12. Records in `eval/runs/` and the access log don't make the
+**No commits between steps 1 and 13. Records in `eval/runs/` and the access log don't make the
 tree dirty, and the paid run refuses a dry run from another commit, so the whole sequence runs
-on the tagged commit and everything is committed once, at step 13.**
+on the tagged commit and everything is committed once, at step 14.**
 
-Every command that opens sealed data starts with `EVAL_MODE=1`. Each one writes one
-access-log line per file it loads: 198 lines in all, if nothing crashes. In the paths below,
-`<FP>` is the fingerprint record, and `<TWIN>`, `<DRY>` and `<RUN>` are the records made in
-steps 1, 10 and 11.
+- **`EVAL_MODE=1`:** every command that opens sealed data starts with it.
+- **Access log:** each command writes one line per file it loads, 219 lines in all if nothing
+  crashes.
+- **Pasting:** every command pastes as written. A record made earlier in the sequence is
+  picked up with `"$(ls -t eval/runs/*_<name>.json | head -1)"`, the newest of its kind.
 
 | # | Command | Expected output | Access-log lines |
 |---|---|---|---|
 | 1 | `EVAL_MODE=1 python -m eval.twin_check` | "fault f: N of 500 runs match their twin on samples 1-160" for f = 1–20; "verdict: shared" or "not shared"; a `twin_check` record | 21 |
-| 2 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check <TWIN> --limits data/models/pca_static_limits.json --model data/models/pca_static.npz --lead-vs data/models/alarms_realistic_limits.json --masked eval/runs/20260928T155738Z_masked_faults.json --watch data/models/pca_static_watch.json` | "test: 500 run numbers x 20 faults; detector pca_static"; the mean detection over faults 1–20 except 3, 9, 15; a `test_table_pca_static` record and table | 21 |
-| 3 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check <TWIN> --limits data/models/alarms_realistic_limits.json --row grouped --masked eval/runs/20260928T155738Z_masked_faults.json` | a `test_table_alarms_realistic_grouped` record | 21 |
-| 4 | the same as 3 with `--row ungrouped` | `test_table_alarms_realistic_ungrouped` | 21 |
-| 5 | the same as 3 with `--limits data/models/alarms_every_limits.json --row grouped` | `test_table_alarms_every_grouped` | 21 |
-| 6 | the same as 5 with `--row ungrouped` | `test_table_alarms_every_ungrouped` | 21 |
-| 7 | `EVAL_MODE=1 python -m eval.curves amoc --split test --limits data/models/pca_static_limits.json --model data/models/pca_static.npz` | "test: 509 AMOC points; operating point q = 95.57: …"; a `test_amoc` record | 18 |
-| 8 | `python -m eval.curves plot eval/runs/<stamp>_test_table_pca_static.json` and `python -m eval.curves plot eval/runs/<stamp>_test_amoc.json` | two PNGs in `data/plots/` (records only, no data) | 0 |
-| 9 | `EVAL_MODE=1 python -m eval.diag_table --split test --library-as-of 2026-10-05T00:00:00+00:00 --fingerprint-record <FP>` | the dev gather, then the fingerprint matching (or a stop before any test load); "test, provisional, subsample: top-1 matcher …"; a `test_diag_table` record; cases in the sealed folder | 18 |
-| 10 | `EVAL_MODE=1 python -m eval.agent_table --split test --dry-run --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --fingerprint-record <FP>` | case counts per kind; projections at 5 and 3 repeats; "paid run: --repeats 5" (or 3, or STOP); a `test_agent_dry_run` record. It stops if there are more than 50 false-alert cases. | 18 |
-| 11 | `EVAL_MODE=1 python -m eval.agent_table --split test --evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --fingerprint-record <FP> --dry-run-record <DRY> --billing-tier tier-1 --min-interval 1 --repeats <as the dry run says>` | "test run: N of N passes; Rs … spent"; a `test_agent_run` record (incomplete if the budget stops it: section 6) | 18 |
-| 12 | `python -m eval.agent_table --table <RUN>` | a `test_agent_table` record; tables in `data/tables/` (no case IDs) and in the sealed folder (with them) | 0 |
-| 13 | Commit `eval/runs/` and `eval/test_access.log`. Claude writes the log entry from the records. | — | — |
+| 2 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check "$(ls -t eval/runs/*_twin_check.json \| head -1)" --limits data/models/pca_static_limits.json --model data/models/pca_static.npz --lead-vs data/models/alarms_realistic_limits.json --masked eval/runs/20260928T155738Z_masked_faults.json --watch data/models/pca_static_watch.json` | "test: 500 run numbers x 20 faults; detector pca_static" and three means: "faults 1-20 except 3, 9, 15", "faults 1-15 except 3, 9, 15 (as dev)" and "faults 16-20", each with its 95% interval; a `test_table_pca_static` record and table | 21 |
+| 3 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check "$(ls -t eval/runs/*_twin_check.json \| head -1)" --limits data/models/pca_dynamic_limits.json --model data/models/pca_dynamic.npz --lead-vs data/models/alarms_realistic_limits.json --masked eval/runs/20260928T155738Z_masked_faults.json` (DPCA, a reported row only; no Watch file, as on dev) | "detector pca_dynamic" and the same three means; a `test_table_pca_dynamic` record and table | 21 |
+| 4 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check "$(ls -t eval/runs/*_twin_check.json \| head -1)" --limits data/models/alarms_realistic_limits.json --row grouped --masked eval/runs/20260928T155738Z_masked_faults.json` | a `test_table_alarms_realistic_grouped` record | 21 |
+| 5 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check "$(ls -t eval/runs/*_twin_check.json \| head -1)" --limits data/models/alarms_realistic_limits.json --row ungrouped --masked eval/runs/20260928T155738Z_masked_faults.json` | a `test_table_alarms_realistic_ungrouped` record | 21 |
+| 6 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check "$(ls -t eval/runs/*_twin_check.json \| head -1)" --limits data/models/alarms_every_limits.json --row grouped --masked eval/runs/20260928T155738Z_masked_faults.json` | a `test_table_alarms_every_grouped` record | 21 |
+| 7 | `EVAL_MODE=1 python -m eval.dev_table --split test --twin-check "$(ls -t eval/runs/*_twin_check.json \| head -1)" --limits data/models/alarms_every_limits.json --row ungrouped --masked eval/runs/20260928T155738Z_masked_faults.json` | a `test_table_alarms_every_ungrouped` record | 21 |
+| 8 | `EVAL_MODE=1 python -m eval.curves amoc --split test --limits data/models/pca_static_limits.json --model data/models/pca_static.npz` | "test: 509 AMOC points; operating point q = 95.57: …"; a `test_amoc` record | 18 |
+| 9 | `python -m eval.curves plot "$(ls -t eval/runs/*_test_table_pca_static.json \| head -1)"` then `python -m eval.curves plot "$(ls -t eval/runs/*_test_amoc.json \| head -1)"` | two PNGs in `data/plots/` (records only, no data) | 0 |
+| 10 | `EVAL_MODE=1 python -m eval.diag_table --split test --library-as-of 2026-10-05T00:00:00+00:00 --fingerprint-record eval/runs/20261008T181533Z_diag_fingerprint.json` | the dev gather, then the fingerprint matching (or a stop before any test load); "test, provisional, subsample: top-1 matcher …"; a `test_diag_table` record; cases in the sealed folder | 18 |
+| 11 | `EVAL_MODE=1 python -m eval.agent_table --split test --dry-run --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --fingerprint-record eval/runs/20261008T181533Z_diag_fingerprint.json` | case counts per kind; projections at 5 and 3 repeats; "paid run: --repeats 5" (or 3, or STOP); a `test_agent_dry_run` record. It stops if there are more than 50 false-alert cases. | 18 |
+| 12 | `EVAL_MODE=1 python -m eval.agent_table --split test --evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --fingerprint-record eval/runs/20261008T181533Z_diag_fingerprint.json --dry-run-record "$(ls -t eval/runs/*_test_agent_dry_run.json \| head -1)" --billing-tier tier-1 --min-interval 1` (repeats come from the dry run) | "test run: N of N passes; Rs … spent"; a `test_agent_run` record (incomplete if the budget stops it: section 6) | 18 |
+| 13 | `python -m eval.agent_table --table "$(ls -t eval/runs/*_test_agent_run.json \| head -1)"` | a `test_agent_table` record; tables in `data/tables/` (no case IDs) and in the sealed folder (with them) | 0 |
+| 14 | Commit `eval/runs/` and `eval/test_access.log`. Claude writes the log entry from the records. | — | — |
+
+(In this table `\|` stands for the shell's `|`. Markdown needs the backslash inside a table
+cell; type `|` when pasting.)
 
 **Stops:**
-- **Step 9:** a fingerprint mismatch stops before any test load. That's a crash under section 1.
-- **Step 10:** a STOP (more than 50 false-alert cases, or 3 repeats still over Rs 400) goes to Raj before step 11.
-- **Step 11:** a budget stop follows section 6.
+- **Step 10:** a fingerprint mismatch stops before any test load. That's a crash under section 1.
+- **Step 11:** a STOP (more than 50 false-alert cases, or 3 repeats still over Rs 400) goes to Raj before step 12.
+- **Step 12:** a budget stop follows section 6.
 
-**After step 13, check the code is the tag's (review change 4):**
+**After step 14, check the code is the tag's:**
 - This prints nothing, or only a logged patch:
   ```
   git diff --stat protocol-v2-frozen HEAD -- . ':(exclude)eval/runs' ':(exclude)eval/test_access.log'
@@ -214,6 +225,7 @@ steps 1, 10 and 11.
 | Per-tag alarms | every | | | | | | | |
 | Per-tag alarms + grouping | every | | | | | | | |
 | App 3 (static PCA) | — | | | | | | | |
+| DPCA (reported row only) | — | | | | | | | |
 
 ### 5.3 Attribution (decisions 64, 65; the 12 family faults)
 | Fault | Family groups | Right place | Right place 30 min later | Top group (share) | Top tags |
@@ -258,34 +270,54 @@ Paired bootstrap of the top-1 difference, on the subsample only: matcher vs fore
 
 ## 6. Budget
 - **Test LLM budget:** Rs 500, a hard cap per run, checked at worst case before each call (decision 76).
-- **The projection rule (S0 answer 17):** the dry run's expected cost must be at most Rs 400
-  at 5 repeats. Otherwise repeats drop to 3, never cases. If 3 repeats is also over, stop and
-  tell Raj.
-- **A budget stop at step 11 (pre-registered; review change 3):**
-  - Rerun step 11 at 3 repeats, with `--budget` set to Rs 500 minus what was already spent
-    (the incomplete record's `spent_inr`).
+- **The projection rule (S0 answer 17):**
+  - The dry run's expected cost must be at most Rs 400 at 5 repeats; otherwise repeats drop
+    to 3, never cases. If 3 repeats is also over, stop and tell Raj.
+  - The paid run takes the dry run's `repeats_allowed` when `--repeats` is omitted, and
+    refuses any other count.
+- **A budget stop at step 12 (pre-registered):**
+  - Rerun at 3 repeats, with a budget of at most Rs 500 minus what was already spent.
+  - `--after-budget-stop` enforces this. It requires that record to be from this commit and
+    incomplete because of the budget, then defaults to 3 repeats and the budget left (rounded
+    down to the paisa), and refuses anything else.
   - The cache serves every call already made, at no cost.
-  - If that stops too, stop and tell Raj.
-  - The incomplete record is committed and never tabled.
-  - This needs driver change 3b before the tag.
+  - The stopped record is committed and never tabled.
+  - **If the rerun stops too, stop and tell Raj.** The code refuses a second rerun.
+  - The exact command, run right after the stop, while the stopped record is still the newest
+    `test_agent_run`:
+    ```
+    EVAL_MODE=1 python -m eval.agent_table --split test --evaluation --library-as-of 2026-10-05T00:00:00+00:00 --prompt-sha256 fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0 --fingerprint-record eval/runs/20261008T181533Z_diag_fingerprint.json --dry-run-record "$(ls -t eval/runs/*_test_agent_dry_run.json | head -1)" --billing-tier tier-1 --min-interval 1 --after-budget-stop "$(ls -t eval/runs/*_test_agent_run.json | head -1)"
+    ```
+  - Step 13 then tables the newest `test_agent_run`, which is the completed rerun.
 - **Billed:** Tier 1. The cost per paid call on dev was about Rs 0.09. The dry run replaces any estimate.
 
 ## 7. Raj's reviews
-**6 October 2026:** DPCA as a confirmation row (later withdrawn, see below); `--masked` on the
-alarm rows; the access-log count; addition 1 (the 12-fault and 16–20 means); addition 2 (B2
-on test); addition 3 (the dev-only list).
+**6 October 2026:** DPCA as a confirmation row; `--masked` on the alarm rows; the access-log
+count; addition 1 (the 12-fault and 16–20 means); addition 2 (B2 on test); addition 3 (the
+dev-only list).
 
 **8 October 2026 (with guidance from the Claude.ai chat):**
-- **A. No DPCA on test:** test reports the shipped detector only. This supersedes the
-  6 October answer.
-- **B. `--masked` on every alarm row** (steps 3–6).
-- **C. Reruns add their own access-log lines,** which are kept and explained.
-- **Changes:**
-  1. No commits between steps 1 and 12 (bold, section 4).
-  2. The crash rule per command (section 1).
-  3. The pre-registered budget-stop rerun (section 6).
-  4. The post-run check that the code is the tag's (section 4).
-  5. No installs from the fingerprint to step 12 (section 3).
-  6. Section 3's order: commit, tests and CI green, tag, push.
-  7. "Not run on test" lists the safety set, the probes and the demo's dev-only data.
-  8. B2 on test's unknowns (section 2, PROTOCOL's reporting row, 5.5).
+- no DPCA on test (since withdrawn, below)
+- `--masked` on every alarm row
+- reruns add their own access-log lines
+- no commits between the first and last commands
+- the crash rule per command
+- the pre-registered budget-stop rerun
+- the post-run check that the code is the tag's
+- no installs
+- section 3's order
+- the dev-only list
+- B2 on test's unknowns
+
+**9 October 2026, final (with guidance from the Claude.ai chat):**
+1. **A, final:** the DPCA row is restored as a reported row only, with no paired comparison
+   and no verdict. Static PCA ships whatever it shows, and the selection isn't reopened. The
+   8 October reversal was made without knowing about the original choice.
+2. Driver change 3a is approved.
+3. Driver change 3b is approved and made mechanical: `--after-budget-stop`, and repeats
+   defaulting to the dry run's.
+4. No placeholders in sections 4 and 6; `--repeats` is dropped from the paid run; the
+   rerun's exact command is in section 6.
+5. Step 2's expected output names all three detection means.
+6. Section 3 step 1 is marked done.
+7. The title.

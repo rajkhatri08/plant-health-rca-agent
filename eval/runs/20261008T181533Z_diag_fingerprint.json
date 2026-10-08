@@ -1,0 +1,107 @@
+{
+  "name": "diag_fingerprint",
+  "time": "2026-10-08T18:15:33+00:00",
+  "commit": "af5ebc566377ebe911d167ef57490b970c18ac03",
+  "dirty": false,
+  "config": {
+    "as_of": "2026-10-05T00:00:00Z",
+    "library": {
+      "condenser-cooling-water-temperature-wander": "condenser-cooling-water-temperature-wander@r1",
+      "condenser-cooling-water-warm-supply": "condenser-cooling-water-warm-supply@r1",
+      "mixed-feed-composition-wander": "mixed-feed-composition-wander@r1",
+      "mixed-feed-inert-rise": "mixed-feed-inert-rise@r1",
+      "mixed-feed-reactant-ratio-shift": "mixed-feed-reactant-ratio-shift@r1",
+      "mixed-feed-supply-loss": "mixed-feed-supply-loss@r1",
+      "mixed-feed-temperature-wander": "mixed-feed-temperature-wander@r2",
+      "reactant-1-feed-supply-loss": "reactant-1-feed-supply-loss@r1",
+      "reaction-rate-drift": "reaction-rate-drift@r1",
+      "reactor-cooling-valve-sticking": "reactor-cooling-valve-sticking@r1",
+      "reactor-cooling-water-temperature-wander": "reactor-cooling-water-temperature-wander@r1",
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+    "normals_record": "eval/runs/20261001T182856Z_evidence_normals.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "moments": {
+      "dev": 589,
+      "false": 47,
+      "authoring": 56,
+      "ceiling": 5209
+    }
+  },
+  "seeds": {
+    "bootstrap": 20261001,
+    "forest": 20261002
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1"
+  },
+  "outputs": {},
+  "metrics": {
+    "provisional": {
+      "k": 2,
+      "matcher": {
+        "threshold": "1/3",
+        "accepted": "552/589",
+        "short": true,
+        "rankings_sha256": "2a3c7ec101f32524c7b7820e6176c29718ba4a40afdf10229527668c9b280e5a"
+      },
+      "cases": {
+        "known": 589,
+        "false_alerts": 47
+      },
+      "forest5": {
+        "threshold": "0.35",
+        "accepted": "560/589",
+        "short": false,
+        "training_cases": 56,
+        "classes": 12,
+        "proba_sha256": "1fd2406c2e226aa2b220f7d641402455abf2603a04cc097f7c3b43bbec3826a2"
+      },
+      "ceiling": {
+        "threshold": "0.746",
+        "accepted": "560/589",
+        "short": false,
+        "training_cases": 5209,
+        "classes": 12,
+        "proba_sha256": "563364e9d10a304be9e2f942b91bd66b83484b10b3116eaf1d14ce21ac28f467"
+      }
+    },
+    "revised": {
+      "k": 2,
+      "matcher": {
+        "threshold": "5/11",
+        "accepted": "534/589",
+        "short": true,
+        "rankings_sha256": "9acb7aa250a3e4759a9c595e7bf697696f4fdc90b62fc5cf30b1b83c45972d54"
+      },
+      "cases": {
+        "known": 589,
+        "false_alerts": 45
+      },
+      "forest5": {
+        "threshold": "0.34",
+        "accepted": "560/589",
+        "short": false,
+        "training_cases": 56,
+        "classes": 12,
+        "proba_sha256": "460a8950513bfc8c531f952357b728c8f4ebb3db3cf82daf9657a6894257601b"
+      },
+      "ceiling": {
+        "threshold": "0.7993333333333333",
+        "accepted": "560/589",
+        "short": false,
+        "training_cases": 5209,
+        "classes": 12,
+        "proba_sha256": "558fbc719a0117776abfcc7c21ebb5d86eb65bea8b66631d4f4c378d184feb91"
+      }
+    }
+  }
+}

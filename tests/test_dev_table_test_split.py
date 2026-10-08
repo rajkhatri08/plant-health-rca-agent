@@ -20,7 +20,8 @@ from eval import dev_table as dt
 from eval import metrics, run_record
 from ingest import tags as tagmap
 from tests.test_calibrate_driver import GAPS, GRID, setup  # noqa: F401 (fixture)
-from tests.test_dev_table import N_BOOT, calibrated, direct_alarm, direct_tracks, with_alarms  # noqa: F401
+from tests.test_dev_table import N_BOOT, calibrated, calibrated_dpca, direct_alarm, direct_tracks, with_alarms  # noqa: F401
+from tests.test_calibrate_driver import dpca_setup  # noqa: F401 (fixture)
 from tests.test_dev_table_attribution import WGRID
 from tests.test_fit_pca import FAST, two_factor_runs
 from tests import test_calibrate_alarms as tca
@@ -260,3 +261,46 @@ def test_attribution_on_test_summarises_the_12_family_faults(setup, monkeypatch)
     assert "Mean, the 12 family faults, at the notification" in text
     row = next(line for line in text.splitlines() if line.startswith("| 19 | n/a | n/a | n/a |"))
     assert row
+
+
+# ---------- the extra means (TEST_PLAN, Raj's review; driver change 3a) ----------
+
+def test_test_reports_the_dev_equivalent_and_16_20_means_beside_the_summary(tested):
+    results = build(tested)
+    assert results["summary"]["faults"] == [f for f in FAULTS if f not in (3, 9, 15)]
+    assert results["summary_dev_faults"]["faults"] == list(dt.SUMMARY_FAULTS)
+    assert results["summary_unknown"]["faults"] == [16, 17, 18, 19, 20]
+    rate = lambda fs: np.mean([results["faults"][f"fault_{f:02d}"]["rate"] for f in fs])   # noqa: E731
+    assert results["summary_dev_faults"]["rate"] == pytest.approx(rate(dt.SUMMARY_FAULTS))
+    assert results["summary_unknown"]["rate"] == pytest.approx(rate(range(16, 21)))
+    text = next(tested["tables"].glob("*_test_table_*.md")).read_text()
+    assert "| Mean, faults 1–15 except 3, 9, 15 (the same 12 as dev) |" in text
+    assert "| Mean, faults 16–20 |" in text
+
+
+def test_the_command_prints_all_three_means(tested, capsys):
+    build(tested)
+    out = capsys.readouterr().out
+    assert "faults 1-20 except 3, 9, 15:" in out
+    assert "faults 1-15 except 3, 9, 15 (as dev):" in out and "faults 16-20:" in out
+
+
+def test_dev_has_no_extra_means(calibrated):
+    results = dt.run(calibrated["out"], calibrated["model_path"], repo_root=calibrated["repo"],
+                     tables_dir=calibrated["tables"], n_boot=N_BOOT)
+    assert "summary_dev_faults" not in results and "summary_unknown" not in results
+
+
+# ---------- DPCA on test: the confirmation row (Raj's final review, A) ----------
+
+def test_dpca_runs_on_the_test_split(calibrated_dpca, monkeypatch):
+    c = calibrated_dpca
+    normal = two_factor_runs(numbers=TEST_RUNS, samples=TEST_SAMPLES, seed=11)
+    calls = serve_test(monkeypatch, normal)
+    results = dt.run(c["out"], c["model_path"], repo_root=c["repo"], tables_dir=c["tables"], n_boot=N_BOOT,
+                     split="test", twin_check=write_twin(c["repo"]))
+    (path,) = (c["repo"] / "eval" / "runs").glob("*_test_table_pca_dynamic.json")
+    rec = json.loads(path.read_text())
+    assert rec["config"]["lags"] >= 0 and rec["config"]["onset"] == 160
+    assert [f for f, _ in calls] == [0, *FAULTS] and {p for _, p in calls} == {"test_table_pca_dynamic"}
+    assert set(results) >= {"summary", "summary_dev_faults", "summary_unknown", "cumulative"}

@@ -79,6 +79,7 @@ The test split (week 7 S1d; Raj runs every command with EVAL_MODE=1, never Claud
     python -m eval.agent_table --split test --evaluation --library-as-of … --prompt-sha256 <hash>
                                --fingerprint-record … --dry-run-record eval/runs/<stamp>_test_agent_dry_run.json
                                --billing-tier tier-1 --min-interval 1 [--repeats 5|3] [--budget 500]
+                               [--after-budget-stop eval/runs/<stamp>_test_agent_run.json]
     python -m eval.agent_table --table eval/runs/<stamp>_test_agent_run.json
 - Before any test load: the prompt's hash, the leave-one-out refs (S0 answer 16), and the
   matcher's thresholds and k re-derived on dev, which must equal the diag_fingerprint record's.
@@ -89,8 +90,12 @@ The test split (week 7 S1d; Raj runs every command with EVAL_MODE=1, never Claud
 - --dry-run: a FakeClient through the graph (test prompts stay in the sealed folder) and the
   cost projection at 5 and at 3 repeats; repeats_allowed is 5 if its expected cost is at most
   Rs 400, else 3 if that is, else none (S0 answer 17). Writes a test_agent_dry_run record.
-- --evaluation (paid): needs the dry run's record from this commit, its repeats_allowed, a
-  budget of at most Rs 500 (default 500), and the billing tier. The LLM cache, calls.jsonl, the
+- --evaluation (paid): needs the dry run's record from this commit, its repeats_allowed (the
+  default when --repeats is omitted), a budget of at most Rs 500 (default 500), and the billing
+  tier. After a budget stop, the pre-registered rerun (TEST_PLAN section 6) is
+  --after-budget-stop <the stopped record>: that record must be from this commit and stopped
+  by the budget (its stop_kind), and not itself a rerun; the rerun is then at 3 repeats with a
+  budget of at most Rs 500 minus its spent_inr (the default), and anything else is refused. The LLM cache, calls.jsonl, the
   ledger and the databases go to the sealed folder (S0 answers 21, 22); the test_agent_run
   record names them as "sealed:…" with their SHA-256s.
 - --table on a test_agent_run: the shipped flow, the re-ranker and the matcher from the same
@@ -103,6 +108,7 @@ The test split (week 7 S1d; Raj runs every command with EVAL_MODE=1, never Claud
 import argparse
 import hashlib
 import json
+import math
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -441,7 +447,8 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
         watch_path=cw.DEFAULT_OUT, normals_path=evidence_normals.DEFAULT_OUT, bundle_dir=DEFAULT_BUNDLE,
         out_root=DEFAULT_OUT, budget=None, prompt_hash=None, client=None, render=None, allow_dirty=False,
         repo_root=None, now=None, eval_runs=None, tune_runs=None, min_interval=0.0, billing_tier=None,
-        cache_dir=None, out=print, split="dev", fingerprint_record=None, dry_run_record=None, repeats=None):
+        cache_dir=None, out=print, split="dev", fingerprint_record=None, dry_run_record=None, repeats=None,
+        after_budget_stop=None):
     if mode not in ("dry-run", "project-cost", "tuning", "evaluation", "replay-evaluation"):
         raise AgentTableError(f"unknown mode {mode!r}")
     if isinstance(min_interval, bool) or not isinstance(min_interval, (int, float)) or min_interval < 0:
@@ -450,15 +457,16 @@ def run(mode, *, library_as_of, model_path=drv.DEFAULT_MODEL, limits_path=drv.DE
     repo_root = Path(repo_root or run_record.REPO_ROOT)
     if split == "test":
         return run_test(mode, library_as_of=library_as_of, fingerprint_record=fingerprint_record,
-                        dry_run_record=dry_run_record, repeats=TEST_REPEATS[0] if repeats is None else repeats,
+                        dry_run_record=dry_run_record, repeats=repeats, after_budget_stop=after_budget_stop,
                         model_path=model_path, limits_path=limits_path, watch_path=watch_path,
                         normals_path=normals_path, bundle_dir=bundle_dir, budget=budget, prompt_hash=prompt_hash,
                         client=client, render=render, repo_root=repo_root, now=now, min_interval=min_interval,
                         billing_tier=billing_tier, out=out)
     if split != "dev":
         raise AgentTableError(f"unknown split {split!r}")
-    if fingerprint_record is not None or dry_run_record is not None or repeats is not None:
-        raise AgentTableError("--fingerprint-record, --dry-run-record and --repeats are only for --split test")
+    if fingerprint_record is not None or dry_run_record is not None or repeats is not None or after_budget_stop:
+        raise AgentTableError("--fingerprint-record, --dry-run-record, --repeats and --after-budget-stop are only "
+                              "for --split test")
     paid = mode in ("tuning", "evaluation")
     if paid:
         if billing_tier not in BILLING_TIERS:
@@ -656,9 +664,27 @@ def load_dry_run(path, repo_root, commit):
     return path.resolve().relative_to(Path(repo_root).resolve()).as_posix(), rec["metrics"]
 
 
+def load_budget_stop(path, repo_root, commit):
+    """(repo path, record) of the paid test run that stopped on the budget, for the
+    pre-registered rerun (TEST_PLAN section 6): this commit, a clean tree, incomplete because of
+    the budget, and not itself a rerun (if the rerun stops too, the run stops)."""
+    path = Path(path)
+    if not path.name.endswith("_test_agent_run.json"):
+        raise AgentTableError(f"{path} isn't a test_agent_run record")
+    rec = json.loads(path.read_text())
+    if rec.get("dirty") is not False or rec.get("commit") != commit:
+        raise AgentTableError(f"{path} isn't from this commit on a clean tree")
+    if rec["metrics"].get("complete") or rec["metrics"].get("stop_kind") != "budget":
+        raise AgentTableError(f"{path} didn't stop on the budget; --after-budget-stop is only for a budget stop")
+    if rec["config"].get("after_budget_stop"):
+        raise AgentTableError(f"{path} was already the rerun after a budget stop, and it stopped too: stop and "
+                              "tell Raj (TEST_PLAN section 6)")
+    return path.resolve().relative_to(Path(repo_root).resolve()).as_posix(), rec
+
+
 def run_test(mode, *, library_as_of, fingerprint_record, dry_run_record, repeats, model_path, limits_path,
              watch_path, normals_path, bundle_dir, budget, prompt_hash, client, render, repo_root, now,
-             min_interval, billing_tier, out):
+             min_interval, billing_tier, out, after_budget_stop=None):
     """The test split's dry run and paid run (S0 answers 4, 14-17, 21, 22). Order: the
     request checked, the tree, the dev rules against the fingerprint, and only then the test
     loads."""
@@ -666,7 +692,7 @@ def run_test(mode, *, library_as_of, fingerprint_record, dry_run_record, repeats
         raise AgentTableError("--split test takes --dry-run or --evaluation (the paid run) only")
     if fingerprint_record is None:
         raise AgentTableError("--split test needs --fingerprint-record (the diag_fingerprint record)")
-    if repeats not in TEST_REPEATS:
+    if repeats is not None and repeats not in TEST_REPEATS:
         raise AgentTableError(f"--repeats on test is one of {TEST_REPEATS} (S0 answer 17)")
     injected = client is not None or render is not None
     render = render or load_render()
@@ -677,21 +703,42 @@ def run_test(mode, *, library_as_of, fingerprint_record, dry_run_record, repeats
     if paid:
         if billing_tier not in BILLING_TIERS:
             raise AgentTableError(f"the paid run needs --billing-tier, one of {BILLING_TIERS}")
-        budget = TEST_BUDGET if budget is None else budget
-        if budget > TEST_BUDGET:
+        if budget is not None and budget > TEST_BUDGET:
             raise AgentTableError(f"the test budget is at most Rs {TEST_BUDGET} (PROTOCOL)")
         if dry_run_record is None:
             raise AgentTableError("the paid run needs --dry-run-record, the test dry run on this commit")
-    elif repeats != TEST_REPEATS[0]:
-        raise AgentTableError("the dry run projects both repeat counts itself; give no --repeats")
+    else:
+        if repeats is not None:
+            raise AgentTableError("the dry run projects both repeat counts itself; give no --repeats")
+        if after_budget_stop is not None:
+            raise AgentTableError("--after-budget-stop is only for the paid run")
+        repeats = TEST_REPEATS[0]
     commit, dirty = run_record.check_clean(repo_root)                    # before any loading
-    dry_rel = None
+    dry_rel = stopped_rel = stopped_sha = None
     if paid:
         dry_rel, dry = load_dry_run(dry_run_record, repo_root, commit)
         if dry.get("repeats_allowed") is None:
             raise AgentTableError(f"{dry_rel}: even 3 repeats project over Rs {TEST_PROJECTION_CAP}; stop and tell Raj")
-        if repeats != dry["repeats_allowed"]:
-            raise AgentTableError(f"{dry_rel} allows {dry['repeats_allowed']} repeats (S0 answer 17), not {repeats}")
+        if after_budget_stop is not None:
+            # The pre-registered rerun after a budget stop (TEST_PLAN section 6): 3 repeats, with
+            # the budget that's left; the cache serves every call already made, at no cost.
+            stopped_rel, stopped = load_budget_stop(after_budget_stop, repo_root, commit)
+            stopped_sha = run_record.sha256(after_budget_stop)
+            remaining = math.floor((TEST_BUDGET - float(stopped["metrics"]["spent_inr"])) * 100) / 100
+            if repeats is None:
+                repeats = TEST_REPEATS[-1]
+            if repeats != TEST_REPEATS[-1]:
+                raise AgentTableError(f"the rerun after a budget stop is at {TEST_REPEATS[-1]} repeats, not {repeats}")
+            if budget is None:
+                budget = remaining
+            if budget > remaining:
+                raise AgentTableError(f"the rerun's budget is at most Rs {TEST_BUDGET} minus the Rs "
+                                      f"{stopped['metrics']['spent_inr']} already spent (Rs {remaining}), not Rs {budget}")
+        else:
+            repeats = dry["repeats_allowed"] if repeats is None else repeats
+            if repeats != dry["repeats_allowed"]:
+                raise AgentTableError(f"{dry_rel} allows {dry['repeats_allowed']} repeats (S0 answer 17), not {repeats}")
+            budget = TEST_BUDGET if budget is None else budget
     now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
 
@@ -775,10 +822,12 @@ def run_test(mode, *, library_as_of, fingerprint_record, dry_run_record, repeats
     ledger.write_text(json.dumps({k: p for _, k, p in records.RecordStore(folder / "records.db").all("ledger")},
                                  indent=2, sort_keys=True))
     spent = sum(float(p["cost_inr"]) for p in json.loads(ledger.read_text()).values())
+    stop_kind = None if complete else ("cache_miss" if str(why).startswith("cache miss") else "budget")
     metrics_ = {"cases": counts, "planned": len(planned), "completed": len(rows), "complete": complete,
-                "stopped": why, "llm_calls": sum(r["llm_key"] is not None for r in rows), "spent_inr": round(spent, 5)}
+                "stopped": why, "stop_kind": stop_kind, "llm_calls": sum(r["llm_key"] is not None for r in rows),
+                "spent_inr": round(spent, 5)}
     config.update(budget_inr=budget, repeats=repeats, min_interval_s=min_interval, billing_tier=billing_tier,
-                  dry_run_record=dry_rel)
+                  dry_run_record=dry_rel, after_budget_stop=stopped_rel, after_budget_stop_sha256=stopped_sha)
     record = run_record.write("test_agent_run", config=config, seeds=seeds, metrics=metrics_,
                               outputs={"calls": calls, "ledger": ledger},
                               commit=commit, dirty=dirty, repo_root=repo_root, now=now)
@@ -1047,7 +1096,10 @@ def main(argv=None):
     parser.add_argument("--dry-run-record", type=Path, default=None,
                         help="test, paid run: the test_agent_dry_run record from this commit")
     parser.add_argument("--repeats", type=int, default=None,
-                        help="test, paid run: 5, or 3 only when the dry run allows it (S0 answer 17)")
+                        help="test, paid run: defaults to the dry run's repeats_allowed (S0 answer 17)")
+    parser.add_argument("--after-budget-stop", type=Path, default=None, metavar="TEST_AGENT_RUN_RECORD",
+                        help="test, paid run: the pre-registered rerun after a budget stop (TEST_PLAN section 6): "
+                             "3 repeats, budget at most Rs 500 minus that record's spend")
     args = parser.parse_args(argv)
     if args.table is not None:
         try:
@@ -1067,7 +1119,7 @@ def main(argv=None):
         run(args.mode, library_as_of=args.library_as_of, budget=args.budget, prompt_hash=args.prompt_sha256,
             bundle_dir=args.bundle, allow_dirty=args.allow_dirty, min_interval=args.min_interval,
             billing_tier=args.billing_tier, split=args.split, fingerprint_record=args.fingerprint_record,
-            dry_run_record=args.dry_run_record, repeats=args.repeats)
+            dry_run_record=args.dry_run_record, repeats=args.repeats, after_budget_stop=args.after_budget_stop)
     except (ValueError, FileExistsError, FileNotFoundError, loader.LoaderError, run_record.RunRecordError,
             drv.CalibrationError, evidence_normals.NormalsError, cases_mod.CasesError, AgentTableError,
             diag_table.DiagTableError, bundle_mod.BundleError, llm.LLMError) as e:

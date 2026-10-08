@@ -4026,3 +4026,57 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **a.** `dev_table --split test`: the 12-fault and 16–20 means.
   - **b.** `agent_table --split test --evaluation` must accept the budget-stop rerun at 3 repeats when the dry run allowed 5. Today it refuses any repeats other than `repeats_allowed`.
 - **Next:** Raj commits the draft and runs the fingerprint on dev.
+
+### 2026-10-08: week 7 session 3, the fingerprint checked and filled into the test plan (docs only; nothing committed)
+- **The record:** `eval/runs/20261008T181533Z_diag_fingerprint.json` (Raj's run; commit af5ebc5, clean; scikit-learn 1.9.1; library as-of 2026-10-05T00:00:00Z; uncommitted, with its `20261008T181533Z_diag_table.json`).
+- **The check (Claude, reading the records):**
+  - **The matcher's rules equal the dev agent run's** (`eval/runs/20261005T021042Z_agent_run.json`):
+    - provisional: threshold 1/3, accepted 552/589 (0.9372), short, k = 2
+    - revised: threshold 5/11, accepted 534/589 (0.9066), short, k = 2
+  - The library map and the limits' SHA-256 are the same.
+  - **It reproduces exactly:** its metrics and config are identical to the earlier fingerprint, `eval/runs/20261005T234505Z_diag_fingerprint.json` (commit ea1df18).
+- **Changed:** `eval/TEST_PLAN.md`. The fingerprint's path replaces `<FP>` in steps 9, 10 and 11, and section 3 step 2 is marked done, with the check above.
+- **Still before the tag:** the two driver changes (TEST_PLAN section 3, step 3a and 3b), then Raj's commit, tests and CI green, tag, and push.
+
+### 2026-10-09: week 7 session 3, the final review of the test plan; driver changes 3a and 3b (nothing committed or tagged)
+- **Raj's final review** (with guidance from the Claude.ai chat):
+  - **A, final:** restore DPCA as a reported row only, with no paired comparison and no verdict. Static PCA ships whatever it shows, and the selection isn't reopened. The 8 October reversal was made without knowing about the original choice.
+  - **3a:** approved.
+  - **3b:** approved, made mechanical: `--after-budget-stop`, and repeats defaulting to the dry run's.
+  - **No placeholders** in sections 4 and 6; `--repeats` dropped from the paid run; the rerun's exact command written out.
+  - Step 2's output names the three means; section 3 step 1 marked done; the title.
+- **Changed:**
+  - **`eval/dev_table.py` (3a):** on the test split the record also holds `summary_dev_faults` (the 12 dev summary faults) and `summary_unknown` (16–20), both equal-weight with the joint bootstrap. The table renders them after PROTOCOL's summary, and the command prints all three means. Dev is unchanged.
+  - **`eval/agent_table.py` (3b):**
+    - **`--after-budget-stop <record>`** (`load_budget_stop`). The stopped record must be:
+      - a `test_agent_run`
+      - from this commit, on a clean tree
+      - incomplete, with `stop_kind` "budget"
+      - not itself a rerun (if it is, "stop and tell Raj")
+    - The rerun then defaults to 3 repeats and a budget of Rs 500 minus that record's `spent_inr`, rounded down to the paisa. It refuses other repeats or a higher budget.
+    - **Repeats default:** without `--repeats`, the paid run takes the dry run's `repeats_allowed`.
+    - **New fields:** paid test records now carry `stop_kind` (none, budget or cache_miss) and `after_budget_stop`, with its SHA-256.
+    - The flag is refused on the dry run and on dev.
+  - **`eval/TEST_PLAN.md`:** rewritten to the final review. The DPCA row is pinned (model `33433c41…`, limits `e8b8c436…`, fit, calibration and selection records) and is step 3, a reported row only. There are 14 steps and 219 access-log lines. Every record is picked up with `"$(ls -t eval/runs/*_<name>.json | head -1)"`, so the commands paste as written. Also:
+    - the fingerprint path is in the commands
+    - step 2 names the three means
+    - section 3 steps 1–3 are done
+    - the budget-stop rerun's exact command is in section 6
+    - the step references are renumbered (dry run 11, paid run 12, table 13, commit 14)
+    - the title is "frozen at tag protocol-v2-frozen"
+  - **`eval/PROTOCOL.md` (v2, untagged):** the detector-rows row (DPCA reported only), the not-run row, the crash rule (the `--after-budget-stop` rerun), and the budget row (repeats from the dry run).
+- **Tests:**
+  - **`tests/test_dev_table_test_split.py`, +4:**
+    - the two means beside the summary, equal to the per-fault rates' means, and in the table
+    - the command prints all three
+    - dev has no extra means
+    - DPCA runs on the test split
+  - **`tests/test_agent_table_test_split.py`, +9:**
+    - a budget stop recorded as `stop_kind` budget
+    - the rerun defaults to 3 repeats and the budget left, and names its source
+    - other repeats and a higher budget are refused
+    - a complete record, or one from another commit, is refused
+    - a rerun that stops too ends the run
+    - the flag is refused on the dry run and on dev
+    - omitted repeats default to `repeats_allowed`
+    - `main` passes the flag (in its dry-run form; the paid form reads `.env`, which the guard forbids)

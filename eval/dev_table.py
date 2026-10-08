@@ -518,8 +518,11 @@ def render(record, record_path):
             f"median interval {_minutes(dlo)}–{_minutes(dhi)} | "
             f"{_num(r['share_still_flagged'])} ({r['share_still_flagged_runs']} runs) | "
             f"{_lead(r.get('lead'))} |")
-    for key, label in (("summary", f"Mean, {span}"),
-                       ("excluded", "Mean, faults 3, 9, 15")):
+    means = [("summary", f"Mean, {span}")]
+    if "summary_dev_faults" in m:                      # test only: beside PROTOCOL's summary
+        means += [("summary_dev_faults", "Mean, faults 1–15 except 3, 9, 15 (the same 12 as dev)"),
+                  ("summary_unknown", "Mean, faults 16–20")]
+    for key, label in means + [("excluded", "Mean, faults 3, 9, 15")]:
         s = m[key]
         rp = m.get("right_place", {}).get("summary") if key == "summary" else None
         right = (f"{_num(rp['rate'])} ({_num(rp['rate_ci95'][0])}–{_num(rp['rate_ci95'][1])})"
@@ -666,6 +669,11 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
                "excluded": mean_rate(hit, EXCLUDED, n_boot),
                "normal": normal_row(normal_tracks, warmup, n_boot, onset),
                "cumulative": curves.cumulative_block(delays, summary_faults)}     # PROTOCOL, Delay (S1e)
+    if sp.name == "test":
+        # Beside PROTOCOL's summary (1-20 except 3, 9, 15): the same 12 faults as dev, so dev and
+        # test compare like for like, and faults 16-20 on their own (TEST_PLAN, Raj's review).
+        results["summary_dev_faults"] = mean_rate(hit, SUMMARY_FAULTS, n_boot)
+        results["summary_unknown"] = mean_rate(hit, UNLABELLED, n_boot)
     if watch_doc is not None:
         results["right_place"] = {"summary": mean_rate(hit_right, right_place_faults, n_boot),
                                   "summary_30min": mean_rate(hit_right_30, right_place_faults, n_boot)}
@@ -711,6 +719,12 @@ def run(limits_path=drv.DEFAULT_OUT, model_path=drv.DEFAULT_MODEL, *, row=None, 
     print(f"{sp.name}: {len(normal.runs)} run numbers x {len(faults)} faults; detector {det.name}")
     print(f"mean detection, faults {min(faults)}-{max(faults)} except 3, 9, 15: {s['rate']:.3f} "
           f"(95% interval {s['rate_ci95'][0]:.3f} to {s['rate_ci95'][1]:.3f})")
+    for key, label in (("summary_dev_faults", "faults 1-15 except 3, 9, 15 (as dev)"),
+                       ("summary_unknown", "faults 16-20")):
+        if key in results:
+            s = results[key]
+            print(f"mean detection, {label}: {s['rate']:.3f} "
+                  f"(95% interval {s['rate_ci95'][0]:.3f} to {s['rate_ci95'][1]:.3f})")
     print(f"table: {table_path}\nrun record: {record}")
     return results
 

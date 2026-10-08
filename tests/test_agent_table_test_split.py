@@ -290,3 +290,105 @@ def test_main_passes_the_test_flags(monkeypatch):
     mode, kw = seen[0]
     assert mode == "dry-run" and kw["split"] == "test" and kw["fingerprint_record"] == at.Path("f.json")
     assert kw["dry_run_record"] is None and kw["repeats"] is None
+
+# ---------- the pre-registered rerun after a budget stop, and the repeats default (driver change 3b) ----------
+# TEST_REPEATS is patched to (2, 1) here, so "3 repeats" in the plan is 1 in these tests.
+
+from app.agent import llm  # noqa: E402
+
+
+def stopping_client(after_calls=2):
+    n = {"calls": 0}
+
+    def answer(p, s, r):
+        n["calls"] += 1
+        return llm.BudgetExceeded("the next call could cross the cap") if n["calls"] > after_calls else at.DRY_ANSWER
+    return llm.FakeClient(answer)
+
+
+def budget_stopped(te, tmp_path):
+    _, dry_record, _ = dry(te)
+    (m, record), _ = paid(te, tmp_path, dry_record, client=stopping_client())
+    return dry_record, record, m
+
+
+def test_a_budget_stop_is_recorded_as_one(te, tmp_path):
+    _, record, m = budget_stopped(te, tmp_path)
+    rec = json.loads(record.read_text())
+    assert not m["complete"] and m["stop_kind"] == "budget" and rec["config"]["after_budget_stop"] is None
+
+
+def test_the_rerun_after_a_budget_stop_defaults_to_3_repeats_and_the_budget_left(te, tmp_path):
+    dry_record, stopped, m = budget_stopped(te, tmp_path)
+    (m2, record), _ = go_test(te, "evaluation", billing_tier="tier-1", dry_run_record=dry_record,
+                              after_budget_stop=stopped, client=fake_client(tmp_path / "again"),
+                              now=datetime(2026, 10, 9, 1, tzinfo=timezone.utc))
+    rec = json.loads(record.read_text())
+    assert m2["complete"] and rec["config"]["repeats"] == at.TEST_REPEATS[-1]
+    left = 500 - json.loads(stopped.read_text())["metrics"]["spent_inr"]
+    assert rec["config"]["budget_inr"] <= left and rec["config"]["budget_inr"] > left - 0.01
+    assert rec["config"]["after_budget_stop"].endswith("_test_agent_run.json")
+    assert rec["config"]["after_budget_stop_sha256"] == at.run_record.sha256(stopped)
+
+
+@pytest.mark.parametrize("kw, match", [({"repeats": 2}, "is at 1 repeats"), ({"budget": 499.999}, "at most Rs 500 minus")])
+def test_the_rerun_refuses_anything_else(te, tmp_path, kw, match):
+    dry_record, stopped, _ = budget_stopped(te, tmp_path)
+    te["test_calls"].clear()
+    with pytest.raises(at.AgentTableError, match=match):
+        go_test(te, "evaluation", billing_tier="tier-1", dry_run_record=dry_record, after_budget_stop=stopped,
+                client=fake_client(tmp_path / "again"), now=datetime(2026, 10, 9, 1, tzinfo=timezone.utc), **kw)
+    assert te["test_calls"] == []
+
+
+def test_after_budget_stop_needs_a_budget_stop_from_this_commit(te, tmp_path):
+    _, dry_record, _ = dry(te)
+    (_, complete_record), _ = paid(te, tmp_path, dry_record)
+    with pytest.raises(at.AgentTableError, match="didn't stop on the budget"):
+        go_test(te, "evaluation", billing_tier="tier-1", dry_run_record=dry_record,
+                after_budget_stop=complete_record, client=fake_client(tmp_path / "x"),
+                now=datetime(2026, 10, 9, 2, tzinfo=timezone.utc))
+    doc = json.loads(complete_record.read_text())
+    doc["metrics"].update(complete=False, stop_kind="budget")
+    doc["commit"] = "0" * 40
+    complete_record.write_text(json.dumps(doc))
+    with pytest.raises(at.AgentTableError, match="this commit"):
+        go_test(te, "evaluation", billing_tier="tier-1", dry_run_record=dry_record,
+                after_budget_stop=complete_record, client=fake_client(tmp_path / "y"),
+                now=datetime(2026, 10, 9, 3, tzinfo=timezone.utc))
+
+
+def test_a_rerun_that_stops_too_ends_the_run(te, tmp_path):
+    dry_record, stopped, _ = budget_stopped(te, tmp_path)
+    (_, rerun), _ = go_test(te, "evaluation", billing_tier="tier-1", dry_run_record=dry_record,
+                            after_budget_stop=stopped, client=stopping_client(after_calls=1),
+                            now=datetime(2026, 10, 9, 4, tzinfo=timezone.utc))
+    assert json.loads(rerun.read_text())["metrics"]["stop_kind"] == "budget"
+    with pytest.raises(at.AgentTableError, match="stop and tell Raj"):
+        go_test(te, "evaluation", billing_tier="tier-1", dry_run_record=dry_record, after_budget_stop=rerun,
+                client=fake_client(tmp_path / "z"), now=datetime(2026, 10, 9, 5, tzinfo=timezone.utc))
+
+
+def test_after_budget_stop_is_refused_on_the_dry_run_and_on_dev(te, tmp_path):
+    with pytest.raises(at.AgentTableError, match="only for the paid run"):
+        go_test(te, "dry-run", after_budget_stop=tmp_path / "x_test_agent_run.json")
+    with pytest.raises(at.AgentTableError, match="only for --split test"):
+        go_test(te, "dry-run", split="dev", after_budget_stop=tmp_path / "x_test_agent_run.json")
+
+
+def test_omitted_repeats_default_to_what_the_dry_run_allows(te, tmp_path, monkeypatch):
+    m, _, _ = dry(te)
+    cap = (m["projection"]["1"]["expected_inr"] + m["projection"]["2"]["expected_inr"]) / 2
+    monkeypatch.setattr(at, "TEST_PROJECTION_CAP", cap)                 # only 1 repeat fits
+    _, dry_record, _ = dry(te, now=datetime(2026, 10, 9, 6, tzinfo=timezone.utc))
+    (_, record), _ = paid(te, tmp_path, dry_record, now=datetime(2026, 10, 9, 7, tzinfo=timezone.utc))
+    assert json.loads(record.read_text())["config"]["repeats"] == 1
+
+
+def test_main_passes_after_budget_stop(monkeypatch):
+    seen = []
+    monkeypatch.setattr(at, "run", lambda mode, **kw: seen.append(kw))
+    # the dry-run form: a paid form would read .env, which the test guard forbids
+    assert at.main(["--dry-run", "--split", "test", "--library-as-of", LIB, "--prompt-sha256", "h",
+                    "--fingerprint-record", "f.json", "--after-budget-stop", "r.json"]) == 0
+    assert seen[0]["after_budget_stop"] == at.Path("r.json") and seen[0]["repeats"] is None
