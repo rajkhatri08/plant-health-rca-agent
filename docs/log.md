@@ -3993,3 +3993,36 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Raj's fingerprint run.
   - Claude's check of the fingerprint against the agent run's rules.
   - **Claude's driver change:** `dev_table --split test` must also compute the 12-fault and 16–20 means, with tests. Today it computes only the 17-fault summary and the 3, 9, 15 mean.
+
+### 2026-10-08: week 7 session 3, Raj's second review of the test plan applied (docs only; nothing committed or tagged)
+- **Raj's review** (with guidance from the Claude.ai chat):
+  - **A. No DPCA on test.** "Both detectors are reported on dev either way. Test only confirms the choice": test reports the shipped detector only. This supersedes the 6 October answer.
+  - **B.** `--masked` on every alarm row.
+  - **C.** Reruns add their own access-log lines, kept and explained.
+  - **Changes:**
+    1. No commits between steps 1 and 12.
+    2. The crash rule per command.
+    3. A pre-registered budget-stop rerun at 3 repeats with the remaining budget.
+    4. A post-run check that the code is the tag's.
+    5. No installs from the fingerprint to step 12.
+    6. Section 3's order: commit, tests and CI green, tag, push.
+    7. The safety set, the probes and the demo's dev-only data under "Not run on test".
+    8. B2 on test's unknowns.
+- **Changed:**
+  - **`eval/TEST_PLAN.md`:** rewritten to the review.
+    - The DPCA row and step are removed, so it's back to 13 steps and 198 access-log lines; the record references are steps 1, 10 and 11.
+    - The crash rule per command, with steps 9 and 11 read that way.
+    - The budget-stop rerun (section 6).
+    - The bold no-commits rule at the top of section 4.
+    - The `git diff --stat protocol-v2-frozen HEAD` check after step 13.
+    - No installs; section 3's order.
+    - "Not run on test" with DPCA and its reason, the published-number check and diagnostic, the safety set, the probes, Should items and the demo.
+    - B2 in section 2 and 5.5.
+    - The 6 October additions 1–3 are kept, since nothing in this review withdrew them.
+  - **`eval/PROTOCOL.md` (v2, untagged):** the plan-and-freeze, crash, detector-rows and not-run rows rewritten to match.
+- **Tests:** none run (docs only).
+- **Decisions needed:** none.
+- **Two driver changes needed before the tag** (TEST_PLAN section 3, step 3), for Raj's go-ahead:
+  - **a.** `dev_table --split test`: the 12-fault and 16–20 means.
+  - **b.** `agent_table --split test --evaluation` must accept the budget-stop rerun at 3 repeats when the dry run allowed 5. Today it refuses any repeats other than `repeats_allowed`.
+- **Next:** Raj commits the draft and runs the fingerprint on dev.
