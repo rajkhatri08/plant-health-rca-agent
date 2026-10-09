@@ -4179,3 +4179,29 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - merge `ci-identity`, so main's CI is green
   - stop tracking `.DS_Store`
   - then S5 (README) and S6 (demo video script, the decisions close, the PLAN and log close)
+
+### 2026-10-09: week 7 session 5, the README (nothing committed; Raj reviews a zip)
+- **Changed:**
+  - **`README.md`,** rewritten from the stub, in order:
+    - the title and summary, with the live demo and API links
+    - "How it works": detection, the fault library, the matcher, the agent and the emergency screen, with design constants only and a mermaid flowchart of the graph
+    - "How it was evaluated": splits by run number, the sealed split and access log, PROTOCOL v2 and TEST_PLAN tagged `protocol-v2-frozen`, the one test run on 9 October 2026, with no numbers
+    - Raj's Results and Limitations, inserted from `docs/readme_results_draft.md` byte for byte (checked; one occurrence)
+    - "Running it": setup, data and conversion, API and page, tests, the dev build and evaluation commands, and the sealed test commands marked `EVAL_MODE=1`, which point to TEST_PLAN section 4
+    - repository layout; data and licences; decisions and logs
+    - **Heading levels:** `#` title and `##` sections, so the draft's `##` and `###` levels needed no change.
+  - **`docs/figures/test_cumulative_detection.png` and `docs/figures/test_amoc.png`:** copied from `data/plots/` (SHA-256 identical to the sources; aggregates only).
+  - **`docs/readme_results_draft.md`:** deleted once its text was in the README.
+- **Checks:**
+  - All 26 `python -m` commands in "Running it" parse against their modules' real argument parsers. The check stops after parsing; nothing was run.
+  - All 41 repository paths named in the README exist.
+  - `tests/test_leak_scan.py` and `tests/test_sources.py` pass; the README isn't in the leak scan's scope, and LEAKAGE allows it to name the benchmark.
+  - The README mentions no other project or employer.
+  - No `EVAL_MODE=1` command was run, and the sealed folder wasn't read.
+- **Number check** (every figure in Results and Limitations against the record it cites; dev figures against the dev records). Everything matches except these:
+  1. **"Notifications per episode in the first 2 h (fault 1 / fault 6)", Static PCA "1.0 / 1.0":** the record gives 0.97 / 0.97 (`eval/runs/20261009T030317Z_test_table_pca_static.json`, `load.per_episode_mean`). The "one notification per fault episode" line in "At a glance" reads as rounded.
+  2. **"a median of 1.85 s per call":** the record has no single median over both times, only one per time: 1.847 s at +30 min and 1.858 s at +60 min (`eval/runs/20261009T044927Z_test_agent_table.json`, `latency_cost.latency_ms.median`).
+  3. **"In about 3% of test runs, a false alert is still active when the fault begins":** untraced. No record holds it directly. It's consistent with 485 of 500 detected on faults 1, 4, 5, 6, 7 and 14 (15 runs, 3%), and the text itself says it wasn't checked run by run.
+- **Tests:** the two test files above (docs only otherwise).
+- **Decisions needed:** none.
+- **After Raj's review (with guidance from the Claude.ai chat):** the three flagged figures were corrected in the README: the PCA detector's notifications per episode (0.97 / 0.97, with a note), the latency (1.85 s at +30 min and 1.86 s at +60 min), and the 3%, now tied to the 15-of-500 count and marked as the likely cause. "Checked green in CI" was replaced with what happened: CI was red at the tag from the missing git identity, and the code was verified on a side branch before the run. The cumulative figure got a caption saying which mean it shows.
