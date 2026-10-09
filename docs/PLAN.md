@@ -91,6 +91,28 @@ Never cut: the sealed test and splits, the tested metric code, the single calibr
   - **Cut lines:** none taken; LangGraph, the safety set and deployment all stayed.
   - **Still open:** the published-number check (Must, Metrics, open since week 2).
   - **Pace:** the build runs about four weeks ahead of the dates in the table. Week 7 (the frozen test run, the README, the final `decisions.md`, the demo video) can start now.
+- **Week 7 closed (9 October 2026; sessions S0–S6).** Its "Done when" (the feature freeze, due 15 November) is met early.
+  - **The frozen test run:** once, on 9 October, on tag `protocol-v2-frozen` (commit 93ac874), with no crash and no rerun (`docs/log.md`, week 7 S4).
+  - **The rest:** the README (S5); the closing summary in `docs/decisions.md`; the episode 2 video script (`docs/demo_script.md`). Raj records the video.
+  - **Must items:**
+
+    | Must | Status |
+    |---|---|
+    | Data | Done: anonymised ingest, run-number splits, the sealed test split with its access log, leak tests |
+    | Metrics | Done: event-level metrics with unit tests. The published-number check ran (decision 56): 11 of 12 detectable faults within 10 points, so it doesn't agree under the pre-registered rule; fault 10 is the miss, mostly explained by the paper's operating point (post hoc) |
+    | Detection | Done: static PCA with calibrated limits, persistence and grouping at one budget; DPCA built and reported, not selected (decision 63); status bands and the ratio |
+    | Baseline | Done: grouped and ungrouped conventional alarms, both lists, with lead time and notification counts |
+    | Loops | Done: the loop map and the masked-fault rule (decisions 61, 62) |
+    | Isolation | Done: reconstruction-based contributions and right place (decisions 64, 65) |
+    | Library | Done: 12 process entries in the full schema, approved through entry tests and the gated approval |
+    | Diagnosis | Done: the matcher plus one LLM call in LangGraph, with structured output, the faithfulness check, declines, approval and the shipped flow (decision 79); the forest baselines; unknown-fault and leave-one-out tests, on dev and test |
+    | Analyzers | Done: diagnosis evidence only; the detector uses the 33 fast tags |
+    | Safety | Done: structural guardrails, the emergency screen and the safety set (dev; decision 78) |
+    | One scoring engine | Done: evaluation and the demo share the graph and the scoring code |
+    | Write-up | README done; `docs/decisions.md` closed; demo video script done, with the recording Raj's |
+
+  - **Cut lines:** none taken in any week.
+  - **Should and Could items:** unchanged, for after 15 November. Any of them is evaluated on dev only and reported as a post-test extension (week 7 scope rule).
 
 ## Parking lot
 Ideas that come up mid-build go here. Nothing enters scope unless something else leaves.

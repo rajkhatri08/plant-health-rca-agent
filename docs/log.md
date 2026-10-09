@@ -4205,3 +4205,81 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Tests:** the two test files above (docs only otherwise).
 - **Decisions needed:** none.
 - **After Raj's review (with guidance from the Claude.ai chat):** the three flagged figures were corrected in the README: the PCA detector's notifications per episode (0.97 / 0.97, with a note), the latency (1.85 s at +30 min and 1.86 s at +60 min), and the 3%, now tied to the 15-of-500 count and marked as the likely cause. "Checked green in CI" was replaced with what happened: CI was red at the tag from the missing git identity, and the code was verified on a side branch before the run. The cumulative figure got a caption saying which mean it shows.
+
+### 2026-10-09: week 7 session 6, the close (nothing committed; Raj reviews a zip)
+- **Changed:**
+  - **`docs/decisions.md`:**
+    - "Summary for a reader (decisions 1–79)", grouped by area: scope and principles, data and splits, detection, the alarm baseline and loops, attribution, the library, the matcher and baselines, the agent and the LLM, safety, evaluation and pre-registration, and the Should and Could items.
+    - "Week 7, 5–9 October 2026": the test plan and the freeze, the crash rule, the run, the post-run check, the CI fix, and decision 56's result by reference.
+    - No new decisions and no change of meaning. Decision 31 and the other-project reference in decision 43 are left out of the summary.
+  - **`docs/PLAN.md`:** "Week 7 closed", with each Must item's status. Should and Could items are unchanged.
+  - **This entry and the week 7 summary.**
+- **The demo script check** (`docs/demo_script.md`, Raj's; not reworded). Labels were checked against `web/index.html`, the API's strings and episode 2's committed answers:
+  - **Everything the script quotes exists.** Notes:
+    - "Awaiting supervisor approval" is the API's status for a proposal (`app/agent/demo.py`), not text in `web/`.
+    - "Faithfulness check: passed" is built by the page as "Faithfulness check: " plus the API's status, which is "passed" for episode 2.
+    - "Symptoms show here first" is the start of "Symptoms show here first (attributed when the alert began)". It shows only while the band is Alert.
+    - "Speed … 4 samples per tick" reads "Speed [4 samples] per tick" on the page; 4 is the default.
+    - "Proposed: Reactor cooling water supply warmer than normal" matches the entry's r1 title. The page adds "(reactor-cooling-water-warm-supply@r1; reactor cooling)".
+    - The emergency example shows "This note may describe an emergency. Follow the site emergency procedure now. No diagnosis is given."
+    - The two operator-note options, Episode 2, Play, Step and Reset, "Alert ratio (limit = 1)", the dashed limit line and the band colours are on the page as described.
+  - **The evidence it names is in episode 2's four cached answers** (`app/replay/llm_cache/`, both times, with no note and with the injection note). Each one cites `provisional.loops.RX-TIC-204: compensating`, `provisional.tags.RX-FV-206: high` and `provisional.masked: true`. The page prints these full item names. All four propose the same entry with the same three actions, so "the proposal stays the same" under the injection note holds.
+  - **Section 7's figures** (95.6%, 76% for 75.7%, about four points for 3.8) match the cited records.
+- **Tests:** none run (docs only).
+- **Decisions needed:** none.
+
+### 2026-10-09: week 7 summary
+- **Done when: met.** It was the feature freeze, due 15 November, and it was met on 9 October.
+  - The frozen test run happened once, on tag `protocol-v2-frozen` (commit 93ac874), with no crash, no stop, no patch and no rerun.
+  - The README, the decisions summary and the demo video script are done; Raj records the video.
+  - No cut line was taken in any week.
+- **The sessions:**
+  - **S0 (kickoff):** Raj's answers 1–26 and the scope rule (no Should item before the test run).
+  - **S1 (code for the test run):**
+    - **S1a:** the `EVAL_MODE` loader with one access-log line per load, which refuses a dirty tree; `eval/split.py`; sealed paths in records; the twin check.
+    - **S1b:** detection on test.
+    - **S1c:** diagnosis on test, behind the forest fingerprint.
+    - **S1d:** the agent on test (the dry run decides repeats; sealed outputs).
+    - **S1e:** the cumulative detection curve and the AMOC sweep (Raj's).
+  - **S2:** the published-number check against Yin et al. (2012), with Raj's theoretical limits. 11 of 12 detectable faults are within 10 points, fault 10 is the miss, plus a post-hoc FAR-matched diagnostic (decision 56).
+  - **S3:** `eval/TEST_PLAN.md` and the PROTOCOL v2 additions, through three reviews.
+    - **Driver changes:** the 12-fault and 16–20 detection means; `--after-budget-stop` and repeats from the dry run.
+    - **The forest fingerprint:** it reproduced exactly.
+    - **The tag.**
+  - **S4:** the sealed test run (Raj's), and the CI fix.
+  - **S5:** the README (Claude's setup, architecture and commands; Raj's results and limitations).
+  - **S6:** the close.
+- **Headline numbers (test, provisional where it applies):**
+
+  | | Test | Record |
+  |---|---|---|
+  | Detection, faults 1–20 except 3, 9, 15 | 0.956 (0.948–0.963) | `eval/runs/20261009T030317Z_test_table_pca_static.json` |
+  | Detection, the 12 dev faults (dev 0.982) | 0.959 (0.949–0.969) | same |
+  | Detection, faults 16–20 | 0.948 (0.940–0.956) | same |
+  | False alerts per 24 h (dev 0.919) | 1.004 (0.934–1.074) | same |
+  | Matcher top-1, all detected runs (dev 77.4%) | 75.7% | `eval/runs/20261009T035840Z_test_diag_table.json` |
+  | Forest-5 top-1 (dev 87.6%) | 87.0% | same |
+  | Shipped flow top-1 (matcher alone) | 66.1% (69.9%) | `eval/runs/20261009T044927Z_test_agent_table.json` |
+  | Faults 16–20 declined, shipped flow (matcher alone) | 78.7% (70.2%) | same |
+  | Known faults declined, shipped flow (matcher alone) | 27.1% (12.7%) | same |
+
+  - **The keep rule** (reported, not applied) isn't kept at either time: better on unknowns declined, worse on top-1 and family.
+  - **Published-number check (dev):** doesn't agree under the pre-registered rule (11 of 12). The paper's three-times-higher FAR explains most of fault 10's gap (`eval/runs/20261005T165013Z_published_check.json`, `…165837Z_published_check_far_matched.json`).
+- **Spend** (from the records' `spent_inr`; "charged" means `billing_tier` tier-1):
+  - **This week:** Rs 111.91, the test run (`eval/runs/20261009T040900Z_test_agent_run.json`), against its Rs 500 cap. No other paid run.
+  - **Total charged so far:** Rs 292.07, plus the probes' run, which is unrecorded and at most Rs 5 (its cap). That's Rs 180.16 in week 6 and Rs 111.91 in week 7:
+    - week 6: Rs 5.87 (the third tuning run), 99.98 (the evaluation), 73.96 (the safety set) and 0.35 (the demo)
+    - week 7: Rs 111.91 (the test run)
+  - The two free-tier tuning runs of 4 October (Rs 5.42 and 5.68) were meter estimates, not charges.
+- **Process lessons:**
+  - **CI was red for days, and local runs hid it.** From at least 5 October to the tag, every push failed on GitHub: two test helpers committed in throwaway repositories without a git identity, and Raj's machine supplied one. Check CI's result after every push, not just the local suite.
+  - **Projections:** the test dry run projected Rs 121.62 expected, and the run spent Rs 111.91. Week 6's lesson stands: project from prompt sizes and cost per call, never from cost per diagnosis.
+  - **Placeholders:** the test plan's commands carried `<…>` placeholders until the final review. Commands meant to be pasted should paste as written (`"$(ls -t eval/runs/*_<name>.json | head -1)"`).
+  - **Log appends can land out of order** when Raj commits between Claude's turns. Check `git log` and the log's tail before appending; one misplaced append was removed (S3).
+  - **A reversed answer** (DPCA on test: yes, no, then yes as a reported row) cost a rewrite. Each answer now says which one it supersedes.
+- **Carried over:**
+  - **The video recording** (Raj), from `docs/demo_script.md`.
+  - **README numbers:** none open. The three that S5's number check flagged were corrected before the README was committed (b7a6d1f; the S5 entry's review note).
+  - **Should items,** after 15 November: dev only, reported as a post-test extension.
+  - **The suite's run time:** about 30 minutes (1799 s locally at the freeze; 29 min 57 s on CI run #126). Making it faster (for example with pytest-xdist) is open; nothing is decided.
+  - **Parked as before:** ISO 14224 category names; source licences "to confirm".

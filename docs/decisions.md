@@ -898,3 +898,93 @@ Decisions 75–78 were fixed before any agent output existed (Raj's choices, fro
     - Keeping the matcher's order keeps its top-1. A veto keeps the LLM's caution on unknowns: it can stop a proposal, never make a different one.
     - The tie-break lets the LLM separate twin entries only where the matcher itself can't.
 
+
+## Summary for a reader (decisions 1–79)
+
+A map of the decisions above, grouped by area. One or two lines each, with the decision numbers. The numbered entries above are the record; this section adds nothing new and changes no meaning.
+
+### Scope and principles
+- **Detection, not prediction:** early fault detection and diagnosis, advisory only, with no remaining-life claims (1).
+- **Two stages, against real baselines:** the matcher ranks, the LLM adjudicates, and both are compared with random, forests and an LLM-only diagnostic (2).
+- **Thresholds from calibration data only,** one false-alert budget, and the protocol committed before test (5).
+- **One scoring engine** for evaluation and the demo, with no look-ahead (19).
+- **Measured LLM output:** a pinned model, repeats, intervals, cost and latency, and a faithfulness check (20).
+- **Reproducible, versioned, tested, monitored** (28). A README that doesn't oversell (29).
+- **Study tied to the build** (30). Scope fits the hours, with a cut line and a feature freeze on 15 November (32).
+
+### Data and splits
+- **The leakage walls:** labels only in `eval/` and the sealed folder; plant-style tag names for the agent; the test split and faults 16–20 sealed, with every access logged (3, 34).
+- **Raw data sealed by Raj:** raw downloads outside the repo, with a one-time conversion that routes open and sealed data (33, 46, 47).
+- **Splits by run number:** one assignment for every file (fit 250, early stop 50, calibration 150, dev 50), with the bootstrap resampling run numbers (35, 36, 49).
+- **No run IDs in the historian;** onset offsets of 1 h (training) and 8 h (testing) (37, 38).
+- **Tag names describe roles,** with raw names only builder-side (44). PyYAML approved (45).
+- **Analyzer dead time is one update interval,** from the simulator code (50). Scoring refuses NaN or inf (51).
+
+### Detection
+- **Show the time problem:** autocorrelation plotted, DPCA lags chosen on the fit pool, and the detector chosen by a written rule (8, 63).
+- **Status bands and the ratio:** Normal, Watch, Alert and Unknown, with r = max(T²/T²lim, SPE/SPElim) and the alert at r > 1 (12, 53).
+- **One alert stream:** one plant-level budget, with groups attributed, not alerted separately (40).
+- **The equipment-group rule,** fixed before any results (48).
+- **Warm-up of 9 samples** and the memory bound L + n − 1 ≤ 9 (52).
+- **Calibration:** persistence n and off-delay G calibrated with q to one false alert per 24 h; (n, G) chosen on selection runs; the q grid's floor at 95.00 and its finer top (54, 55, 59).
+- **Event-level metrics** (22). Detection scored from the documented onset, with twin divergence as a diagnostic only (57).
+- **Deployment follows the detector choice:** versioned bundles, a self-test, no pickles (21).
+- **DPCA wasn't selected;** static PCA ships (63).
+
+### The alarm baseline and the loops
+- **A fair alarm comparison:** realistic per-tag alarms at the same budget, plus a grouped row (6, 58).
+- **Notification counts,** the 2-h window, flood, chattering and lead time (60).
+- **The loop map** comes from the closed-loop code the data was generated with (10, 61).
+- **The masked-fault rule and valve headroom,** decided on selection runs (62).
+- **Analyzers are diagnosis evidence only,** with provisional and revised diagnoses at +30 and +60 min (11).
+
+### Attribution
+- **Reconstruction-based contributions** on the combined index φ = T²/T²lim + SPE/SPElim, with groups rebuilt jointly (9, 64).
+- **Right place:** read as of the notification, with the family → equipment map fixed before any result (65).
+- **The Watch band:** RBC_g / W_g > 1, at one shared percentile, capped at 2% of normal time at the plant level (66).
+
+### The library
+- **No vector search:** structured matching, and entries fetched by ID (15).
+- **Governance that changes answers:** the revision in force at the diagnosis time, drafts invisible, and separate author and approver (16, 67).
+- **One schema:** four event types, with only process entries written (23, 67). The signature feature vocabulary (68).
+- **Only tested entries:** 12 process entries, approved after entry tests on authoring runs, never on dev (24, 71).
+- **Sources with roles and licences** in a source register (25).
+
+### The matcher and the baselines
+- **Matcher scoring:** agree, contradict and unknown; required items weigh 2 and supporting items 1; fewest required contradictions first, then fit; tied blocks (69).
+- **Dev diagnosis cases** at notification + 10 and + 20 samples (70).
+- **Baselines:** the random floor, forest-5 and the ceiling forest, decline thresholds set to accept 95% of known-fault dev cases (or the lowest eligible value when that can't be reached), and paired bootstraps by run number (72).
+
+### The agent and the LLM
+- **A fixed evidence path** (14). LangGraph only for real features (17): the spike's criteria and its verdict (73, 74).
+- **The agent's contract:** top-2 candidates in reference order, the LLM called only when the matcher would propose, categorical evidence, a JSON schema, code-attached actions, and the deterministic faithfulness check (75).
+- **The LLM measurement:** a pinned `gemini-3.1-flash-lite` at temperature 0, minimal thinking, the cache key, the per-run budget, the retry rules and the billing tier (76).
+- **The keep rule and decline thresholds** (41). Faults cut from the library are scored like leave-one-out, strict for every method (42, 77).
+- **The shipped flow:** the matcher's order, with the LLM as tie-break, explainer and veto, after the keep rule failed on dev (79).
+
+### Safety
+- **Tested guardrails:** structural protections separate from behavioural ones, with zero-tolerance categories (26).
+- **The safety set:** the operator-note channel, the emergency screen before any model call, and nine categories mapped onto 36 note cases and structural tests (78).
+
+### Evaluation and pre-registration
+- **The published-number check:** Yin et al. (2012) on the same 33 variables. Its result: 11 of 12 detectable faults within 10 points, fault 10 the miss, plus a post-hoc diagnostic (39, 56).
+- **The agent's dev evaluation:** subsets by run number, the frozen prompt hash, strict leave-one-out, and the dev budget split (77).
+- **PROTOCOL** v1 through week 5, then v2 (decisions 75–79, before any agent output). It was frozen with `eval/TEST_PLAN.md` at tag `protocol-v2-frozen` (week 7, below).
+
+### Should and Could items (designed, not built)
+- **Should:** work orders as a controlled experiment (4); bad data and sensor faults (7); an autoencoder only if it earns its place (13).
+- **Could:** feedback through review (27).
+- **Won't:** no stitched timeline (18).
+
+## Week 7, 5–9 October 2026
+
+No new numbered decisions this week. Raj's answers fixed the test run; they're recorded in `eval/TEST_PLAN.md` (frozen), `eval/PROTOCOL.md` v2 (its pre-registered values table) and `docs/log.md` (week 7 entries).
+
+- **The test plan and the freeze:**
+  - every model, limit, threshold, k, library as-of, prompt hash, seed, subsample and command fixed in `eval/TEST_PLAN.md`
+  - committed with PROTOCOL v2, with the suite green locally, tagged `protocol-v2-frozen` (commit 93ac874) and pushed before any sealed file was opened (S0 answers 1–26; three reviews). CI was red at the tag for a reason outside the code (the CI fix, below)
+- **The crash rule:** a command that stopped may be patched under the same tag only if neither it nor any later command has shown a metric, and the patch touches only the crashed code path. Otherwise any change is a new protocol version. A budget stop on the paid run had a pre-registered rerun at 3 repeats (`--after-budget-stop`).
+- **The run:** one sitting on 9 October 2026, on the tagged commit, following TEST_PLAN section 4. There was no crash, no stop, no patch and no rerun. The access log shows exactly the 219 planned loads. Spend was Rs 111.91 against the Rs 500 cap.
+- **The post-run check:** `git diff --stat protocol-v2-frozen HEAD`, outside `eval/runs/` and the access log, printed nothing, so every test record comes from the tag's code.
+- **The CI fix:** CI had been red since at least 5 October, because two test helpers committed in throwaway repositories without a git name and email, and GitHub's runner has none. An autouse fixture in `tests/conftest.py` now sets them; it was checked on a side branch and merged after the run. The workflow file couldn't be pushed with the available token, so the fix lives in the tests.
+- **Decision 56's result:** recorded under that decision (5 October 2026), before the freeze.
