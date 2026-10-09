@@ -4080,3 +4080,102 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
     - the flag is refused on the dry run and on dev
     - omitted repeats default to `repeats_allowed`
     - `main` passes the flag (in its dry-run form; the paid form reads `.env`, which the guard forbids)
+
+### 2026-10-09: week 7 S4, the sealed test run (Raj's runs on protocol-v2-frozen)
+- **The run:**
+  - **When and where:** one sitting on 9 October, 08:06 to 10:20 IST, on the tagged commit 93ac874. Raj ran every command (with guidance from the Claude.ai chat). Steps 1–13 followed TEST_PLAN section 4 in order. Steps 2–11 were chained with `&&`, so a failure would have stopped everything after it.
+  - **Outcome:** no crash, no stop, no patch and no rerun. The crash rule was never needed.
+  - **Pre-flight:** main at 93ac874 (the tag), clean tree, scikit-learn 1.9.1, the API key present in `.env`.
+  - **Records** (all on 93ac874, all clean):
+    - `20261009T023642Z_twin_check`
+    - `…030317Z_test_table_pca_static`, `…030901Z_test_table_pca_dynamic`
+    - `…031427Z_test_table_alarms_realistic_grouped`, `…031947Z_…_realistic_ungrouped`, `…032546Z_…_every_grouped`, `…033139Z_…_every_ungrouped`
+    - `…035835Z_test_amoc`, `…035840Z_test_diag_table`
+    - `…040341Z_test_agent_dry_run`, `…040900Z_test_agent_run`, `…044927Z_test_agent_table`
+  - **Run times:** about 6 min for each detection table, 21 min for AMOC, 5 min for the diagnosis table and 40 min for the paid run.
+  - **Access log:** 223 lines. The first 4 are the raw-file conversions of 26 September (`action: convert`); the other 219 are this run's loads, exactly as planned: 21 each for the twin check and the six test tables, and 18 each for AMOC, the diagnosis table, the dry run and the paid run. No file was loaded twice in one command, and every load was on 93ac874 with a clean tree.
+  - **Step 14:** the records and the access log were committed as ac55abd and pushed. `git diff --stat protocol-v2-frozen HEAD -- . ':(exclude)eval/runs' ':(exclude)eval/test_access.log'` printed nothing, so the code is the tag's.
+  - **Spend:** Rs 111.91 against the Rs 500 cap. The dry run projected Rs 121.62 expected and Rs 479.74 at most, at 5 repeats.
+- **Before the run (9 October, nothing changed under the tag):**
+  - **The freeze commit's test file:** 93ac874 also removed a stray blank line at the top of `tests/test_safety_set.py`, which had slipped into the draft commit af5ebc5. The file is again identical to week 6 S8's.
+  - **CI was red at the tag:**
+    - It had been red on every push back to at least 5 October. All 156 failures (5 failed, 151 errors) were the same: `git commit` exiting with 128 in a throwaway test repo.
+    - The cause: the helper in `tests/test_approve_entry.py`, and one test in `tests/test_library.py`, commit without a git name and email. Raj's Mac supplies his own; GitHub's runner has none. The suite at the tag passes locally (2253 passed).
+    - The clean-machine check was run on a side branch, `ci-identity` (cdc9ea3): the tag's code plus one autouse fixture in `tests/conftest.py` that sets `GIT_AUTHOR_*` and `GIT_COMMITTER_*`. CI run #126 passed every test (29 min 57 s).
+    - A first attempt changed `.github/workflows/ci.yml` instead. The push was refused because the token lacks the `workflow` scope, so the fix moved into the tests, where it belongs anyway.
+    - main stayed on the tag until after step 14; the branch is merged after this entry.
+  - **`.DS_Store`** had been committed in af5ebc5. It was left alone during the run and is untracked after it.
+- **Detection (test, 500 run numbers per fault; means with 95% run-number intervals):**
+
+  | Row | Faults 1–20 except 3, 9, 15 | The 12 dev faults | Faults 16–20 | False alerts per 24 h | Chance rate |
+  |---|---|---|---|---|---|
+  | static PCA (ships) | 0.956 (0.948–0.963) | 0.959 (0.949–0.969) | 0.948 (0.940–0.956) | 1.004 (0.934–1.074) | 0.14 |
+  | DPCA (reported only) | 0.960 (0.952–0.967) | 0.963 (0.952–0.972) | 0.953 (0.945–0.960) | 1.042 (0.974–1.111) | 0.18 |
+  | alarms, realistic list | 0.933 (0.928–0.938) | 0.955 (0.950–0.959) | 0.881 (0.870–0.893) | 1.315 (1.221–1.409) | 0.17 |
+  | alarms, every tag | 0.937 (0.932–0.942) | 0.955 (0.950–0.960) | 0.892 (0.881–0.903) | 1.532 (1.434–1.633) | 0.20 |
+
+  - **Against dev:** static PCA was 0.982 (0.972–0.990) on the same 12 faults on dev, with 0.919 false alerts per 24 h.
+  - **Faults 3, 9 and 15:** 0.16 (0.13–0.18) for static PCA, against a chance rate of 0.14. That's at chance, as expected.
+  - **Twin check:** the twins are shared (500 of 500 runs for every fault), so "detected before divergence" is reported.
+  - **Grouped and ungrouped alarm rows are identical in every column,** because the week 3 calibration picked the same setting for both (n = 1, G = 0, q = 99.992).
+  - **The 0.97 ceiling on step faults:**
+    - Faults 1, 4, 5, 6, 7 and 14 are each detected in 485 of 500 runs. App 3 misses the same number, 15 runs per fault, and the alarms catch 13–15 of them (the lead-time column).
+    - The likely cause: test runs give 8 h of normal operation before onset, against 1 h on dev. In about 3% of runs a false-alert episode is still on, or inside its 15-sample merge gap, at onset. The fault then makes no new switch-on in the window, and `metrics.detection` counts a miss.
+    - This is consistent with the records but wasn't checked run by run, which would need another sealed load. It explains much of the drop from dev's 0.982.
+  - **Lead time against grouped realistic alarms (App 3 minus alarms):**
+    - Alarms are 6 min earlier on faults 2, 4, 5, 6, 7, 12, 14, 17 and 19. That's two samples: App 3 needs 3 samples in a row (n = 3), the alarms one (n = 1).
+    - App 3 is earlier on faults 1 and 8 (+3 min), 10 (+6), 16 (+18) and 20 (+15).
+  - **Operator load, first 2 h after onset:** App 3 sends at most 2 notifications per episode, and on average about 1. Per-tag alarms send 29 per episode on fault 1 and 25 on fault 6 (realistic list), and 35 and 27 (every tag).
+  - **Cumulative detection, the 12 dev faults, test (dev):** 44.8% within 12 min (44.5%), 61.3% within 30 min (61.7%), 79.3% within 1 h (81.7%), 88.6% within 2 h (90.2%), 95.9% within 4 h (98.2%).
+  - **AMOC (test; the pooled median delay over the 17 summary faults, misses +inf):**
+    - At the operating point (q = 95.57): 1.004 false alerts per 24 h, a 39-min median delay and 95.6% detection.
+    - Dev pooled 12 faults, at 15 min. The extra faults 16–20 are slow, which raises the pooled median.
+    - **Post hoc and not taken:** the same 39-min median is reached at 0.340 false alerts per 24 h (q = 97.62, detection 94.5%), about 66% fewer. On dev the same kind of observation gave about 30%.
+  - **Attribution:** right place 0.66 (0.65–0.67) at the notification and 0.53 (0.53–0.54) 30 min later, over the 12 family faults. The feed-composition faults 1, 2 and 8 are almost never placed right (0.01–0.04): their top group is the compressor or the separator.
+- **Diagnosis without the LLM (provisional, the headline):**
+  - **All detected test runs** (5752 known-fault cases, 2370 unknown, 983 false alerts):
+    - Top-1: matcher 75.7% (dev 77.4%), forest-5 87.0% (dev 87.6%), ceiling 87.0% (dev 92.7%), random 8.3%.
+    - The matcher declines more false alerts than forest-5 (84.6% against 69.1%) and more unknowns (67.2% against 49.9%); the ceiling forest declines 79.1% and 73.1%.
+  - **The subsample** (118 known-fault cases): matcher 69.9%, forest-5 83.1%, ceiling 81.4%. The paired top-1 differences are matcher minus forest-5 −13.1 points (−21.9 to −5.2) and matcher minus ceiling −11.4 (−19.5 to −1.7).
+  - **Leave-one-out (all runs):**
+    - With fault 13's entry removed, the matcher declines 97.9% of cases.
+    - With the entries for faults 1, 4 and 5 removed, it almost never declines (0.6% or less). It proposes a sibling entry instead, mostly in the right family (88.7–100%).
+    - At revised, it declines all of fault 4's cases.
+  - **Revised:** top-1 matcher 75.5%, forest-5 88.0%, ceiling 88.8%.
+- **The agent (subsample, 5 repeats; decision 79's three views):**
+  - **Provisional:**
+    - The shipped flow's top-1 is 66.1% in every repeat, against the matcher's 69.9%. The paired difference is −3.8 points (−5.9 to −1.3) in every repeat.
+    - Top-3 72.0–72.9% against 87.3%; family 72.0% against 81.8%; wrongly declined 27.1–28.0% against 12.7%.
+    - False alerts declined: 88.9% for both. Unknowns 16–20 declined: 78.7% against 70.2%. Leave-one-out declined: 61.5–66.7% against 25.6%.
+  - **Revised:**
+    - Shipped 63.6% against the matcher's 69.1% (−5.5 points; the per-repeat intervals run from −9.7 to −1.3).
+    - Wrongly declined 29.7–30.5% against 19.5%. Unknowns declined 89.4% against 76.6%. Leave-one-out declined 71.8% against 51.3%.
+  - **Shipped against the re-ranker:** identical on every metric at provisional. At revised the re-ranker's top-1 is 0.8 points higher (64.4%), because the shipped flow vetoes the LLM's picks from outside the matcher's top block.
+  - **The keep rule** (reported, not applied) is not kept at either time:
+    - better on unknowns declined: +22.1 points at provisional, +14.9 at revised
+    - worse on top-1 (−3.8 and −4.7) and on family (−9.7 and −5.1)
+  - **Against dev:** the shipped flow cost 2.2 and 1.7 points of top-1 there, and declined 18.5% of known faults against the matcher's 5.9%. On test the over-declining is larger (27% against 13%), so the cause recorded on dev matters more here: the LLM treats a contradicted supporting item as disqualifying.
+  - **Counts over the 5 repeats:**
+    - vetoes: 175 at provisional and 109 at revised
+    - tie-breaks: 60 and 55
+    - miss labels (gate / retrieval / reasoning): 75 / 10 / 115 and 115 / 20 / 80
+    - the family-level answer: never given (0 of 195 not-in-library cases per stage)
+  - **Stability:** 218 of 222 cases at provisional, and 216 of 222 at revised, gave the same answer in all 5 repeats.
+  - **Checks:** failed faithfulness checks 1–3 per repeat at provisional and 4–6 at revised; 0 schema failures and 0 API errors.
+  - **Confidence:** high-confidence answers were right in 468 of 692 at provisional and 422 of 582 at revised; medium in 17 of 39 and 22 of 28. No low.
+  - **Latency and cost:** median 1.85 s per call (95th percentile 2.30 s, maximum 6.9 s). Rs 55.99 at provisional and Rs 55.92 at revised, Rs 0.050 per diagnosis.
+- **Changed:** docs only (this entry). The records and the access log were committed at step 14 (ac55abd).
+- **Tests:** none run for this entry. The suite at the tag: 2253 passed locally, and all pass on GitHub with the conftest fixture (run #126).
+- **For the README's limitations (S5), from test:**
+  - the 0.97 step-fault ceiling from alerts already on at onset
+  - alarms 6 min earlier on most step faults (the persistence setting)
+  - the AMOC observation (not taken)
+  - the larger over-declining by the LLM
+  - leave-one-out on faults 1, 4 and 5 answered with a sibling entry
+  - feed-composition attribution
+  - grouped and ungrouped alarm rows being the same setting
+- **Decisions needed:** none for the run.
+- **Next:**
+  - merge `ci-identity`, so main's CI is green
+  - stop tracking `.DS_Store`
+  - then S5 (README) and S6 (demo video script, the decisions close, the PLAN and log close)
