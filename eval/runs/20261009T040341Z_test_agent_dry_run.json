@@ -1,0 +1,127 @@
+{
+  "name": "test_agent_dry_run",
+  "time": "2026-10-09T04:03:41+00:00",
+  "commit": "93ac87436122e800452ff2d360e602a5f1d10c75",
+  "dirty": false,
+  "config": {
+    "mode": "dry-run",
+    "split": "test",
+    "library_as_of": "2026-10-05T00:00:00+00:00",
+    "library": {
+      "condenser-cooling-water-temperature-wander": "condenser-cooling-water-temperature-wander@r1",
+      "condenser-cooling-water-warm-supply": "condenser-cooling-water-warm-supply@r1",
+      "mixed-feed-composition-wander": "mixed-feed-composition-wander@r1",
+      "mixed-feed-inert-rise": "mixed-feed-inert-rise@r1",
+      "mixed-feed-reactant-ratio-shift": "mixed-feed-reactant-ratio-shift@r1",
+      "mixed-feed-supply-loss": "mixed-feed-supply-loss@r1",
+      "mixed-feed-temperature-wander": "mixed-feed-temperature-wander@r2",
+      "reactant-1-feed-supply-loss": "reactant-1-feed-supply-loss@r1",
+      "reaction-rate-drift": "reaction-rate-drift@r1",
+      "reactor-cooling-valve-sticking": "reactor-cooling-valve-sticking@r1",
+      "reactor-cooling-water-temperature-wander": "reactor-cooling-water-temperature-wander@r1",
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "left_out": {
+      "1": "mixed-feed-reactant-ratio-shift@r1",
+      "4": "reactor-cooling-water-warm-supply@r1",
+      "5": "condenser-cooling-water-warm-supply@r1",
+      "13": "reaction-rate-drift@r1"
+    },
+    "unknown_faults": [
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "bundle": "pca_v3",
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+    "normals_record": "eval/runs/20261001T182856Z_evidence_normals.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "fingerprint_record": "eval/runs/20261008T181533Z_diag_fingerprint.json",
+    "subsample": {
+      "seed": 20261006,
+      "runs": 10
+    },
+    "rules": {
+      "provisional": {
+        "threshold": "1/3",
+        "accepted": 0.9371816638370118,
+        "short": true,
+        "k": 2
+      },
+      "revised": {
+        "threshold": "5/11",
+        "accepted": 0.9066213921901528,
+        "short": true,
+        "k": 2
+      }
+    },
+    "settings": {
+      "model_id": "gemini-3.1-flash-lite",
+      "temperature": 0.0,
+      "max_output_tokens": 1024,
+      "thinking_level": "minimal"
+    },
+    "schema_version": "diagnosis-1",
+    "prices": {
+      "read_on": "2026-10-04",
+      "usd_per_m_input": "0.25",
+      "usd_per_m_output": "1.50",
+      "usd_inr": "96.33",
+      "usd_inr_on": "2026-10-04"
+    },
+    "prompt_sha256": "fa39b73e6acc48a3fd253852a812fba4d793866fe755f310ab066cbd211c5ee0",
+    "projection_cap_inr": 400,
+    "false_cap": 50
+  },
+  "seeds": {
+    "subsample": 20261006
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1"
+  },
+  "outputs": {},
+  "metrics": {
+    "cases": {
+      "known": 118,
+      "unknown": 47,
+      "loo": 39,
+      "false": 18
+    },
+    "planned": 2220,
+    "completed": 2220,
+    "complete": true,
+    "outcomes": {
+      "matcher_declined": 845,
+      "vetoed": 1375
+    },
+    "llm_calls": 1375,
+    "projection": {
+      "5": {
+        "calls": 1375,
+        "input_chars": 10299880,
+        "expected_inr": 121.6159,
+        "worst_inr": 479.7416,
+        "chars_per_token": 4,
+        "expected_output_tokens": 300
+      },
+      "3": {
+        "calls": 825,
+        "input_chars": 6179928,
+        "expected_inr": 72.9695,
+        "worst_inr": 287.8449,
+        "chars_per_token": 4,
+        "expected_output_tokens": 300
+      }
+    },
+    "repeats_allowed": 5
+  }
+}

@@ -1,0 +1,2558 @@
+{
+  "name": "test_table_pca_static",
+  "time": "2026-10-09T03:03:17+00:00",
+  "commit": "93ac87436122e800452ff2d360e602a5f1d10c75",
+  "dirty": false,
+  "config": {
+    "detector": "pca_static",
+    "pool": "test",
+    "warmup": 9,
+    "n": 3,
+    "gap": 15,
+    "q": 95.57,
+    "lags": 0,
+    "model_sha256": "1e4aa9e6cac5ed75f81e6f6a6adc197ba215d9390ec556012c481bc49f8afae5",
+    "onset": 160,
+    "window": 80,
+    "notification_window": [
+      161,
+      200
+    ],
+    "faults": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "summary_faults": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "bootstrap": {
+      "resamples": 2000,
+      "level": 0.95,
+      "method": "percentile"
+    },
+    "split": "test",
+    "right_place_faults": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "twin_check": {
+      "record": "eval/runs/20261009T023642Z_twin_check.json",
+      "verdict": "shared"
+    },
+    "masked_record": "eval/runs/20260928T155738Z_masked_faults.json",
+    "attribution": {
+      "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+      "watch_sha256": "9a841978876c46a9fd9bf58352b4ef766434bf77011808361e23be50d3d3ec7b",
+      "p": 99.67,
+      "window": 3,
+      "secondary_offset": 10,
+      "family_groups": {
+        "feed composition": [
+          "feed"
+        ],
+        "feed supply": [
+          "feed"
+        ],
+        "feed temperature": [
+          "stripper",
+          "feed"
+        ],
+        "reactor cooling": [
+          "reactor"
+        ],
+        "condenser cooling": [
+          "condenser"
+        ],
+        "reaction kinetics": [
+          "reactor"
+        ]
+      }
+    },
+    "lead_vs": {
+      "detector": "alarms_realistic_grouped",
+      "calibration_record": "eval/runs/20260928T105104Z_calibrate_alarms_realistic.json",
+      "limits_sha256": "3562506e93fbf1fe5a17f00dc4f8ce6fd30abdd0ebb81f5e92ff78f4864c8f20"
+    }
+  },
+  "seeds": {
+    "bootstrap": 20261001
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1"
+  },
+  "outputs": {
+    "table": {
+      "path": "data/tables/20261009T030317Z_test_table_pca_static.md",
+      "sha256": "5650f22844c3cc520a5636193deec6f183956e88c39daf834aabeca8db5b3829"
+    }
+  },
+  "metrics": {
+    "faults": {
+      "fault_01": {
+        "family": "feed composition",
+        "runs": 500,
+        "detected": 485,
+        "rate": 0.97,
+        "rate_ci95": [
+          0.956,
+          0.9840499999999998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 485,
+        "delay_median_min": 15.0,
+        "delay_q1_min": 12.0,
+        "delay_q3_min": 15.0,
+        "delay_median_ci95": [
+          15.0,
+          15.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 485,
+        "load": {
+          "per_episode_mean": 0.97,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.08083333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 3.0,
+          "median_ci95": [
+            3.0,
+            3.0
+          ],
+          "both": 485,
+          "only_app": 0,
+          "only_base": 15,
+          "neither": 0
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 485,
+          "top_tags": {
+            "ST-PI-602": 460,
+            "CP-JI-502": 20,
+            "FD-FI-103": 1
+          },
+          "top_group": "compressor",
+          "top_group_share": 0.7443298969072165,
+          "right_place": {
+            "rate": 0.008,
+            "rate_ci95": [
+              0.002,
+              0.016
+            ],
+            "right": 4,
+            "of_detected": 485
+          },
+          "right_place_30min": {
+            "rate": 0.0,
+            "rate_ci95": [
+              0.0,
+              0.0
+            ],
+            "right": 0,
+            "of_detected": 485
+          },
+          "allowed_groups": [
+            "feed"
+          ]
+        }
+      },
+      "fault_02": {
+        "family": "feed composition",
+        "runs": 500,
+        "detected": 495,
+        "rate": 0.99,
+        "rate_ci95": [
+          0.982,
+          0.998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 495,
+        "delay_median_min": 45.0,
+        "delay_q1_min": 39.0,
+        "delay_q3_min": 48.0,
+        "delay_median_ci95": [
+          45.0,
+          45.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 495,
+        "load": {
+          "per_episode_mean": 0.99,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.0825,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -9.0,
+            -6.0
+          ],
+          "both": 495,
+          "only_app": 0,
+          "only_base": 5,
+          "neither": 0
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 495,
+          "top_tags": {
+            "SP-FV-407": 228,
+            "SP-FI-406": 155,
+            "RX-PI-202": 43
+          },
+          "top_group": "separator",
+          "top_group_share": 0.9212121212121213,
+          "right_place": {
+            "rate": 0.02,
+            "rate_ci95": [
+              0.008,
+              0.034
+            ],
+            "right": 10,
+            "of_detected": 495
+          },
+          "right_place_30min": {
+            "rate": 0.0,
+            "rate_ci95": [
+              0.0,
+              0.0
+            ],
+            "right": 0,
+            "of_detected": 495
+          },
+          "allowed_groups": [
+            "feed"
+          ]
+        }
+      },
+      "fault_03": {
+        "family": "\u2014",
+        "runs": 500,
+        "detected": 72,
+        "rate": 0.144,
+        "rate_ci95": [
+          0.112,
+          0.174
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 72,
+        "delay_median_min": "inf",
+        "delay_q1_min": "inf",
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          "inf",
+          "inf"
+        ],
+        "share_still_flagged": 0.07423453754786347,
+        "share_still_flagged_runs": 72,
+        "load": {
+          "per_episode_mean": 0.074,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.006166666666666667,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -21.0,
+          "median_ci95": [
+            -54.0,
+            0.0
+          ],
+          "both": 26,
+          "only_app": 46,
+          "only_base": 64,
+          "neither": 364
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 72,
+          "top_tags": {
+            "ST-FV-607": 8,
+            "CP-JI-502": 7,
+            "RX-FV-206": 5
+          },
+          "top_group": "feed",
+          "top_group_share": 0.3888888888888889
+        }
+      },
+      "fault_04": {
+        "family": "reactor cooling",
+        "runs": 500,
+        "detected": 485,
+        "rate": 0.97,
+        "rate_ci95": [
+          0.956,
+          0.9840499999999998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 485,
+        "delay_median_min": 9.0,
+        "delay_q1_min": 9.0,
+        "delay_q3_min": 9.0,
+        "delay_median_ci95": [
+          9.0,
+          9.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 485,
+        "load": {
+          "per_episode_mean": 0.97,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.08083333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 483,
+          "only_app": 2,
+          "only_base": 15,
+          "neither": 0
+        },
+        "masked": {
+          "masked": true,
+          "valves": "RX-FV-206"
+        },
+        "attribution": {
+          "detected": 485,
+          "top_tags": {
+            "RX-FV-206": 485
+          },
+          "top_group": "reactor",
+          "top_group_share": 1.0,
+          "right_place": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "right_place_30min": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "allowed_groups": [
+            "reactor"
+          ]
+        }
+      },
+      "fault_05": {
+        "family": "condenser cooling",
+        "runs": 500,
+        "detected": 485,
+        "rate": 0.97,
+        "rate_ci95": [
+          0.956,
+          0.9840499999999998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 485,
+        "delay_median_min": 9.0,
+        "delay_q1_min": 9.0,
+        "delay_q3_min": 9.0,
+        "delay_median_ci95": [
+          9.0,
+          9.0
+        ],
+        "share_still_flagged": 0.3550821229605039,
+        "share_still_flagged_runs": 485,
+        "load": {
+          "per_episode_mean": 0.97,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.08083333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 483,
+          "only_app": 2,
+          "only_base": 15,
+          "neither": 0
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 485,
+          "top_tags": {
+            "SP-TI-401": 458,
+            "CD-TI-301": 25,
+            "SP-PI-403": 2
+          },
+          "top_group": "condenser",
+          "top_group_share": 0.9958762886597938,
+          "right_place": {
+            "rate": 0.966,
+            "rate_ci95": [
+              0.95,
+              0.982
+            ],
+            "right": 483,
+            "of_detected": 485
+          },
+          "right_place_30min": {
+            "rate": 0.196,
+            "rate_ci95": [
+              0.164,
+              0.232
+            ],
+            "right": 98,
+            "of_detected": 485
+          },
+          "allowed_groups": [
+            "condenser"
+          ]
+        }
+      },
+      "fault_06": {
+        "family": "feed supply",
+        "runs": 500,
+        "detected": 485,
+        "rate": 0.97,
+        "rate_ci95": [
+          0.956,
+          0.9840499999999998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 485,
+        "delay_median_min": 9.0,
+        "delay_q1_min": 9.0,
+        "delay_q3_min": 9.0,
+        "delay_median_ci95": [
+          9.0,
+          9.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 485,
+        "load": {
+          "per_episode_mean": 0.97,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.08083333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 483,
+          "only_app": 2,
+          "only_base": 13,
+          "neither": 2
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 485,
+          "top_tags": {
+            "FD-FV-105": 307,
+            "FD-FI-101": 178
+          },
+          "top_group": "feed",
+          "top_group_share": 1.0,
+          "right_place": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "right_place_30min": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "allowed_groups": [
+            "feed"
+          ]
+        }
+      },
+      "fault_07": {
+        "family": "feed supply",
+        "runs": 500,
+        "detected": 485,
+        "rate": 0.97,
+        "rate_ci95": [
+          0.956,
+          0.9840499999999998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 485,
+        "delay_median_min": 9.0,
+        "delay_q1_min": 9.0,
+        "delay_q3_min": 9.0,
+        "delay_median_ci95": [
+          9.0,
+          9.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 485,
+        "load": {
+          "per_episode_mean": 0.97,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.08083333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 483,
+          "only_app": 2,
+          "only_base": 13,
+          "neither": 2
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 485,
+          "top_tags": {
+            "FD-FI-104": 276,
+            "ST-PI-602": 209
+          },
+          "top_group": "feed",
+          "top_group_share": 1.0,
+          "right_place": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "right_place_30min": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "allowed_groups": [
+            "feed"
+          ]
+        }
+      },
+      "fault_08": {
+        "family": "feed composition",
+        "runs": 500,
+        "detected": 497,
+        "rate": 0.994,
+        "rate_ci95": [
+          0.986,
+          1.0
+        ],
+        "before_divergence": 4,
+        "before_divergence_of": 497,
+        "delay_median_min": 57.0,
+        "delay_q1_min": 45.0,
+        "delay_q3_min": 72.0,
+        "delay_median_ci95": [
+          54.0,
+          57.0
+        ],
+        "share_still_flagged": 0.9998671459005891,
+        "share_still_flagged_runs": 497,
+        "load": {
+          "per_episode_mean": 0.982,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.08183333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 3.0,
+          "median_ci95": [
+            3.0,
+            6.0
+          ],
+          "both": 497,
+          "only_app": 0,
+          "only_base": 3,
+          "neither": 0
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 497,
+          "top_tags": {
+            "ST-PI-602": 389,
+            "CP-JI-502": 66,
+            "FD-FV-105": 7
+          },
+          "top_group": "compressor",
+          "top_group_share": 0.6941649899396378,
+          "right_place": {
+            "rate": 0.038,
+            "rate_ci95": [
+              0.024,
+              0.056
+            ],
+            "right": 19,
+            "of_detected": 497
+          },
+          "right_place_30min": {
+            "rate": 0.188,
+            "rate_ci95": [
+              0.154,
+              0.222
+            ],
+            "right": 94,
+            "of_detected": 497
+          },
+          "allowed_groups": [
+            "feed"
+          ]
+        }
+      },
+      "fault_09": {
+        "family": "\u2014",
+        "runs": 500,
+        "detected": 75,
+        "rate": 0.15,
+        "rate_ci95": [
+          0.118,
+          0.182
+        ],
+        "before_divergence": 5,
+        "before_divergence_of": 75,
+        "delay_median_min": "inf",
+        "delay_q1_min": "inf",
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          "inf",
+          "inf"
+        ],
+        "share_still_flagged": 0.07567687738805173,
+        "share_still_flagged_runs": 75,
+        "load": {
+          "per_episode_mean": 0.074,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.006166666666666667,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -15.0,
+          "median_ci95": [
+            -39.0,
+            0.037499999999795364
+          ],
+          "both": 30,
+          "only_app": 45,
+          "only_base": 63,
+          "neither": 362
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 75,
+          "top_tags": {
+            "CP-JI-502": 6,
+            "SP-FI-406": 5,
+            "ST-FV-607": 5
+          },
+          "top_group": "feed",
+          "top_group_share": 0.3466666666666667
+        }
+      },
+      "fault_10": {
+        "family": "feed temperature",
+        "runs": 500,
+        "detected": 384,
+        "rate": 0.768,
+        "rate_ci95": [
+          0.73,
+          0.804
+        ],
+        "before_divergence": 9,
+        "before_divergence_of": 384,
+        "delay_median_min": 144.0,
+        "delay_q1_min": 96.0,
+        "delay_q3_min": 231.75,
+        "delay_median_ci95": [
+          135.0,
+          157.5
+        ],
+        "share_still_flagged": 0.7481228407314436,
+        "share_still_flagged_runs": 384,
+        "load": {
+          "per_episode_mean": 0.402,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.0335,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 6.0,
+          "median_ci95": [
+            0.0,
+            18.0
+          ],
+          "both": 233,
+          "only_app": 151,
+          "only_base": 23,
+          "neither": 93
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 384,
+          "top_tags": {
+            "ST-TI-604": 348,
+            "ST-FI-605": 14,
+            "SP-PI-403": 3
+          },
+          "top_group": "stripper",
+          "top_group_share": 0.8854166666666666,
+          "right_place": {
+            "rate": 0.724,
+            "rate_ci95": [
+              0.684,
+              0.764
+            ],
+            "right": 362,
+            "of_detected": 384
+          },
+          "right_place_30min": {
+            "rate": 0.714,
+            "rate_ci95": [
+              0.674,
+              0.754
+            ],
+            "right": 357,
+            "of_detected": 384
+          },
+          "allowed_groups": [
+            "stripper",
+            "feed"
+          ]
+        }
+      },
+      "fault_11": {
+        "family": "reactor cooling",
+        "runs": 500,
+        "detected": 491,
+        "rate": 0.982,
+        "rate_ci95": [
+          0.97,
+          0.994
+        ],
+        "before_divergence": 2,
+        "before_divergence_of": 491,
+        "delay_median_min": 24.0,
+        "delay_q1_min": 18.0,
+        "delay_q3_min": 33.0,
+        "delay_median_ci95": [
+          24.0,
+          27.0
+        ],
+        "share_still_flagged": 0.9937028859872259,
+        "share_still_flagged_runs": 491,
+        "load": {
+          "per_episode_mean": 0.998,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.08316666666666667,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 0.0,
+          "median_ci95": [
+            0.0,
+            0.0
+          ],
+          "both": 491,
+          "only_app": 0,
+          "only_base": 9,
+          "neither": 0
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 491,
+          "top_tags": {
+            "RX-FV-206": 475,
+            "RX-TI-204": 7,
+            "FD-FI-101": 2
+          },
+          "top_group": "reactor",
+          "top_group_share": 0.9898167006109979,
+          "right_place": {
+            "rate": 0.972,
+            "rate_ci95": [
+              0.958,
+              0.986
+            ],
+            "right": 486,
+            "of_detected": 491
+          },
+          "right_place_30min": {
+            "rate": 0.968,
+            "rate_ci95": [
+              0.952,
+              0.982
+            ],
+            "right": 484,
+            "of_detected": 491
+          },
+          "allowed_groups": [
+            "reactor"
+          ]
+        }
+      },
+      "fault_12": {
+        "family": "condenser cooling",
+        "runs": 500,
+        "detected": 489,
+        "rate": 0.978,
+        "rate_ci95": [
+          0.966,
+          0.99
+        ],
+        "before_divergence": 2,
+        "before_divergence_of": 489,
+        "delay_median_min": 27.0,
+        "delay_q1_min": 21.0,
+        "delay_q3_min": 33.0,
+        "delay_median_ci95": [
+          24.0,
+          27.0
+        ],
+        "share_still_flagged": 0.9999844880674459,
+        "share_still_flagged_runs": 489,
+        "load": {
+          "per_episode_mean": 0.98,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.08166666666666667,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 489,
+          "only_app": 0,
+          "only_base": 11,
+          "neither": 0
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 489,
+          "top_tags": {
+            "SP-TI-401": 401,
+            "CD-TI-301": 63,
+            "SP-PI-403": 9
+          },
+          "top_group": "condenser",
+          "top_group_share": 0.8609406952965235,
+          "right_place": {
+            "rate": 0.842,
+            "rate_ci95": [
+              0.81,
+              0.874
+            ],
+            "right": 421,
+            "of_detected": 489
+          },
+          "right_place_30min": {
+            "rate": 0.4,
+            "rate_ci95": [
+              0.358,
+              0.446
+            ],
+            "right": 200,
+            "of_detected": 489
+          },
+          "allowed_groups": [
+            "condenser"
+          ]
+        }
+      },
+      "fault_13": {
+        "family": "reaction kinetics",
+        "runs": 500,
+        "detected": 486,
+        "rate": 0.972,
+        "rate_ci95": [
+          0.956,
+          0.986
+        ],
+        "before_divergence": 13,
+        "before_divergence_of": 486,
+        "delay_median_min": 123.0,
+        "delay_q1_min": 87.0,
+        "delay_q3_min": 159.0,
+        "delay_median_ci95": [
+          117.0,
+          129.0
+        ],
+        "share_still_flagged": 0.9990570511163367,
+        "share_still_flagged_runs": 486,
+        "load": {
+          "per_episode_mean": 0.508,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.042333333333333334,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 0.0,
+          "median_ci95": [
+            0.0,
+            0.0
+          ],
+          "both": 479,
+          "only_app": 7,
+          "only_base": 8,
+          "neither": 6
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 486,
+          "top_tags": {
+            "RX-PI-202": 319,
+            "SP-PI-403": 49,
+            "ST-PI-602": 49
+          },
+          "top_group": "reactor",
+          "top_group_share": 0.4506172839506173,
+          "right_place": {
+            "rate": 0.438,
+            "rate_ci95": [
+              0.394,
+              0.48
+            ],
+            "right": 219,
+            "of_detected": 486
+          },
+          "right_place_30min": {
+            "rate": 0.06,
+            "rate_ci95": [
+              0.04,
+              0.082
+            ],
+            "right": 30,
+            "of_detected": 486
+          },
+          "allowed_groups": [
+            "reactor"
+          ]
+        }
+      },
+      "fault_14": {
+        "family": "reactor cooling",
+        "runs": 500,
+        "detected": 485,
+        "rate": 0.97,
+        "rate_ci95": [
+          0.956,
+          0.9840499999999998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 485,
+        "delay_median_min": 9.0,
+        "delay_q1_min": 9.0,
+        "delay_q3_min": 9.0,
+        "delay_median_ci95": [
+          9.0,
+          9.0
+        ],
+        "share_still_flagged": 1.0,
+        "share_still_flagged_runs": 485,
+        "load": {
+          "per_episode_mean": 0.97,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.08083333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 483,
+          "only_app": 2,
+          "only_base": 14,
+          "neither": 1
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 485,
+          "top_tags": {
+            "RX-TI-205": 302,
+            "RX-FV-206": 152,
+            "RX-TI-204": 31
+          },
+          "top_group": "reactor",
+          "top_group_share": 1.0,
+          "right_place": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "right_place_30min": {
+            "rate": 0.97,
+            "rate_ci95": [
+              0.956,
+              0.9840499999999998
+            ],
+            "right": 485,
+            "of_detected": 485
+          },
+          "allowed_groups": [
+            "reactor"
+          ]
+        }
+      },
+      "fault_15": {
+        "family": "\u2014",
+        "runs": 500,
+        "detected": 86,
+        "rate": 0.172,
+        "rate_ci95": [
+          0.138,
+          0.206
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 86,
+        "delay_median_min": "inf",
+        "delay_q1_min": "inf",
+        "delay_q3_min": "inf",
+        "delay_median_ci95": [
+          "inf",
+          "inf"
+        ],
+        "share_still_flagged": 0.09130588110563799,
+        "share_still_flagged_runs": 86,
+        "load": {
+          "per_episode_mean": 0.102,
+          "per_episode_max": 1,
+          "per_10min_mean": 0.0085,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -9.0,
+          "median_ci95": [
+            -39.0,
+            0.0
+          ],
+          "both": 33,
+          "only_app": 53,
+          "only_base": 66,
+          "neither": 348
+        },
+        "masked": {
+          "masked": false,
+          "valves": null
+        },
+        "attribution": {
+          "detected": 86,
+          "top_tags": {
+            "RX-FV-206": 7,
+            "ST-TI-604": 7,
+            "CD-TI-301": 5
+          },
+          "top_group": "feed",
+          "top_group_share": 0.3023255813953488
+        }
+      },
+      "fault_16": {
+        "family": "n/a",
+        "runs": 500,
+        "detected": 461,
+        "rate": 0.922,
+        "rate_ci95": [
+          0.896,
+          0.944
+        ],
+        "before_divergence": 3,
+        "before_divergence_of": 461,
+        "delay_median_min": 93.0,
+        "delay_q1_min": 60.0,
+        "delay_q3_min": 150.0,
+        "delay_median_ci95": [
+          84.0,
+          103.5
+        ],
+        "share_still_flagged": 0.6202496827886403,
+        "share_still_flagged_runs": 461,
+        "load": {
+          "per_episode_mean": 0.666,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.0555,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 18.0,
+          "median_ci95": [
+            6.0,
+            30.0
+          ],
+          "both": 276,
+          "only_app": 185,
+          "only_base": 17,
+          "neither": 22
+        },
+        "masked": "not labelled",
+        "attribution": {
+          "detected": 461,
+          "top_tags": {
+            "ST-FI-605": 226,
+            "ST-FV-607": 206,
+            "ST-TI-604": 17
+          },
+          "top_group": "stripper",
+          "top_group_share": 0.9349240780911063
+        }
+      },
+      "fault_17": {
+        "family": "n/a",
+        "runs": 500,
+        "detected": 498,
+        "rate": 0.996,
+        "rate_ci95": [
+          0.99,
+          1.0
+        ],
+        "before_divergence": 16,
+        "before_divergence_of": 498,
+        "delay_median_min": 93.0,
+        "delay_q1_min": 57.0,
+        "delay_q3_min": 138.0,
+        "delay_median_ci95": [
+          87.0,
+          102.0
+        ],
+        "share_still_flagged": 0.9995471448274199,
+        "share_still_flagged_runs": 498,
+        "load": {
+          "per_episode_mean": 0.676,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.05633333333333333,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 498,
+          "only_app": 0,
+          "only_base": 2,
+          "neither": 0
+        },
+        "masked": "not labelled",
+        "attribution": {
+          "detected": 498,
+          "top_tags": {
+            "RX-TI-205": 473,
+            "CP-JI-502": 4,
+            "FD-FV-108": 2
+          },
+          "top_group": "reactor",
+          "top_group_share": 0.9417670682730924
+        }
+      },
+      "fault_18": {
+        "family": "n/a",
+        "runs": 500,
+        "detected": 433,
+        "rate": 0.866,
+        "rate_ci95": [
+          0.836,
+          0.894
+        ],
+        "before_divergence": 30,
+        "before_divergence_of": 433,
+        "delay_median_min": 138.0,
+        "delay_q1_min": 96.0,
+        "delay_q3_min": 198.0,
+        "delay_median_ci95": [
+          130.5,
+          144.0
+        ],
+        "share_still_flagged": 0.9979293074964252,
+        "share_still_flagged_runs": 433,
+        "load": {
+          "per_episode_mean": 0.416,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.034666666666666665,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -3.0,
+          "median_ci95": [
+            -3.0,
+            -1.5
+          ],
+          "both": 428,
+          "only_app": 5,
+          "only_base": 13,
+          "neither": 54
+        },
+        "masked": "not labelled",
+        "attribution": {
+          "detected": 433,
+          "top_tags": {
+            "CD-TI-301": 354,
+            "SP-TI-401": 43,
+            "SP-PI-403": 5
+          },
+          "top_group": "condenser",
+          "top_group_share": 0.9099307159353349
+        }
+      },
+      "fault_19": {
+        "family": "n/a",
+        "runs": 500,
+        "detected": 495,
+        "rate": 0.99,
+        "rate_ci95": [
+          0.982,
+          0.998
+        ],
+        "before_divergence": 0,
+        "before_divergence_of": 495,
+        "delay_median_min": 39.0,
+        "delay_q1_min": 18.0,
+        "delay_q3_min": 66.0,
+        "delay_median_ci95": [
+          36.0,
+          42.0
+        ],
+        "share_still_flagged": 0.7423791300385363,
+        "share_still_flagged_runs": 495,
+        "load": {
+          "per_episode_mean": 1.1,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.09166666666666666,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": -6.0,
+          "median_ci95": [
+            -6.0,
+            -6.0
+          ],
+          "both": 495,
+          "only_app": 0,
+          "only_base": 5,
+          "neither": 0
+        },
+        "masked": "not labelled",
+        "attribution": {
+          "detected": 495,
+          "top_tags": {
+            "CP-FV-503": 238,
+            "CP-FI-501": 205,
+            "RX-FV-206": 16
+          },
+          "top_group": "compressor",
+          "top_group_share": 0.8484848484848485
+        }
+      },
+      "fault_20": {
+        "family": "n/a",
+        "runs": 500,
+        "detected": 483,
+        "rate": 0.966,
+        "rate_ci95": [
+          0.95,
+          0.98
+        ],
+        "before_divergence": 19,
+        "before_divergence_of": 483,
+        "delay_median_min": 132.0,
+        "delay_q1_min": 98.25,
+        "delay_q3_min": 171.0,
+        "delay_median_ci95": [
+          123.0,
+          138.0
+        ],
+        "share_still_flagged": 0.8569390180020521,
+        "share_still_flagged_runs": 483,
+        "load": {
+          "per_episode_mean": 0.444,
+          "per_episode_max": 2,
+          "per_10min_mean": 0.037,
+          "peak_10min": 1,
+          "flood_share": 0.0,
+          "chattering_points_per_run": 0.0,
+          "chattering_share": 0.0
+        },
+        "lead": {
+          "median_min": 15.0,
+          "median_ci95": [
+            12.0,
+            18.0
+          ],
+          "both": 465,
+          "only_app": 18,
+          "only_base": 4,
+          "neither": 13
+        },
+        "masked": "not labelled",
+        "attribution": {
+          "detected": 483,
+          "top_tags": {
+            "CP-FV-503": 444,
+            "SP-PI-403": 8,
+            "RX-PI-202": 5
+          },
+          "top_group": "compressor",
+          "top_group_share": 0.8923395445134575
+        }
+      }
+    },
+    "summary": {
+      "faults": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "rate": 0.9555294117647058,
+      "rate_ci95": [
+        0.947529411764706,
+        0.9632970588235295
+      ]
+    },
+    "excluded": {
+      "faults": [
+        3,
+        9,
+        15
+      ],
+      "rate": 0.15533333333333332,
+      "rate_ci95": [
+        0.126,
+        0.18400000000000002
+      ]
+    },
+    "normal": {
+      "runs": 500,
+      "notifications": 995,
+      "hours": 23775.0,
+      "per_24h": 1.004416403785489,
+      "per_24h_ci95": [
+        0.9337539432176656,
+        1.0740694006309148
+      ],
+      "chance_rate": 0.14,
+      "chance_rate_ci95": [
+        0.11,
+        0.17
+      ]
+    },
+    "cumulative": {
+      "horizons_min": [
+        6,
+        12,
+        18,
+        24,
+        30,
+        36,
+        42,
+        48,
+        54,
+        60,
+        66,
+        72,
+        78,
+        84,
+        90,
+        96,
+        102,
+        108,
+        114,
+        120,
+        126,
+        132,
+        138,
+        144,
+        150,
+        156,
+        162,
+        168,
+        174,
+        180,
+        186,
+        192,
+        198,
+        204,
+        210,
+        216,
+        222,
+        228,
+        234,
+        240
+      ],
+      "faults": {
+        "fault_01": [
+          0.006,
+          0.426,
+          0.968,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97
+        ],
+        "fault_02": [
+          0.002,
+          0.006,
+          0.016,
+          0.022,
+          0.044,
+          0.142,
+          0.414,
+          0.776,
+          0.948,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "fault_03": [
+          0.002,
+          0.006,
+          0.01,
+          0.012,
+          0.016,
+          0.018,
+          0.024,
+          0.028,
+          0.032,
+          0.036,
+          0.038,
+          0.042,
+          0.044,
+          0.046,
+          0.048,
+          0.052,
+          0.054,
+          0.058,
+          0.066,
+          0.072,
+          0.078,
+          0.08,
+          0.088,
+          0.092,
+          0.094,
+          0.096,
+          0.096,
+          0.096,
+          0.098,
+          0.102,
+          0.112,
+          0.116,
+          0.118,
+          0.126,
+          0.13,
+          0.132,
+          0.134,
+          0.136,
+          0.142,
+          0.144
+        ],
+        "fault_04": [
+          0.064,
+          0.964,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97
+        ],
+        "fault_05": [
+          0.062,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97
+        ],
+        "fault_06": [
+          0.064,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97
+        ],
+        "fault_07": [
+          0.064,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97
+        ],
+        "fault_08": [
+          0.002,
+          0.006,
+          0.008,
+          0.016,
+          0.042,
+          0.104,
+          0.214,
+          0.348,
+          0.486,
+          0.594,
+          0.702,
+          0.764,
+          0.83,
+          0.874,
+          0.916,
+          0.936,
+          0.944,
+          0.954,
+          0.964,
+          0.976,
+          0.984,
+          0.99,
+          0.99,
+          0.992,
+          0.992,
+          0.992,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994,
+          0.994
+        ],
+        "fault_09": [
+          0.002,
+          0.006,
+          0.008,
+          0.012,
+          0.016,
+          0.016,
+          0.022,
+          0.026,
+          0.03,
+          0.034,
+          0.034,
+          0.036,
+          0.038,
+          0.042,
+          0.044,
+          0.046,
+          0.048,
+          0.054,
+          0.062,
+          0.072,
+          0.076,
+          0.078,
+          0.086,
+          0.088,
+          0.09,
+          0.096,
+          0.096,
+          0.1,
+          0.104,
+          0.112,
+          0.118,
+          0.122,
+          0.124,
+          0.13,
+          0.134,
+          0.134,
+          0.142,
+          0.142,
+          0.148,
+          0.15
+        ],
+        "fault_10": [
+          0.002,
+          0.006,
+          0.008,
+          0.012,
+          0.02,
+          0.028,
+          0.036,
+          0.054,
+          0.07,
+          0.09,
+          0.108,
+          0.134,
+          0.158,
+          0.196,
+          0.22,
+          0.252,
+          0.282,
+          0.316,
+          0.342,
+          0.392,
+          0.42,
+          0.452,
+          0.488,
+          0.506,
+          0.52,
+          0.544,
+          0.568,
+          0.584,
+          0.608,
+          0.624,
+          0.652,
+          0.662,
+          0.678,
+          0.696,
+          0.71,
+          0.72,
+          0.73,
+          0.742,
+          0.754,
+          0.768
+        ],
+        "fault_11": [
+          0.002,
+          0.082,
+          0.306,
+          0.51,
+          0.706,
+          0.796,
+          0.866,
+          0.904,
+          0.948,
+          0.962,
+          0.972,
+          0.978,
+          0.98,
+          0.98,
+          0.98,
+          0.98,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982,
+          0.982
+        ],
+        "fault_12": [
+          0.002,
+          0.026,
+          0.23,
+          0.466,
+          0.698,
+          0.798,
+          0.87,
+          0.916,
+          0.94,
+          0.952,
+          0.966,
+          0.974,
+          0.976,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978,
+          0.978
+        ],
+        "fault_13": [
+          0.002,
+          0.006,
+          0.008,
+          0.012,
+          0.022,
+          0.026,
+          0.038,
+          0.052,
+          0.08,
+          0.112,
+          0.134,
+          0.17,
+          0.198,
+          0.236,
+          0.27,
+          0.31,
+          0.362,
+          0.4,
+          0.446,
+          0.496,
+          0.54,
+          0.588,
+          0.624,
+          0.656,
+          0.696,
+          0.728,
+          0.772,
+          0.802,
+          0.814,
+          0.838,
+          0.868,
+          0.878,
+          0.896,
+          0.91,
+          0.928,
+          0.936,
+          0.946,
+          0.954,
+          0.966,
+          0.972
+        ],
+        "fault_14": [
+          0.044,
+          0.944,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97,
+          0.97
+        ],
+        "fault_15": [
+          0.002,
+          0.006,
+          0.008,
+          0.012,
+          0.018,
+          0.024,
+          0.036,
+          0.042,
+          0.046,
+          0.054,
+          0.056,
+          0.06,
+          0.062,
+          0.066,
+          0.07,
+          0.076,
+          0.08,
+          0.088,
+          0.092,
+          0.102,
+          0.11,
+          0.116,
+          0.12,
+          0.122,
+          0.126,
+          0.13,
+          0.13,
+          0.134,
+          0.136,
+          0.138,
+          0.144,
+          0.146,
+          0.148,
+          0.152,
+          0.156,
+          0.156,
+          0.162,
+          0.162,
+          0.17,
+          0.172
+        ],
+        "fault_16": [
+          0.002,
+          0.006,
+          0.012,
+          0.026,
+          0.054,
+          0.086,
+          0.124,
+          0.174,
+          0.214,
+          0.27,
+          0.316,
+          0.368,
+          0.414,
+          0.458,
+          0.484,
+          0.518,
+          0.542,
+          0.572,
+          0.592,
+          0.63,
+          0.664,
+          0.69,
+          0.714,
+          0.734,
+          0.756,
+          0.77,
+          0.784,
+          0.796,
+          0.812,
+          0.83,
+          0.84,
+          0.852,
+          0.866,
+          0.872,
+          0.878,
+          0.886,
+          0.898,
+          0.908,
+          0.916,
+          0.922
+        ],
+        "fault_17": [
+          0.002,
+          0.006,
+          0.014,
+          0.028,
+          0.042,
+          0.082,
+          0.122,
+          0.16,
+          0.228,
+          0.282,
+          0.32,
+          0.362,
+          0.41,
+          0.448,
+          0.484,
+          0.514,
+          0.564,
+          0.594,
+          0.636,
+          0.67,
+          0.688,
+          0.728,
+          0.758,
+          0.774,
+          0.802,
+          0.836,
+          0.862,
+          0.878,
+          0.9,
+          0.912,
+          0.928,
+          0.94,
+          0.948,
+          0.962,
+          0.97,
+          0.984,
+          0.988,
+          0.994,
+          0.994,
+          0.996
+        ],
+        "fault_18": [
+          0.002,
+          0.006,
+          0.008,
+          0.012,
+          0.016,
+          0.028,
+          0.042,
+          0.064,
+          0.084,
+          0.11,
+          0.126,
+          0.136,
+          0.164,
+          0.18,
+          0.208,
+          0.26,
+          0.292,
+          0.326,
+          0.366,
+          0.41,
+          0.448,
+          0.474,
+          0.508,
+          0.548,
+          0.576,
+          0.598,
+          0.616,
+          0.64,
+          0.664,
+          0.68,
+          0.696,
+          0.728,
+          0.752,
+          0.77,
+          0.796,
+          0.816,
+          0.832,
+          0.844,
+          0.854,
+          0.866
+        ],
+        "fault_19": [
+          0.012,
+          0.136,
+          0.252,
+          0.35,
+          0.42,
+          0.484,
+          0.568,
+          0.63,
+          0.688,
+          0.716,
+          0.754,
+          0.782,
+          0.804,
+          0.826,
+          0.836,
+          0.858,
+          0.874,
+          0.888,
+          0.902,
+          0.91,
+          0.926,
+          0.936,
+          0.94,
+          0.95,
+          0.96,
+          0.966,
+          0.976,
+          0.98,
+          0.982,
+          0.984,
+          0.986,
+          0.986,
+          0.986,
+          0.986,
+          0.988,
+          0.988,
+          0.988,
+          0.988,
+          0.99,
+          0.99
+        ],
+        "fault_20": [
+          0.002,
+          0.006,
+          0.008,
+          0.012,
+          0.02,
+          0.03,
+          0.04,
+          0.058,
+          0.08,
+          0.094,
+          0.112,
+          0.132,
+          0.154,
+          0.18,
+          0.208,
+          0.25,
+          0.306,
+          0.346,
+          0.392,
+          0.436,
+          0.478,
+          0.516,
+          0.552,
+          0.59,
+          0.632,
+          0.662,
+          0.702,
+          0.746,
+          0.772,
+          0.798,
+          0.824,
+          0.844,
+          0.864,
+          0.882,
+          0.908,
+          0.92,
+          0.942,
+          0.95,
+          0.952,
+          0.966
+        ]
+      },
+      "summary": [
+        0.01976470588235294,
+        0.32564705882352946,
+        0.39341176470588235,
+        0.4285882352941175,
+        0.4649411764705882,
+        0.4955294117647058,
+        0.538470588235294,
+        0.5856470588235294,
+        0.6227058823529412,
+        0.6465882352941175,
+        0.6658823529411764,
+        0.6829411764705882,
+        0.6998823529411764,
+        0.7156470588235294,
+        0.7290588235294118,
+        0.7450588235294118,
+        0.7609411764705881,
+        0.774470588235294,
+        0.7888235294117645,
+        0.8052941176470589,
+        0.8187058823529413,
+        0.8319999999999999,
+        0.8437647058823529,
+        0.8541176470588234,
+        0.8649411764705882,
+        0.8744705882352941,
+        0.8849411764705881,
+        0.8935294117647059,
+        0.900941176470588,
+        0.9076470588235293,
+        0.9151764705882353,
+        0.9208235294117646,
+        0.9267058823529413,
+        0.9318823529411764,
+        0.9377647058823528,
+        0.942,
+        0.9463529411764704,
+        0.9496470588235293,
+        0.9523529411764704,
+        0.9555294117647058
+      ],
+      "summary_faults": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "summary_dev_faults": {
+      "faults": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "rate": 0.9586666666666667,
+      "rate_ci95": [
+        0.9485,
+        0.9685041666666667
+      ]
+    },
+    "summary_unknown": {
+      "faults": [
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "rate": 0.9480000000000001,
+      "rate_ci95": [
+        0.9396000000000001,
+        0.9564
+      ]
+    },
+    "right_place": {
+      "summary": {
+        "faults": [
+          1,
+          2,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "rate": 0.6573333333333332,
+        "rate_ci95": [
+          0.6476666666666667,
+          0.6666666666666666
+        ]
+      },
+      "summary_30min": {
+        "faults": [
+          1,
+          2,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "rate": 0.5338333333333333,
+        "rate_ci95": [
+          0.5253333333333333,
+          0.5428375000000001
+        ]
+      }
+    }
+  }
+}

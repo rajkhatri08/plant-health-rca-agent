@@ -1,0 +1,1832 @@
+{
+  "name": "test_diag_table",
+  "time": "2026-10-09T03:58:40+00:00",
+  "commit": "93ac87436122e800452ff2d360e602a5f1d10c75",
+  "dirty": false,
+  "config": {
+    "as_of": "2026-10-05T00:00:00Z",
+    "library": {
+      "condenser-cooling-water-temperature-wander": "condenser-cooling-water-temperature-wander@r1",
+      "condenser-cooling-water-warm-supply": "condenser-cooling-water-warm-supply@r1",
+      "mixed-feed-composition-wander": "mixed-feed-composition-wander@r1",
+      "mixed-feed-inert-rise": "mixed-feed-inert-rise@r1",
+      "mixed-feed-reactant-ratio-shift": "mixed-feed-reactant-ratio-shift@r1",
+      "mixed-feed-supply-loss": "mixed-feed-supply-loss@r1",
+      "mixed-feed-temperature-wander": "mixed-feed-temperature-wander@r2",
+      "reactant-1-feed-supply-loss": "reactant-1-feed-supply-loss@r1",
+      "reaction-rate-drift": "reaction-rate-drift@r1",
+      "reactor-cooling-valve-sticking": "reactor-cooling-valve-sticking@r1",
+      "reactor-cooling-water-temperature-wander": "reactor-cooling-water-temperature-wander@r1",
+      "reactor-cooling-water-warm-supply": "reactor-cooling-water-warm-supply@r1"
+    },
+    "calibration_record": "eval/runs/20260927T150527Z_calibrate_pca.json",
+    "watch_record": "eval/runs/20260929T065812Z_calibrate_watch.json",
+    "normals_record": "eval/runs/20261001T182856Z_evidence_normals.json",
+    "limits_sha256": "0fae67e5f71917cf6cb2f1d5a8d0df3505583f081da19076d2933be26919371e",
+    "split": "test",
+    "fingerprint_record": "eval/runs/20261008T181533Z_diag_fingerprint.json",
+    "readings": {
+      "provisional": 10,
+      "revised": 20
+    },
+    "headline": "provisional",
+    "subsample": {
+      "seed": 20261006,
+      "runs": 10
+    },
+    "unknown_faults": [
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "loo_test": {
+      "1": "mixed-feed-reactant-ratio-shift@r1",
+      "4": "reactor-cooling-water-warm-supply@r1",
+      "5": "condenser-cooling-water-warm-supply@r1",
+      "13": "reaction-rate-drift@r1"
+    },
+    "bootstrap_n": 2000,
+    "llm_only": "not run (S0 answer 18)",
+    "moments": {
+      "dev": 589,
+      "false": 47,
+      "authoring": 56,
+      "ceiling": 5209,
+      "test_known": 5752,
+      "test_unknown": 2370,
+      "test_false": 995
+    }
+  },
+  "seeds": {
+    "bootstrap": 20261001,
+    "forest": 20261002,
+    "subsample": 20261006
+  },
+  "data": {
+    "manifest_sha256": "b5f36f536543fa13148d2da3a560e23513050812040fe2b336081eb98afe8c95",
+    "splits_sha256": "99fdaabbfe3028edda9fa5f7a7ab7abe5641496ec09956db95b94ae7994a202c"
+  },
+  "library_versions": {
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1"
+  },
+  "outputs": {
+    "table": {
+      "path": "data/tables/20261009T035840Z_test_diag_table.md",
+      "sha256": "59e271232b5e70bc828a87647a58b3660d693924ac3432bcb822313525e50d56"
+    },
+    "cases": {
+      "path": "sealed:test_outputs/20261009T035840Z_test_diag_table/cases.jsonl",
+      "sha256": "730308712cb6506bd2b2861770e429a7404135446eaf11eabaaa0566273497a5"
+    }
+  },
+  "metrics": {
+    "provisional": {
+      "rules": {
+        "k": 2,
+        "matcher": "1/3",
+        "forest5": "0.35",
+        "ceiling": "0.746"
+      },
+      "full": {
+        "counts": {
+          "known": 5752,
+          "unknown": 2370,
+          "false_alerts": 983,
+          "known_fault_runs": 6000
+        },
+        "methods": {
+          "matcher": {
+            "cases": 5752,
+            "top1": 0.7568382012053778,
+            "top3": 0.9142906815020863,
+            "family": 0.8632649513212796,
+            "wrongly_declined": 0.07945062586926287,
+            "recall_at_k": 0.9483078349559574,
+            "false_alert_cases": 983,
+            "false_alert_declined": 0.8463886063072228,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 489,
+                "picked_right": 369.0,
+                "picked_wrong": 134.33333333333334
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 346.3333333333333,
+                "picked_wrong": 45.5
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 497,
+                "picked_right": 264.5,
+                "picked_wrong": 245.33333333333334
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 495,
+                "picked_right": 480.0,
+                "picked_wrong": 26.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 485,
+                "picked_right": 187.0,
+                "picked_wrong": 52.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 338.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 384,
+                "picked_right": 224.0,
+                "picked_wrong": 5.833333333333333
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 399.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 486,
+                "picked_right": 428.0,
+                "picked_wrong": 298.6666666666667
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 485,
+                "picked_right": 485.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 491,
+                "picked_right": 453.5,
+                "picked_wrong": 108.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 379.0,
+                "picked_wrong": 26.0
+              }
+            },
+            "end_to_end_top1": 0.7255555555555555
+          },
+          "forest5": {
+            "cases": 5752,
+            "top1": 0.8703059805285118,
+            "top3": 0.9341968011126565,
+            "family": 0.9287204450625869,
+            "wrongly_declined": 0.057719054242002785,
+            "recall_at_k": 0.9667072322670376,
+            "false_alert_cases": 983,
+            "false_alert_declined": 0.6907426246185148,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 489,
+                "picked_right": 313.0,
+                "picked_wrong": 26.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 449.0,
+                "picked_wrong": 88.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 497,
+                "picked_right": 199.5,
+                "picked_wrong": 42.5
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 495,
+                "picked_right": 492.0,
+                "picked_wrong": 16.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 485,
+                "picked_right": 444.5,
+                "picked_wrong": 94.5
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 482.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 384,
+                "picked_right": 352.0,
+                "picked_wrong": 38.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 484.0,
+                "picked_wrong": 6.0
+              },
+              "reaction-rate-drift": {
+                "cases": 486,
+                "picked_right": 410.0,
+                "picked_wrong": 30.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 485,
+                "picked_right": 485.0,
+                "picked_wrong": 3.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 491,
+                "picked_right": 424.0,
+                "picked_wrong": 14.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 471.0,
+                "picked_wrong": 56.0
+              }
+            },
+            "end_to_end_top1": 0.8343333333333334
+          },
+          "ceiling": {
+            "cases": 5752,
+            "top1": 0.8704798331015299,
+            "top3": 0.8860317359969655,
+            "family": 0.8850834492350487,
+            "wrongly_declined": 0.11196105702364395,
+            "recall_at_k": 0.9938677456062713,
+            "false_alert_cases": 983,
+            "false_alert_declined": 0.7914547304170906,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 489,
+                "picked_right": 385.0,
+                "picked_wrong": 1.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 331.0,
+                "picked_wrong": 19.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 497,
+                "picked_right": 348.0,
+                "picked_wrong": 11.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 495,
+                "picked_right": 480.0,
+                "picked_wrong": 1.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 485,
+                "picked_right": 401.0,
+                "picked_wrong": 40.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 482.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 384,
+                "picked_right": 338.0,
+                "picked_wrong": 5.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 476.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 486,
+                "picked_right": 408.0,
+                "picked_wrong": 10.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 485,
+                "picked_right": 476.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 491,
+                "picked_right": 423.0,
+                "picked_wrong": 3.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 459.0,
+                "picked_wrong": 11.0
+              }
+            },
+            "end_to_end_top1": 0.8345
+          },
+          "random": {
+            "cases": 5752,
+            "top1": 0.08333333333333333,
+            "top3": 0.25,
+            "family": 0.19662726008344925,
+            "wrongly_declined": 0.0,
+            "recall_at_k": null,
+            "false_alert_cases": 983,
+            "false_alert_declined": 0.0,
+            "end_to_end_top1": 0.07988888888888888
+          }
+        },
+        "unknown": {
+          "matcher": {
+            "cases": 2370,
+            "declined": 0.6717299578059072,
+            "by_fault": {
+              "16": {
+                "cases": 461,
+                "declined": 0.5856832971800434
+              },
+              "17": {
+                "cases": 498,
+                "declined": 0.41365461847389556
+              },
+              "18": {
+                "cases": 433,
+                "declined": 0.38799076212471134
+              },
+              "19": {
+                "cases": 495,
+                "declined": 0.9656565656565657
+              },
+              "20": {
+                "cases": 483,
+                "declined": 0.9730848861283644
+              }
+            }
+          },
+          "forest5": {
+            "cases": 2370,
+            "declined": 0.49873417721518987,
+            "by_fault": {
+              "16": {
+                "cases": 461,
+                "declined": 0.03253796095444685
+              },
+              "17": {
+                "cases": 498,
+                "declined": 0.893574297188755
+              },
+              "18": {
+                "cases": 433,
+                "declined": 0.15704387990762125
+              },
+              "19": {
+                "cases": 495,
+                "declined": 0.8929292929292929
+              },
+              "20": {
+                "cases": 483,
+                "declined": 0.4389233954451346
+              }
+            }
+          },
+          "ceiling": {
+            "cases": 2370,
+            "declined": 0.7312236286919831,
+            "by_fault": {
+              "16": {
+                "cases": 461,
+                "declined": 0.07158351409978309
+              },
+              "17": {
+                "cases": 498,
+                "declined": 0.9919678714859438
+              },
+              "18": {
+                "cases": 433,
+                "declined": 0.6073903002309469
+              },
+              "19": {
+                "cases": 495,
+                "declined": 0.9676767676767677
+              },
+              "20": {
+                "cases": 483,
+                "declined": 0.9606625258799172
+              }
+            }
+          },
+          "random": {
+            "cases": 2370,
+            "declined": 0.0
+          }
+        },
+        "loo": {
+          "1": {
+            "left_out": "mixed-feed-reactant-ratio-shift",
+            "matcher": {
+              "cases": 485,
+              "declined": 0.006185567010309278,
+              "family": 0.8872852233676976
+            },
+            "forest5": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 485,
+              "declined": 0.006185567010309278,
+              "family": 0.9938144329896907,
+              "classes": 11
+            },
+            "random": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "4": {
+            "left_out": "reactor-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 1.0
+            },
+            "forest5": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 485,
+              "declined": 0.012371134020618556,
+              "family": 0.9876288659793815,
+              "classes": 11
+            },
+            "random": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "5": {
+            "left_out": "condenser-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 485,
+              "declined": 0.002061855670103093,
+              "family": 0.9762886597938144
+            },
+            "forest5": {
+              "cases": 485,
+              "declined": 0.002061855670103093,
+              "family": 0.979381443298969,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 485,
+              "declined": 0.012371134020618556,
+              "family": 0.9876288659793815,
+              "classes": 11
+            },
+            "random": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 0.09090909090909091
+            }
+          },
+          "13": {
+            "left_out": "reaction-rate-drift",
+            "matcher": {
+              "cases": 486,
+              "declined": 0.9794238683127572,
+              "family": 0.0
+            },
+            "forest5": {
+              "cases": 486,
+              "declined": 0.6954732510288066,
+              "family": 0.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 486,
+              "declined": 0.8662551440329218,
+              "family": 0.0,
+              "classes": 11
+            },
+            "random": {
+              "cases": 486,
+              "declined": 0.0,
+              "family": 0.0
+            }
+          }
+        }
+      },
+      "subsample": {
+        "counts": {
+          "known": 118,
+          "unknown": 47,
+          "false_alerts": 18,
+          "known_fault_runs": 120
+        },
+        "methods": {
+          "matcher": {
+            "cases": 118,
+            "top1": 0.6991525423728814,
+            "top3": 0.8728813559322034,
+            "family": 0.8177966101694916,
+            "wrongly_declined": 0.1271186440677966,
+            "recall_at_k": 0.9322033898305084,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.8888888888888888,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 6.5,
+                "picked_wrong": 3.5
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 6.5,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 10,
+                "picked_right": 6.5,
+                "picked_wrong": 4.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 10,
+                "picked_right": 4.0,
+                "picked_wrong": 0.5
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 9,
+                "picked_right": 4.0,
+                "picked_wrong": 0.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 6.5
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 5.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 5.0,
+                "picked_wrong": 1.0
+              }
+            },
+            "end_to_end_top1": 0.6875
+          },
+          "forest5": {
+            "cases": 118,
+            "top1": 0.8305084745762712,
+            "top3": 0.8898305084745762,
+            "family": 0.8898305084745762,
+            "wrongly_declined": 0.09322033898305085,
+            "recall_at_k": 0.9491525423728814,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.6111111111111112,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 2.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 10,
+                "picked_right": 3.0,
+                "picked_wrong": 2.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 1.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 1.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 2.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 1.0
+              }
+            },
+            "end_to_end_top1": 0.8166666666666667
+          },
+          "ceiling": {
+            "cases": 118,
+            "top1": 0.8135593220338984,
+            "top3": 0.8305084745762712,
+            "family": 0.8305084745762712,
+            "wrongly_declined": 0.1694915254237288,
+            "recall_at_k": 0.9830508474576272,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.8888888888888888,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 1.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 10,
+                "picked_right": 5.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 9,
+                "picked_right": 6.0,
+                "picked_wrong": 0.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 1.0
+              }
+            },
+            "end_to_end_top1": 0.8
+          },
+          "random": {
+            "cases": 118,
+            "top1": 0.08333333333333333,
+            "top3": 0.25,
+            "family": 0.1963276836158192,
+            "wrongly_declined": 0.0,
+            "recall_at_k": null,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.0,
+            "end_to_end_top1": 0.08194444444444444
+          }
+        },
+        "unknown": {
+          "matcher": {
+            "cases": 47,
+            "declined": 0.7021276595744681,
+            "by_fault": {
+              "16": {
+                "cases": 10,
+                "declined": 0.5
+              },
+              "17": {
+                "cases": 10,
+                "declined": 0.5
+              },
+              "18": {
+                "cases": 7,
+                "declined": 0.42857142857142855
+              },
+              "19": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "20": {
+                "cases": 10,
+                "declined": 1.0
+              }
+            }
+          },
+          "forest5": {
+            "cases": 47,
+            "declined": 0.5957446808510638,
+            "by_fault": {
+              "16": {
+                "cases": 10,
+                "declined": 0.0
+              },
+              "17": {
+                "cases": 10,
+                "declined": 0.9
+              },
+              "18": {
+                "cases": 7,
+                "declined": 0.42857142857142855
+              },
+              "19": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "20": {
+                "cases": 10,
+                "declined": 0.6
+              }
+            }
+          },
+          "ceiling": {
+            "cases": 47,
+            "declined": 0.7446808510638298,
+            "by_fault": {
+              "16": {
+                "cases": 10,
+                "declined": 0.1
+              },
+              "17": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "18": {
+                "cases": 7,
+                "declined": 0.5714285714285714
+              },
+              "19": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "20": {
+                "cases": 10,
+                "declined": 1.0
+              }
+            }
+          },
+          "random": {
+            "cases": 47,
+            "declined": 0.0
+          }
+        },
+        "loo": {
+          "1": {
+            "left_out": "mixed-feed-reactant-ratio-shift",
+            "matcher": {
+              "cases": 10,
+              "declined": 0.1,
+              "family": 0.7
+            },
+            "forest5": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 10,
+              "declined": 0.1,
+              "family": 0.9,
+              "classes": 11
+            },
+            "random": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "4": {
+            "left_out": "reactor-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0
+            },
+            "forest5": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "random": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "5": {
+            "left_out": "condenser-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.95
+            },
+            "forest5": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 10,
+              "declined": 0.1,
+              "family": 0.9,
+              "classes": 11
+            },
+            "random": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.09090909090909091
+            }
+          },
+          "13": {
+            "left_out": "reaction-rate-drift",
+            "matcher": {
+              "cases": 9,
+              "declined": 1.0,
+              "family": 0.0
+            },
+            "forest5": {
+              "cases": 9,
+              "declined": 0.7777777777777778,
+              "family": 0.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 9,
+              "declined": 0.5555555555555556,
+              "family": 0.0,
+              "classes": 11
+            },
+            "random": {
+              "cases": 9,
+              "declined": 0.0,
+              "family": 0.0
+            }
+          }
+        },
+        "paired": {
+          "matcher_vs_forest5": {
+            "difference": -0.13135593220338984,
+            "lo": -0.2185336846603047,
+            "hi": -0.051724137931034475
+          },
+          "matcher_vs_ceiling": {
+            "difference": -0.11440677966101695,
+            "lo": -0.19491525423728806,
+            "hi": -0.016949152542372947
+          }
+        }
+      }
+    },
+    "revised": {
+      "rules": {
+        "k": 2,
+        "matcher": "5/11",
+        "forest5": "0.34",
+        "ceiling": "0.7993333333333333"
+      },
+      "full": {
+        "counts": {
+          "known": 5752,
+          "unknown": 2370,
+          "false_alerts": 974,
+          "known_fault_runs": 6000
+        },
+        "methods": {
+          "matcher": {
+            "cases": 5752,
+            "top1": 0.7553025034770514,
+            "top3": 0.8803894297635605,
+            "family": 0.8257707464070468,
+            "wrongly_declined": 0.11769819193324062,
+            "recall_at_k": 0.9553198887343533,
+            "false_alert_cases": 974,
+            "false_alert_declined": 0.851129363449692,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 489,
+                "picked_right": 399.0,
+                "picked_wrong": 81.5
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 401.5,
+                "picked_wrong": 13.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 497,
+                "picked_right": 261.0,
+                "picked_wrong": 240.83333333333334
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 495,
+                "picked_right": 485.0,
+                "picked_wrong": 3.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 485,
+                "picked_right": 191.5,
+                "picked_wrong": 53.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 338.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 384,
+                "picked_right": 224.0,
+                "picked_wrong": 7.833333333333333
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 396.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 486,
+                "picked_right": 425.0,
+                "picked_wrong": 317.3333333333333
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 485,
+                "picked_right": 485.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 491,
+                "picked_right": 359.5,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 379.0,
+                "picked_wrong": 14.0
+              }
+            },
+            "end_to_end_top1": 0.7240833333333333
+          },
+          "forest5": {
+            "cases": 5752,
+            "top1": 0.8803894297635605,
+            "top3": 0.9261126564673157,
+            "family": 0.9231571627260083,
+            "wrongly_declined": 0.07006258692628652,
+            "recall_at_k": 0.9751390820584145,
+            "false_alert_cases": 974,
+            "false_alert_declined": 0.6283367556468172,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 489,
+                "picked_right": 350.0,
+                "picked_wrong": 26.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 469.0,
+                "picked_wrong": 61.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 497,
+                "picked_right": 221.0,
+                "picked_wrong": 29.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 495,
+                "picked_right": 493.0,
+                "picked_wrong": 11.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 485,
+                "picked_right": 455.0,
+                "picked_wrong": 83.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 485.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 384,
+                "picked_right": 364.0,
+                "picked_wrong": 18.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 485.0,
+                "picked_wrong": 1.0
+              },
+              "reaction-rate-drift": {
+                "cases": 486,
+                "picked_right": 336.0,
+                "picked_wrong": 6.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 485,
+                "picked_right": 485.0,
+                "picked_wrong": 3.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 491,
+                "picked_right": 451.0,
+                "picked_wrong": 15.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 470.0,
+                "picked_wrong": 32.0
+              }
+            },
+            "end_to_end_top1": 0.844
+          },
+          "ceiling": {
+            "cases": 5752,
+            "top1": 0.8882127955493742,
+            "top3": 0.8938076874446833,
+            "family": 0.8930806675938804,
+            "wrongly_declined": 0.1060500695410292,
+            "recall_at_k": 0.9969733847515488,
+            "false_alert_cases": 974,
+            "false_alert_declined": 0.784394250513347,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 489,
+                "picked_right": 404.0,
+                "picked_wrong": 0.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 403.0,
+                "picked_wrong": 6.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 497,
+                "picked_right": 367.0,
+                "picked_wrong": 5.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 495,
+                "picked_right": 466.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 485,
+                "picked_right": 385.0,
+                "picked_wrong": 14.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 483.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 384,
+                "picked_right": 334.0,
+                "picked_wrong": 2.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 485,
+                "picked_right": 468.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 486,
+                "picked_right": 406.0,
+                "picked_wrong": 3.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 485,
+                "picked_right": 473.0,
+                "picked_wrong": 1.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 491,
+                "picked_right": 463.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 485,
+                "picked_right": 457.0,
+                "picked_wrong": 2.0
+              }
+            },
+            "end_to_end_top1": 0.8515
+          },
+          "random": {
+            "cases": 5752,
+            "top1": 0.08333333333333333,
+            "top3": 0.25,
+            "family": 0.19662726008344925,
+            "wrongly_declined": 0.0,
+            "recall_at_k": null,
+            "false_alert_cases": 974,
+            "false_alert_declined": 0.0,
+            "end_to_end_top1": 0.07988888888888888
+          }
+        },
+        "unknown": {
+          "matcher": {
+            "cases": 2370,
+            "declined": 0.759493670886076,
+            "by_fault": {
+              "16": {
+                "cases": 461,
+                "declined": 0.5856832971800434
+              },
+              "17": {
+                "cases": 498,
+                "declined": 0.8092369477911646
+              },
+              "18": {
+                "cases": 433,
+                "declined": 0.39260969976905313
+              },
+              "19": {
+                "cases": 495,
+                "declined": 0.9838383838383838
+              },
+              "20": {
+                "cases": 483,
+                "declined": 0.9730848861283644
+              }
+            }
+          },
+          "forest5": {
+            "cases": 2370,
+            "declined": 0.5729957805907173,
+            "by_fault": {
+              "16": {
+                "cases": 461,
+                "declined": 0.028199566160520606
+              },
+              "17": {
+                "cases": 498,
+                "declined": 0.5642570281124498
+              },
+              "18": {
+                "cases": 433,
+                "declined": 0.47113163972286376
+              },
+              "19": {
+                "cases": 495,
+                "declined": 0.797979797979798
+              },
+              "20": {
+                "cases": 483,
+                "declined": 0.9627329192546584
+              }
+            }
+          },
+          "ceiling": {
+            "cases": 2370,
+            "declined": 0.8025316455696202,
+            "by_fault": {
+              "16": {
+                "cases": 461,
+                "declined": 0.10412147505422993
+              },
+              "17": {
+                "cases": 498,
+                "declined": 0.9959839357429718
+              },
+              "18": {
+                "cases": 433,
+                "declined": 0.9168591224018475
+              },
+              "19": {
+                "cases": 495,
+                "declined": 0.9777777777777777
+              },
+              "20": {
+                "cases": 483,
+                "declined": 0.9875776397515528
+              }
+            }
+          },
+          "random": {
+            "cases": 2370,
+            "declined": 0.0
+          }
+        },
+        "loo": {
+          "1": {
+            "left_out": "mixed-feed-reactant-ratio-shift",
+            "matcher": {
+              "cases": 485,
+              "declined": 0.006185567010309278,
+              "family": 0.8872852233676976
+            },
+            "forest5": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 485,
+              "declined": 0.004123711340206186,
+              "family": 0.9958762886597938,
+              "classes": 11
+            },
+            "random": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "4": {
+            "left_out": "reactor-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 485,
+              "declined": 1.0,
+              "family": 0.0
+            },
+            "forest5": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 485,
+              "declined": 0.03505154639175258,
+              "family": 0.9649484536082474,
+              "classes": 11
+            },
+            "random": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "5": {
+            "left_out": "condenser-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 485,
+              "declined": 0.002061855670103093,
+              "family": 0.9608247422680413
+            },
+            "forest5": {
+              "cases": 485,
+              "declined": 0.06804123711340206,
+              "family": 0.9175257731958762,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 485,
+              "declined": 0.05979381443298969,
+              "family": 0.9402061855670103,
+              "classes": 11
+            },
+            "random": {
+              "cases": 485,
+              "declined": 0.0,
+              "family": 0.09090909090909091
+            }
+          },
+          "13": {
+            "left_out": "reaction-rate-drift",
+            "matcher": {
+              "cases": 486,
+              "declined": 0.9876543209876543,
+              "family": 0.0
+            },
+            "forest5": {
+              "cases": 486,
+              "declined": 0.8148148148148148,
+              "family": 0.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 486,
+              "declined": 0.9732510288065843,
+              "family": 0.0,
+              "classes": 11
+            },
+            "random": {
+              "cases": 486,
+              "declined": 0.0,
+              "family": 0.0
+            }
+          }
+        }
+      },
+      "subsample": {
+        "counts": {
+          "known": 118,
+          "unknown": 47,
+          "false_alerts": 18,
+          "known_fault_runs": 120
+        },
+        "methods": {
+          "matcher": {
+            "cases": 118,
+            "top1": 0.690677966101695,
+            "top3": 0.8050847457627118,
+            "family": 0.7542372881355932,
+            "wrongly_declined": 0.19491525423728814,
+            "recall_at_k": 0.9491525423728814,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.8888888888888888,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 6.0,
+                "picked_wrong": 3.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 10,
+                "picked_right": 6.5,
+                "picked_wrong": 4.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 10,
+                "picked_right": 4.0,
+                "picked_wrong": 0.5
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 9,
+                "picked_right": 4.0,
+                "picked_wrong": 0.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 6.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 5.0,
+                "picked_wrong": 0.0
+              }
+            },
+            "end_to_end_top1": 0.6791666666666667
+          },
+          "forest5": {
+            "cases": 118,
+            "top1": 0.847457627118644,
+            "top3": 0.8898305084745762,
+            "family": 0.8898305084745762,
+            "wrongly_declined": 0.1016949152542373,
+            "recall_at_k": 0.9745762711864406,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.6666666666666666,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 2.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 10,
+                "picked_right": 4.0,
+                "picked_wrong": 1.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 1.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 1.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 9,
+                "picked_right": 5.0,
+                "picked_wrong": 1.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              }
+            },
+            "end_to_end_top1": 0.8333333333333334
+          },
+          "ceiling": {
+            "cases": 118,
+            "top1": 0.8050847457627118,
+            "top3": 0.8050847457627118,
+            "family": 0.8050847457627118,
+            "wrongly_declined": 0.19491525423728814,
+            "recall_at_k": 1.0,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.9444444444444444,
+            "per_entry": {
+              "condenser-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "condenser-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-composition-wander": {
+                "cases": 10,
+                "picked_right": 6.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-inert-rise": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-reactant-ratio-shift": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 10.0,
+                "picked_wrong": 0.0
+              },
+              "mixed-feed-temperature-wander": {
+                "cases": 9,
+                "picked_right": 6.0,
+                "picked_wrong": 0.0
+              },
+              "reactant-1-feed-supply-loss": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "reaction-rate-drift": {
+                "cases": 9,
+                "picked_right": 7.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-valve-sticking": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-temperature-wander": {
+                "cases": 10,
+                "picked_right": 8.0,
+                "picked_wrong": 0.0
+              },
+              "reactor-cooling-water-warm-supply": {
+                "cases": 10,
+                "picked_right": 9.0,
+                "picked_wrong": 0.0
+              }
+            },
+            "end_to_end_top1": 0.7916666666666666
+          },
+          "random": {
+            "cases": 118,
+            "top1": 0.08333333333333333,
+            "top3": 0.25,
+            "family": 0.1963276836158192,
+            "wrongly_declined": 0.0,
+            "recall_at_k": null,
+            "false_alert_cases": 18,
+            "false_alert_declined": 0.0,
+            "end_to_end_top1": 0.08194444444444444
+          }
+        },
+        "unknown": {
+          "matcher": {
+            "cases": 47,
+            "declined": 0.7659574468085106,
+            "by_fault": {
+              "16": {
+                "cases": 10,
+                "declined": 0.5
+              },
+              "17": {
+                "cases": 10,
+                "declined": 0.8
+              },
+              "18": {
+                "cases": 7,
+                "declined": 0.42857142857142855
+              },
+              "19": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "20": {
+                "cases": 10,
+                "declined": 1.0
+              }
+            }
+          },
+          "forest5": {
+            "cases": 47,
+            "declined": 0.5957446808510638,
+            "by_fault": {
+              "16": {
+                "cases": 10,
+                "declined": 0.0
+              },
+              "17": {
+                "cases": 10,
+                "declined": 0.6
+              },
+              "18": {
+                "cases": 7,
+                "declined": 0.5714285714285714
+              },
+              "19": {
+                "cases": 10,
+                "declined": 0.9
+              },
+              "20": {
+                "cases": 10,
+                "declined": 0.9
+              }
+            }
+          },
+          "ceiling": {
+            "cases": 47,
+            "declined": 0.7872340425531915,
+            "by_fault": {
+              "16": {
+                "cases": 10,
+                "declined": 0.1
+              },
+              "17": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "18": {
+                "cases": 7,
+                "declined": 0.8571428571428571
+              },
+              "19": {
+                "cases": 10,
+                "declined": 1.0
+              },
+              "20": {
+                "cases": 10,
+                "declined": 1.0
+              }
+            }
+          },
+          "random": {
+            "cases": 47,
+            "declined": 0.0
+          }
+        },
+        "loo": {
+          "1": {
+            "left_out": "mixed-feed-reactant-ratio-shift",
+            "matcher": {
+              "cases": 10,
+              "declined": 0.1,
+              "family": 0.7
+            },
+            "forest5": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 10,
+              "declined": 0.1,
+              "family": 0.9,
+              "classes": 11
+            },
+            "random": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "4": {
+            "left_out": "reactor-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 10,
+              "declined": 1.0,
+              "family": 0.0
+            },
+            "forest5": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 10,
+              "declined": 0.1,
+              "family": 0.9,
+              "classes": 11
+            },
+            "random": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.18181818181818182
+            }
+          },
+          "5": {
+            "left_out": "condenser-cooling-water-warm-supply",
+            "matcher": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.9
+            },
+            "forest5": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 1.0,
+              "classes": 11
+            },
+            "random": {
+              "cases": 10,
+              "declined": 0.0,
+              "family": 0.09090909090909091
+            }
+          },
+          "13": {
+            "left_out": "reaction-rate-drift",
+            "matcher": {
+              "cases": 9,
+              "declined": 1.0,
+              "family": 0.0
+            },
+            "forest5": {
+              "cases": 9,
+              "declined": 0.6666666666666666,
+              "family": 0.0,
+              "classes": 11
+            },
+            "ceiling": {
+              "cases": 9,
+              "declined": 1.0,
+              "family": 0.0,
+              "classes": 11
+            },
+            "random": {
+              "cases": 9,
+              "declined": 0.0,
+              "family": 0.0
+            }
+          }
+        },
+        "paired": {
+          "matcher_vs_forest5": {
+            "difference": -0.15677966101694915,
+            "lo": -0.25423911455289305,
+            "hi": -0.07264957264957261
+          },
+          "matcher_vs_ceiling": {
+            "difference": -0.11440677966101695,
+            "lo": -0.19999999999999996,
+            "hi": -0.004200805322128841
+          }
+        }
+      }
+    }
+  }
+}
