@@ -186,7 +186,7 @@ const LOCAL_HOSTS = ["localhost", "127.0.0.1", ""];
 const API = LOCAL_HOSTS.includes(location.hostname) ? "http://127.0.0.1:8000" : RENDER_API_URL;
 
 const $ = (id) => document.getElementById(id);
-const state = { info: null, shown: 0, samples: [], playing: false, timer: null, busy: false, diagnosis: false,
+const state = { info: null, shown: 0, samples: [], playing: false, timer: null, gen: 0, loop: 0, diagnosis: false,
                 episode: "1" };
 
 function msg(text, isError = false) {
@@ -208,22 +208,24 @@ function uptoFor(n) {
 }
 
 async function show(n) {
-  if (state.busy) return;
-  state.busy = true;
+  // The newest request wins: Reset, Step or an episode change take effect even while an
+  // earlier request is still waiting on the API, and a late reply to it is dropped.
+  const my = ++state.gen;
   try {
     n = Math.max(0, Math.min(n, state.info.samples));
     const data = n === 0 ? { samples: [], current: null }
                          : await getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}&episode=${state.episode}`);
+    if (my !== state.gen) return;
     state.shown = n;
     state.samples = data.samples;
     render(data.current);
-    if (state.diagnosis) await showDiagnosis(n);
+    if (state.diagnosis) await showDiagnosis(n, my);
+    if (my !== state.gen) return;
     msg(n === state.info.samples ? "End of the recorded stream." : "");
   } catch (e) {
+    if (my !== state.gen) return;
     stop();
     msg(`Couldn't get the status: ${e.message}`, true);
-  } finally {
-    state.busy = false;
   }
 }
 
@@ -298,15 +300,17 @@ function list(items) {
   return ul;
 }
 
-async function showDiagnosis(n) {
+async function showDiagnosis(n, my) {
   const box = $("diagnosis");
   if (n === 0) { box.textContent = ""; box.append(el("p", "Press Play: a diagnosis appears 30 minutes (plant time) after an alert starts.", "msg")); return; }
   let r;
   try {
     r = await getJSON(`/diagnosis?upto=${encodeURIComponent(uptoFor(n))}&note=${encodeURIComponent($("note").value)}&episode=${state.episode}`);
   } catch (e) {
+    if (my !== state.gen) return;
     box.textContent = ""; box.append(el("p", `The diagnosis isn't available: ${e.message}`, "msg error")); return;
   }
+  if (my !== state.gen) return;                     // a newer request replaced this one
   box.textContent = "";
   if (!r.available) {
     box.append(el("p", r.reason + (r.available_from ? ` (at ${r.available_from.slice(11, 16)} plant time)` : ""), "msg"));
@@ -397,15 +401,17 @@ function draw() {
 
 function stop() {
   state.playing = false;
+  state.loop++;                                     // a tick still waiting on the API ends there
   clearTimeout(state.timer);
   if (state.info) $("play").textContent = "Play";
 }
 
-async function tick() {
-  if (!state.playing) return;
+async function tick(loop) {
+  if (!state.playing || loop !== state.loop) return;
   await show(state.shown + Number($("speed").value));
+  if (loop !== state.loop) return;
   if (state.shown >= state.info.samples) { stop(); return; }
-  if (state.playing) state.timer = setTimeout(tick, 400);
+  state.timer = setTimeout(() => tick(loop), 400);
 }
 
 async function init() {
@@ -430,7 +436,7 @@ async function init() {
   if (health.diagnosis === "ready") {
     state.diagnosis = true;
     $("diagnosis-panel").hidden = false;
-    $("note").onchange = () => showDiagnosis(state.shown);
+    $("note").onchange = () => showDiagnosis(state.shown, state.gen);
   }
   // Two fixed episodes, labelled by number only; one the API can't serve is hidden.
   const served = (health.episodes || []).map((e) => e.id);
@@ -452,7 +458,7 @@ async function init() {
   $("play").onclick = () => {
     if (state.playing) { stop(); return; }
     if (state.shown >= state.info.samples) state.shown = 0;
-    state.playing = true; $("play").textContent = "Pause"; tick();
+    state.playing = true; $("play").textContent = "Pause"; tick(++state.loop);
   };
   $("step").onclick = () => { stop(); show(state.shown + 1); };
   $("reset").onclick = () => { stop(); show(0); };

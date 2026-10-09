@@ -4283,3 +4283,17 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - **Should items,** after 15 November: dev only, reported as a post-test extension.
   - **The suite's run time:** about 30 minutes (1799 s locally at the freeze; 29 min 57 s on CI run #126). Making it faster (for example with pytest-xdist) is open; nothing is decided.
   - **Parked as before:** ISO 14224 category names; source licences "to confirm".
+
+### 2026-10-09: after the close, the demo page's Reset and Step fix
+- **The bug (Raj, rehearsing the video):** Reset did nothing after Pause. `show()` dropped any call made while a request to the API was in flight (`state.busy`). On the live API each tick waits on two requests, so Reset or Step clicked soon after Pause, or during play, was silently ignored.
+- **Reproduced (with guidance from the Claude.ai chat):** against a stand-in API answering in 0.7 s and 0.5 s, a headless browser showed Reset after Pause leaving 8 of 500 samples, and Step during play ignored.
+- **The fix (`web/index.html`):**
+  - The newest request wins. Each `show()` takes a number, and a reply that arrives after a newer request is dropped, in the diagnosis panel too.
+  - `stop()` ends any tick still waiting, so a quick Pause and Play can't start a second playback loop.
+- **Checked against the stand-in API:**
+  - Reset after Pause, and Reset during play, both return to 0 of 500.
+  - Step during play stops playback and moves one sample.
+  - A quick Pause and Play keeps one playback loop: 20 samples in 8 s, against 24 before.
+  - The diagnosis panel resets.
+- **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py`, 64 passed.
+- **Not changed:** the API, the demo's answers, and every evaluation file and record.
