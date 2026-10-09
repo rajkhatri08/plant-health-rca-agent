@@ -163,3 +163,12 @@ def git_repo(tmp_path):
     _git(root, "add", ".")
     _git(root, "commit", "-q", "-m", "init")
     return root
+
+
+@pytest.fixture(autouse=True)
+def _git_identity(monkeypatch):
+    """Tests commit in throwaway repos. Give those commits a name and email, so the suite
+    doesn't depend on this machine's git identity (GitHub's runner has none)."""
+    for who in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{who}_NAME", "test")
+        monkeypatch.setenv(f"GIT_{who}_EMAIL", "t@t")
