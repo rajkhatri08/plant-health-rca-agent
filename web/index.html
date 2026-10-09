@@ -142,6 +142,7 @@
         </select>
       </label>
       <button id="play" class="primary" disabled>Play</button>
+      <button id="back" disabled>Back</button>
       <button id="step" disabled>Step</button>
       <button id="reset" disabled>Reset</button>
       <label>Speed
@@ -186,7 +187,7 @@ const LOCAL_HOSTS = ["localhost", "127.0.0.1", ""];
 const API = LOCAL_HOSTS.includes(location.hostname) ? "http://127.0.0.1:8000" : RENDER_API_URL;
 
 const $ = (id) => document.getElementById(id);
-const state = { info: null, shown: 0, samples: [], playing: false, timer: null, gen: 0, loop: 0, diagnosis: false,
+const state = { info: null, shown: 0, samples: [], playing: false, timer: null, gen: 0, loop: 0, want: 0, diagnosis: false,
                 episode: "1" };
 
 function msg(text, isError = false) {
@@ -213,6 +214,7 @@ async function show(n) {
   const my = ++state.gen;
   try {
     n = Math.max(0, Math.min(n, state.info.samples));
+    state.want = n;                                 // Step and Back build on the newest target
     const data = n === 0 ? { samples: [], current: null }
                          : await getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}&episode=${state.episode}`);
     if (my !== state.gen) return;
@@ -225,6 +227,7 @@ async function show(n) {
   } catch (e) {
     if (my !== state.gen) return;
     stop();
+    state.want = state.shown;
     msg(`Couldn't get the status: ${e.message}`, true);
   }
 }
@@ -249,6 +252,7 @@ function render(current) {
   renderGroups(current);
   $("progress").textContent = `${state.shown} / ${state.info.samples} samples`;
   $("play").textContent = state.playing ? "Pause" : "Play";
+  $("back").disabled = state.shown === 0;
   draw();
 }
 
@@ -400,6 +404,7 @@ function draw() {
 }
 
 function stop() {
+  if (state.playing) state.want = state.shown;      // stepping from a paused replay starts where it stands
   state.playing = false;
   state.loop++;                                     // a tick still waiting on the API ends there
   clearTimeout(state.timer);
@@ -454,13 +459,14 @@ async function init() {
     await show(0);
     msg(`${$("episode").selectedOptions[0].textContent}: press Play, or Step one sample at a time.`);
   };
-  ["play", "step", "reset"].forEach((id) => ($(id).disabled = false));
+  ["play", "back", "step", "reset"].forEach((id) => ($(id).disabled = false));
   $("play").onclick = () => {
     if (state.playing) { stop(); return; }
     if (state.shown >= state.info.samples) state.shown = 0;
     state.playing = true; $("play").textContent = "Pause"; tick(++state.loop);
   };
-  $("step").onclick = () => { stop(); show(state.shown + 1); };
+  $("back").onclick = () => { stop(); show(state.want - 1); };
+  $("step").onclick = () => { stop(); show(state.want + 1); };
   $("reset").onclick = () => { stop(); show(0); };
   window.addEventListener("resize", draw);
   await show(0);

@@ -4297,3 +4297,16 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The diagnosis panel resets.
 - **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py`, 64 passed.
 - **Not changed:** the API, the demo's answers, and every evaluation file and record.
+\n
+### 2026-10-09: after the close, a Back button on the demo page
+- **Why (Raj's question):** the page could step forward but not back; going back meant Reset and replaying.
+- **What (`web/index.html`):** a Back button, one sample earlier. It's disabled at the start of the stream.
+  - Every point is computed only from data up to that moment, so Back shows the earlier moment exactly as it looked before. Nothing looks ahead.
+  - Quick clicks on Step or Back add up, because each builds on the newest target. Back during play stops at what's on screen and goes one sample earlier.
+- **Checked against the stand-in API (0.7 s and 0.5 s replies):**
+  - Back is disabled at 0.
+  - Three quick Steps reach 3, and two quick Backs return to 1.
+  - Back during play stops one sample before what was on screen.
+  - The Reset checks still pass.
+- **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py` pass.
+- **Not changed:** the API, the demo's answers, and every evaluation file and record.
