@@ -225,3 +225,5 @@ data/
 *.rdata
 *.parquet
 !eval/test_access.log
+
+.DS_Store
