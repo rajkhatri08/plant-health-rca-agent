@@ -209,26 +209,31 @@ function uptoFor(n) {
 }
 
 async function show(n) {
-  // The newest request wins: Reset, Step or an episode change take effect even while an
-  // earlier request is still waiting on the API, and a late reply to it is dropped.
+  // The newest request wins: Reset, Step, Back, a note or an episode change take effect even while
+  // an earlier request is still waiting on the API, and a late reply to it is dropped. The status
+  // and its diagnosis are fetched together and drawn together, so they're always from one moment.
   const my = ++state.gen;
   try {
     n = Math.max(0, Math.min(n, state.info.samples));
     state.want = n;                                 // Step and Back build on the newest target
-    const data = n === 0 ? { samples: [], current: null }
-                         : await getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}&episode=${state.episode}`);
+    $("back").disabled = n === 0;
+    const [data, diagnosis] = await Promise.all([
+      n === 0 ? { samples: [], current: null }
+              : getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}&episode=${state.episode}`),
+      state.diagnosis ? fetchDiagnosis(n) : null,
+    ]);
     if (my !== state.gen) return;
     state.shown = n;
     state.want = n;                                 // a Pause while this loaded: Step and Back start from here
     state.samples = data.samples;
     render(data.current);
-    if (state.diagnosis) await showDiagnosis(n, my);
-    if (my !== state.gen) return;
+    if (state.diagnosis) drawDiagnosis(diagnosis);
     msg(n === state.info.samples ? "End of the recorded stream." : "");
   } catch (e) {
     if (my !== state.gen) return;
     stop();
     state.want = state.shown;
+    $("back").disabled = state.shown === 0;
     msg(`Couldn't get the status: ${e.message}`, true);
   }
 }
@@ -311,20 +316,21 @@ function list(items) {
   return ul;
 }
 
-async function showDiagnosis(n, my) {
+function fetchDiagnosis(n) {
+  // Never rejects: a diagnosis that doesn't load shows its error in the panel, and the status still shows.
+  if (n === 0) return Promise.resolve({ start: true });
+  return getJSON(`/diagnosis?upto=${encodeURIComponent(uptoFor(n))}&note=${encodeURIComponent($("note").value)}&episode=${state.episode}`)
+    .then((r) => ({ r }), (e) => ({ error: e.message }));
+}
+
+function drawDiagnosis(got) {
   const box = $("diagnosis");
-  if (n === 0) { box.textContent = ""; box.append(el("p", "Press Play: a diagnosis appears 30 minutes (plant time) after an alert starts.", "msg")); return; }
-  let r;
-  try {
-    r = await getJSON(`/diagnosis?upto=${encodeURIComponent(uptoFor(n))}&note=${encodeURIComponent($("note").value)}&episode=${state.episode}`);
-  } catch (e) {
-    if (my !== state.gen) return;
-    box.textContent = ""; box.append(el("p", `The diagnosis isn't available: ${e.message}`, "msg error")); return;
-  }
-  if (my !== state.gen) return;                     // a newer request replaced this one
   box.textContent = "";
+  if (got.start) { box.append(el("p", "Press Play: a diagnosis appears 30 minutes (plant time) after an alert starts.", "msg")); return; }
+  if (got.error) { box.append(el("p", `The diagnosis isn't available: ${got.error}`, "msg error")); return; }
+  const r = got.r;
   if (!r.available) {
-    box.append(el("p", r.reason + (r.available_from ? ` (at ${r.available_from.slice(11, 16)} plant time)` : ""), "msg"));
+    box.append(el("p", r.reason + (r.available_from ? ` (at ${clockText(r.available_from)} plant time)` : ""), "msg"));
     return;
   }
   const d = r.diagnosis;
@@ -420,7 +426,7 @@ function stop() {
 
 async function tick(loop) {
   if (!state.playing || loop !== state.loop) return;
-  await show(state.shown + Number($("speed").value));
+  await show(state.want + Number($("speed").value));  // from the newest target: a Back or Step just before Play counts
   if (loop !== state.loop) return;
   if (state.shown >= state.info.samples) { stop(); return; }
   state.timer = setTimeout(() => tick(loop), 400);
@@ -448,7 +454,7 @@ async function init() {
   if (health.diagnosis === "ready") {
     state.diagnosis = true;
     $("diagnosis-panel").hidden = false;
-    $("note").onchange = () => showDiagnosis(state.shown, state.gen);
+    $("note").onchange = () => show(state.want);   // the newest target again, its status and diagnosis together
   }
   // Two fixed episodes, labelled by number only; one the API can't serve is hidden.
   const served = (health.episodes || []).map((e) => e.id);
@@ -456,22 +462,28 @@ async function init() {
   $("episode").disabled = served.length < 2;
   $("episode").onchange = async () => {
     stop();
-    const my = ++state.gen;                         // a click while the episode loads wins over the reset to 0
+    ++state.gen;                                    // a reply still on its way for the old episode is dropped
+    const before = state.episode;
+    const controls = ["episode", "note", "play", "back", "step", "reset"].map((id) => $(id));
+    controls.forEach((c) => (c.disabled = true));   // nothing else to click until the new episode has loaded
+    msg("Loading the episode…");
     state.episode = $("episode").value;
     try {
       state.info = await getJSON(`/replay/info?episode=${state.episode}`);
+      await show(0);
+      msg(`${$("episode").selectedOptions[0].textContent}: press Play, or Step one sample at a time.`);
     } catch (e) {
-      if (my === state.gen) msg(`That episode isn't available: ${e.message}`, true);
-      return;
+      state.episode = before;                       // stay on the episode that's still on screen
+      $("episode").value = before;
+      msg(`That episode isn't available: ${e.message}`, true);
     }
-    if (my !== state.gen) return;
-    await show(0);
-    msg(`${$("episode").selectedOptions[0].textContent}: press Play, or Step one sample at a time.`);
+    controls.forEach((c) => (c.disabled = false));
+    $("back").disabled = state.shown === 0;
   };
   ["play", "back", "step", "reset"].forEach((id) => ($(id).disabled = false));
   $("play").onclick = () => {
     if (state.playing) { stop(); return; }
-    if (state.shown >= state.info.samples) state.shown = 0;
+    if (state.want >= state.info.samples) state.want = 0;
     state.playing = true; $("play").textContent = "Pause"; tick(++state.loop);
   };
   $("back").onclick = () => { stop(); show(state.want - 1); };

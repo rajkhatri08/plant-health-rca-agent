@@ -4330,3 +4330,35 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
 - **Also fixed:** the Back entry's script (`add_back.py`) had written a stray line holding a literal `\n` above that entry. It's removed.
 - **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py` pass.
 - **Not changed:** the API, the demo's answers, and every evaluation file and record.
+
+### 2026-10-10: the Claude Code bug hunt of the demo page, and its fixes
+- **The hunt:** Claude Code read the public demo path (`web/index.html`, `app/api.py`, `app/agent/demo.py`, `app/detector/replay.py`), report only (with guidance from the Claude.ai chat). It reported 10 findings, all traced by hand, none run. A `/code-review high web/index.html` ran alongside it, and three of its findings (4, 5, 7) were folded in.
+- **Checked against the episode-2 stand-in API** (as in the previous entry). Before this change, 7 of the 10 reproduced on the page:
+  - **1, a note change during a Step:** the clock read Day 1, 07:36 while the panel still said the diagnosis "comes 30 minutes after the alert".
+  - **6, during Play:** 4 of 24 screen states paired the new status with the previous sample's diagnosis, for one reply's time.
+  - **2, a failed episode load:** the menu stayed on Episode 2, and the next Step asked for episode 2 data at episode 1's position.
+  - **3, a Step during a slow episode load from sample 200:** it landed on sample 201 of the new episode, not at the start.
+  - **5, Play right after five quick Backs from 100:** it played from 104, not from 95.
+  - **7, Back after a Step from 0:** it stayed disabled until the reply came.
+  - **8, the "available from" time:** it had no day.
+  - **4** (a late episode reply after switching back) can't change anything visible today, because both episodes have the same start, length and groups.
+- **The fixes (`web/index.html` only):**
+  - Each sample's status and diagnosis are fetched together and drawn together, so they're always from the same moment. A note change shows the newest target again. Ticks are also quicker, because the two requests now run at once.
+  - While an episode loads, the replay controls and the note are disabled. A failed load returns to the episode on screen (2, 3 and 4).
+  - Play starts from the newest target (5).
+  - Back's state follows the target as soon as it's clicked (7).
+  - "Available from" shows the day (8).
+- **After, all seven pass:**
+  - 1: the panel matches the clock.
+  - 6: none of 12 screen states mixed two moments; each tick now changes the screen once.
+  - 2: the menu returns to Episode 1 with the error shown, and the next Step asks for episode 1.
+  - 3: Step is disabled during the load, and the replay starts at 0.
+  - 5: Play goes to 99.
+  - 7: Back is enabled at once.
+  - 8: the time reads "Day 1, 07:36".
+  - Also checked: a failing `/diagnosis` leaves the status on screen and puts its error in the panel. The earlier Step, Pause, Back, Reset, episode-load and clock checks still pass.
+- **Left as they are:**
+  - **9, the evidence list shows only tags:** true in the code, but the list appears only for a "failed check" or "error" outcome, and no shipped view has one. Episode 1 declines, episode 2 proposes, and the emergency note gives the emergency screen.
+  - **10, a missing `episode2.csv` would also turn off episode 1's diagnosis:** true, and it contradicts `app/api.py`'s docstring. The file is committed, so this needs a broken deploy. `app/agent/demo.py` and `app/api.py` are unchanged since the tag, so this is left as a known gap.
+- **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py` pass.
+- **Not changed:** the API, the demo's answers, and every evaluation file and record.
