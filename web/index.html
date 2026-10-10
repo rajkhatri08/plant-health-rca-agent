@@ -219,6 +219,7 @@ async function show(n) {
                          : await getJSON(`/replay/status?upto=${encodeURIComponent(uptoFor(n))}&episode=${state.episode}`);
     if (my !== state.gen) return;
     state.shown = n;
+    state.want = n;                                 // a Pause while this loaded: Step and Back start from here
     state.samples = data.samples;
     render(data.current);
     if (state.diagnosis) await showDiagnosis(n, my);
@@ -232,6 +233,12 @@ async function show(n) {
   }
 }
 
+function clockText(ts) {
+  // Plant time as the stream's day and a 24-hour clock: the stream runs past midnight.
+  const day = 1 + Math.round((Date.parse(ts.slice(0, 10)) - Date.parse(state.info.start.slice(0, 10))) / 86400000);
+  return `Day ${day}, ${ts.slice(11, 16)}`;
+}
+
 function render(current) {
   const band = current ? current.band : "—";
   $("band").textContent = band;
@@ -243,7 +250,7 @@ function render(current) {
   $("ratio").textContent = current && current.ratio != null ? current.ratio.toFixed(2) : "—";
   const fill = current && current.ratio != null ? Math.min(current.ratio / 3, 1) * 100 : 0;
   $("meter-fill").style.width = fill + "%";
-  $("clock").textContent = current ? current.ts.slice(11, 16) : "—";
+  $("clock").textContent = current ? clockText(current.ts) : "—";
   const c = { Normal: 0, Watch: 0, Alert: 0, Unknown: 0 };
   state.samples.forEach((s) => c[s.band]++);
   $("counts").textContent = !state.samples.length ? "" : state.info.groups ?
@@ -449,13 +456,15 @@ async function init() {
   $("episode").disabled = served.length < 2;
   $("episode").onchange = async () => {
     stop();
+    const my = ++state.gen;                         // a click while the episode loads wins over the reset to 0
     state.episode = $("episode").value;
     try {
       state.info = await getJSON(`/replay/info?episode=${state.episode}`);
     } catch (e) {
-      msg(`That episode isn't available: ${e.message}`, true);
+      if (my === state.gen) msg(`That episode isn't available: ${e.message}`, true);
       return;
     }
+    if (my !== state.gen) return;
     await show(0);
     msg(`${$("episode").selectedOptions[0].textContent}: press Play, or Step one sample at a time.`);
   };

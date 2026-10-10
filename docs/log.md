@@ -4297,7 +4297,7 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - The diagnosis panel resets.
 - **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py`, 64 passed.
 - **Not changed:** the API, the demo's answers, and every evaluation file and record.
-\n
+
 ### 2026-10-09: after the close, a Back button on the demo page
 - **Why (Raj's question):** the page could step forward but not back; going back meant Reset and replaying.
 - **What (`web/index.html`):** a Back button, one sample earlier. It's disabled at the start of the stream.
@@ -4308,5 +4308,25 @@ Claude Code appends one entry at the end of every session, newest at the bottom.
   - Three quick Steps reach 3, and two quick Backs return to 1.
   - Back during play stops one sample before what was on screen.
   - The Reset checks still pass.
+- **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py` pass.
+- **Not changed:** the API, the demo's answers, and every evaluation file and record.
+
+### 2026-10-10: demo page, Step after Pause, the episode load and the day on the clock
+- **What Raj saw while recording:** the plant clock "went to 0 after 23" while the counter read 420 / 500.
+  - That was the 24-hour clock passing midnight. The stream is 500 samples of 3 min, 25 hours from 06:00 to 06:57 the next morning, so 23:57 is followed by 00:00. Nothing reset.
+  - The clock now shows the day: "Day 1, 07:36", and "Day 2, 00:00" after midnight.
+- **A real bug, found while checking** (it came with the Back button, a43e78a):
+  - Pausing while a playback tick was still loading left Step and Back one tick behind what the page then showed.
+  - The first Step jumped back by up to 3 samples (07:21 to 07:12 in the check), and Back by up to 5.
+  - The fix: the sample a reply shows becomes the target that Step and Back build on.
+  - Stopping playback with Step was never affected.
+- **A rarer one:** Steps made while an episode was still loading were undone when it finished loading, so the replay went back to 0. The episode change now gives way to a newer click.
+- **Checked against a stand-in API** that serves episode 2 as the live one does (samples 1–34 copied from the live `/replay/status`; replies of about 0.35 s and 0.25 s, and 3 s for the episode load):
+  - Pause while a tick loaded: the first Step now goes one sample forward from what's shown, and the provisional diagnosis appears at Day 1, 07:36 (sample 33).
+  - Back after such a Pause goes one sample back.
+  - Three Steps during a slow episode load stay at 3 instead of returning to 0.
+  - The clock reads Day 1, 23:57 at sample 360 and Day 2, 00:00 at 361.
+  - The earlier Reset and Back checks still pass.
+- **Also fixed:** the Back entry's script (`add_back.py`) had written a stray line holding a literal `\n` above that entry. It's removed.
 - **Tests:** `tests/test_web.py` and `tests/test_leak_scan.py` pass.
 - **Not changed:** the API, the demo's answers, and every evaluation file and record.
